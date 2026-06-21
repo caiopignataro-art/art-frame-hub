@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ProdutosRouteImport } from './routes/produtos'
 import { Route as ProducaoRouteImport } from './routes/producao'
 import { Route as PedidosRouteImport } from './routes/pedidos'
 import { Route as PagamentosRouteImport } from './routes/pagamentos'
@@ -17,12 +16,8 @@ import { Route as OrcamentosRouteImport } from './routes/orcamentos'
 import { Route as HistoricoRouteImport } from './routes/historico'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProdutosIndexRouteImport } from './routes/produtos.index'
 
-const ProdutosRoute = ProdutosRouteImport.update({
-  id: '/produtos',
-  path: '/produtos',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ProducaoRoute = ProducaoRouteImport.update({
   id: '/producao',
   path: '/producao',
@@ -58,6 +53,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProdutosIndexRoute = ProdutosIndexRouteImport.update({
+  id: '/produtos/',
+  path: '/produtos/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -67,7 +67,7 @@ export interface FileRoutesByFullPath {
   '/pagamentos': typeof PagamentosRoute
   '/pedidos': typeof PedidosRoute
   '/producao': typeof ProducaoRoute
-  '/produtos': typeof ProdutosRoute
+  '/produtos/': typeof ProdutosIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -77,7 +77,7 @@ export interface FileRoutesByTo {
   '/pagamentos': typeof PagamentosRoute
   '/pedidos': typeof PedidosRoute
   '/producao': typeof ProducaoRoute
-  '/produtos': typeof ProdutosRoute
+  '/produtos': typeof ProdutosIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -88,7 +88,7 @@ export interface FileRoutesById {
   '/pagamentos': typeof PagamentosRoute
   '/pedidos': typeof PedidosRoute
   '/producao': typeof ProducaoRoute
-  '/produtos': typeof ProdutosRoute
+  '/produtos/': typeof ProdutosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -100,7 +100,7 @@ export interface FileRouteTypes {
     | '/pagamentos'
     | '/pedidos'
     | '/producao'
-    | '/produtos'
+    | '/produtos/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -120,7 +120,7 @@ export interface FileRouteTypes {
     | '/pagamentos'
     | '/pedidos'
     | '/producao'
-    | '/produtos'
+    | '/produtos/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -131,18 +131,11 @@ export interface RootRouteChildren {
   PagamentosRoute: typeof PagamentosRoute
   PedidosRoute: typeof PedidosRoute
   ProducaoRoute: typeof ProducaoRoute
-  ProdutosRoute: typeof ProdutosRoute
+  ProdutosIndexRoute: typeof ProdutosIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/produtos': {
-      id: '/produtos'
-      path: '/produtos'
-      fullPath: '/produtos'
-      preLoaderRoute: typeof ProdutosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/producao': {
       id: '/producao'
       path: '/producao'
@@ -192,6 +185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/produtos/': {
+      id: '/produtos/'
+      path: '/produtos'
+      fullPath: '/produtos/'
+      preLoaderRoute: typeof ProdutosIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -203,7 +203,7 @@ const rootRouteChildren: RootRouteChildren = {
   PagamentosRoute: PagamentosRoute,
   PedidosRoute: PedidosRoute,
   ProducaoRoute: ProducaoRoute,
-  ProdutosRoute: ProdutosRoute,
+  ProdutosIndexRoute: ProdutosIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

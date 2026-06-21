@@ -11,7 +11,7 @@ import { produtosService } from "@/lib/services/produtos.service";
 import { PRODUTO_TIPO_LABEL } from "@/types/erp";
 import { formatBRL } from "@/lib/format";
 
-export const Route = createFileRoute("/produtos")({
+export const Route = createFileRoute("/produtos/")({
   head: () => ({ meta: [{ title: "Produtos — Molduraria ERP" }] }),
   component: ProdutosPage,
 });
