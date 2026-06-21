@@ -35,7 +35,9 @@ function ProdutosLayout() {
           );
         })}
       </nav>
-      <Outlet />
+      <div className="space-y-4">
+        <Outlet />
+      </div>
     </AppShell>
   );
 }
