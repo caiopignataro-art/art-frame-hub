@@ -19,6 +19,7 @@ export type Database = {
           cpf_cnpj: string | null
           created_at: string
           email: string | null
+          endereco: string | null
           id: string
           nome: string
           observacoes: string | null
@@ -30,6 +31,7 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string
           email?: string | null
+          endereco?: string | null
           id?: string
           nome: string
           observacoes?: string | null
@@ -41,6 +43,7 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string
           email?: string | null
+          endereco?: string | null
           id?: string
           nome?: string
           observacoes?: string | null
