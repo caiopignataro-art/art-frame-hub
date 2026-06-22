@@ -17,6 +17,9 @@ const ORC_VARIANT: Record<OrcamentoStatus, "default" | "secondary" | "outline" |
   expirado: "destructive",
 };
 const PED_VARIANT: Record<PedidoStatus, "default" | "secondary" | "outline" | "destructive"> = {
+  orcamento: "secondary",
+  aguardando_aprovacao: "outline",
+  aprovado: "default",
   aguardando_producao: "secondary",
   em_producao: "outline",
   montagem: "outline",
