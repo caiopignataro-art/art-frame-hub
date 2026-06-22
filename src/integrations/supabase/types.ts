@@ -50,6 +50,134 @@ export type Database = {
         }
         Relationships: []
       }
+      configuracoes_sistema: {
+        Row: {
+          chave: string
+          created_at: string
+          descricao: string | null
+          id: string
+          updated_at: string
+          valor: Json
+        }
+        Insert: {
+          chave: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          updated_at?: string
+          valor: Json
+        }
+        Update: {
+          chave?: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          updated_at?: string
+          valor?: Json
+        }
+        Relationships: []
+      }
+      estoque_movimentacoes: {
+        Row: {
+          created_at: string
+          id: string
+          observacao: string | null
+          pedido_id: string | null
+          produto_id: string
+          quantidade_barras: number
+          quantidade_cm: number
+          reserva_id: string | null
+          retalho_id: string | null
+          saldo_anterior_cm: number
+          saldo_posterior_cm: number
+          tipo: Database["public"]["Enums"]["estoque_movimento_tipo"]
+          usuario: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          pedido_id?: string | null
+          produto_id: string
+          quantidade_barras?: number
+          quantidade_cm: number
+          reserva_id?: string | null
+          retalho_id?: string | null
+          saldo_anterior_cm?: number
+          saldo_posterior_cm?: number
+          tipo: Database["public"]["Enums"]["estoque_movimento_tipo"]
+          usuario?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          pedido_id?: string | null
+          produto_id?: string
+          quantidade_barras?: number
+          quantidade_cm?: number
+          reserva_id?: string | null
+          retalho_id?: string | null
+          saldo_anterior_cm?: number
+          saldo_posterior_cm?: number
+          tipo?: Database["public"]["Enums"]["estoque_movimento_tipo"]
+          usuario?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_movimentacoes_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimentacoes_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimentacoes_reserva_id_fkey"
+            columns: ["reserva_id"]
+            isOneToOne: false
+            referencedRelation: "reservas_estoque"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimentacoes_retalho_id_fkey"
+            columns: ["retalho_id"]
+            isOneToOne: false
+            referencedRelation: "retalhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fabricante_estoque_minimo: {
+        Row: {
+          created_at: string
+          estoque_minimo_barras: number
+          fabricante: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          estoque_minimo_barras?: number
+          fabricante: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          estoque_minimo_barras?: number
+          fabricante?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       historico: {
         Row: {
           acao: Database["public"]["Enums"]["historico_acao"]
@@ -307,6 +435,124 @@ export type Database = {
           },
         ]
       }
+      ordens_producao: {
+        Row: {
+          altura_arte_cm: number | null
+          altura_externa_cm: number | null
+          altura_final_cm: number | null
+          consumo_fundo_m2: number
+          consumo_moldura_cm: number
+          consumo_vidro_m2: number
+          created_at: string
+          fundo_produto_id: string | null
+          id: string
+          largura_arte_cm: number | null
+          largura_externa_cm: number | null
+          largura_final_cm: number | null
+          metadados: Json
+          numero_op: string
+          observacao: string | null
+          passe_partout_produto_id: string | null
+          pedido_id: string
+          pedido_item_id: string | null
+          perfil_produto_id: string | null
+          protecao_produto_id: string | null
+          status: Database["public"]["Enums"]["ordem_producao_status"]
+          updated_at: string
+        }
+        Insert: {
+          altura_arte_cm?: number | null
+          altura_externa_cm?: number | null
+          altura_final_cm?: number | null
+          consumo_fundo_m2?: number
+          consumo_moldura_cm?: number
+          consumo_vidro_m2?: number
+          created_at?: string
+          fundo_produto_id?: string | null
+          id?: string
+          largura_arte_cm?: number | null
+          largura_externa_cm?: number | null
+          largura_final_cm?: number | null
+          metadados?: Json
+          numero_op?: string
+          observacao?: string | null
+          passe_partout_produto_id?: string | null
+          pedido_id: string
+          pedido_item_id?: string | null
+          perfil_produto_id?: string | null
+          protecao_produto_id?: string | null
+          status?: Database["public"]["Enums"]["ordem_producao_status"]
+          updated_at?: string
+        }
+        Update: {
+          altura_arte_cm?: number | null
+          altura_externa_cm?: number | null
+          altura_final_cm?: number | null
+          consumo_fundo_m2?: number
+          consumo_moldura_cm?: number
+          consumo_vidro_m2?: number
+          created_at?: string
+          fundo_produto_id?: string | null
+          id?: string
+          largura_arte_cm?: number | null
+          largura_externa_cm?: number | null
+          largura_final_cm?: number | null
+          metadados?: Json
+          numero_op?: string
+          observacao?: string | null
+          passe_partout_produto_id?: string | null
+          pedido_id?: string
+          pedido_item_id?: string | null
+          perfil_produto_id?: string | null
+          protecao_produto_id?: string | null
+          status?: Database["public"]["Enums"]["ordem_producao_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordens_producao_fundo_produto_id_fkey"
+            columns: ["fundo_produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_passe_partout_produto_id_fkey"
+            columns: ["passe_partout_produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_pedido_item_id_fkey"
+            columns: ["pedido_item_id"]
+            isOneToOne: false
+            referencedRelation: "pedido_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_perfil_produto_id_fkey"
+            columns: ["perfil_produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_protecao_produto_id_fkey"
+            columns: ["protecao_produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pagamentos: {
         Row: {
           created_at: string
@@ -483,6 +729,7 @@ export type Database = {
           created_at: string
           descricao: string | null
           estoque: number
+          estoque_minimo_barras: number
           fabricante: string | null
           id: string
           largura_cm: number | null
@@ -503,6 +750,7 @@ export type Database = {
           created_at?: string
           descricao?: string | null
           estoque?: number
+          estoque_minimo_barras?: number
           fabricante?: string | null
           id?: string
           largura_cm?: number | null
@@ -523,6 +771,7 @@ export type Database = {
           created_at?: string
           descricao?: string | null
           estoque?: number
+          estoque_minimo_barras?: number
           fabricante?: string | null
           id?: string
           largura_cm?: number | null
@@ -537,14 +786,177 @@ export type Database = {
         }
         Relationships: []
       }
+      reservas_estoque: {
+        Row: {
+          comprimento_cm: number
+          created_at: string
+          id: string
+          observacao: string | null
+          pedido_id: string
+          pedido_item_id: string | null
+          produto_id: string
+          retalho_id: string | null
+          status: Database["public"]["Enums"]["reserva_status"]
+          updated_at: string
+        }
+        Insert: {
+          comprimento_cm: number
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          pedido_id: string
+          pedido_item_id?: string | null
+          produto_id: string
+          retalho_id?: string | null
+          status?: Database["public"]["Enums"]["reserva_status"]
+          updated_at?: string
+        }
+        Update: {
+          comprimento_cm?: number
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          pedido_id?: string
+          pedido_item_id?: string | null
+          produto_id?: string
+          retalho_id?: string | null
+          status?: Database["public"]["Enums"]["reserva_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservas_estoque_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservas_estoque_pedido_item_id_fkey"
+            columns: ["pedido_item_id"]
+            isOneToOne: false
+            referencedRelation: "pedido_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservas_estoque_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservas_estoque_retalho_id_fkey"
+            columns: ["retalho_id"]
+            isOneToOne: false
+            referencedRelation: "retalhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      retalhos: {
+        Row: {
+          comprimento_cm: number
+          created_at: string
+          data_corte: string
+          data_uso: string | null
+          id: string
+          observacao: string | null
+          origem_pedido_id: string | null
+          pedido_uso_id: string | null
+          produto_id: string
+          status: Database["public"]["Enums"]["retalho_status"]
+          updated_at: string
+        }
+        Insert: {
+          comprimento_cm: number
+          created_at?: string
+          data_corte?: string
+          data_uso?: string | null
+          id?: string
+          observacao?: string | null
+          origem_pedido_id?: string | null
+          pedido_uso_id?: string | null
+          produto_id: string
+          status?: Database["public"]["Enums"]["retalho_status"]
+          updated_at?: string
+        }
+        Update: {
+          comprimento_cm?: number
+          created_at?: string
+          data_corte?: string
+          data_uso?: string | null
+          id?: string
+          observacao?: string | null
+          origem_pedido_id?: string | null
+          pedido_uso_id?: string | null
+          produto_id?: string
+          status?: Database["public"]["Enums"]["retalho_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retalhos_origem_pedido_id_fkey"
+            columns: ["origem_pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retalhos_pedido_uso_id_fkey"
+            columns: ["pedido_uso_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retalhos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calcular_consumo_moldura: {
+        Args: {
+          _altura_final: number
+          _larg_perfil: number
+          _largura_final: number
+        }
+        Returns: number
+      }
+      cfg_num: { Args: { _chave: string; _default: number }; Returns: number }
+      consumir_reservas_pedido: {
+        Args: { _pedido_id: string }
+        Returns: undefined
+      }
+      estoque_saldo_cm: { Args: { _produto_id: string }; Returns: number }
+      estornar_reservas_pedido: {
+        Args: { _pedido_id: string }
+        Returns: undefined
+      }
+      processar_reserva_pedido: {
+        Args: { _pedido_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
+      estoque_movimento_tipo:
+        | "entrada"
+        | "ajuste"
+        | "reserva"
+        | "estorno_reserva"
+        | "consumo"
+        | "estorno_consumo"
+        | "uso_retalho"
+        | "geracao_retalho"
+        | "descarte_retalho"
       forma_pagamento:
         | "dinheiro"
         | "pix"
@@ -561,6 +973,11 @@ export type Database = {
         | "recusado"
         | "expirado"
         | "convertido"
+      ordem_producao_status:
+        | "aberta"
+        | "em_andamento"
+        | "concluida"
+        | "cancelada"
       pagamento_status:
         | "pendente"
         | "pago"
@@ -586,6 +1003,8 @@ export type Database = {
         | "perfil_moldura"
         | "passe_partout"
         | "protecao_frontal"
+      reserva_status: "ativa" | "consumida" | "estornada"
+      retalho_status: "disponivel" | "usado" | "descartado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -713,6 +1132,17 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      estoque_movimento_tipo: [
+        "entrada",
+        "ajuste",
+        "reserva",
+        "estorno_reserva",
+        "consumo",
+        "estorno_consumo",
+        "uso_retalho",
+        "geracao_retalho",
+        "descarte_retalho",
+      ],
       forma_pagamento: [
         "dinheiro",
         "pix",
@@ -730,6 +1160,12 @@ export const Constants = {
         "recusado",
         "expirado",
         "convertido",
+      ],
+      ordem_producao_status: [
+        "aberta",
+        "em_andamento",
+        "concluida",
+        "cancelada",
       ],
       pagamento_status: [
         "pendente",
@@ -759,6 +1195,8 @@ export const Constants = {
         "passe_partout",
         "protecao_frontal",
       ],
+      reserva_status: ["ativa", "consumida", "estornada"],
+      retalho_status: ["disponivel", "usado", "descartado"],
     },
   },
 } as const
