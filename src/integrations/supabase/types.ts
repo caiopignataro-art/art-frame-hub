@@ -134,6 +134,69 @@ export type Database = {
         }
         Relationships: []
       }
+      notificacoes_whatsapp: {
+        Row: {
+          cliente_id: string | null
+          created_at: string
+          destinatario: string | null
+          enviado_em: string | null
+          erro: string | null
+          evento: string
+          id: string
+          mensagem: string
+          payload: Json
+          pedido_id: string | null
+          status: string
+          tentativas: number
+          updated_at: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string
+          destinatario?: string | null
+          enviado_em?: string | null
+          erro?: string | null
+          evento: string
+          id?: string
+          mensagem: string
+          payload?: Json
+          pedido_id?: string | null
+          status?: string
+          tentativas?: number
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string
+          destinatario?: string | null
+          enviado_em?: string | null
+          erro?: string | null
+          evento?: string
+          id?: string
+          mensagem?: string
+          payload?: Json
+          pedido_id?: string | null
+          status?: string
+          tentativas?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificacoes_whatsapp_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notificacoes_whatsapp_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orcamento_itens: {
         Row: {
           altura_cm: number | null
@@ -510,6 +573,8 @@ export type Database = {
         | "pronto"
         | "entregue"
         | "cancelado"
+        | "montagem"
+        | "controle_qualidade"
       produto_tipo:
         | "moldura"
         | "vidro"
@@ -679,6 +744,8 @@ export const Constants = {
         "pronto",
         "entregue",
         "cancelado",
+        "montagem",
+        "controle_qualidade",
       ],
       produto_tipo: [
         "moldura",
