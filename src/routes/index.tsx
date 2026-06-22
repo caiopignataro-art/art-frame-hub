@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Calculadora } from "@/components/calculadora/Calculadora";
 import { clientesService } from "@/lib/services/clientes.service";
 import { orcamentosService } from "@/lib/services/orcamentos.service";
 import { pedidosService } from "@/lib/services/pedidos.service";
@@ -13,8 +14,8 @@ import { Users, FileText, ShoppingBag, CreditCard } from "lucide-react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dashboard — Molduraria ERP" },
-      { name: "description", content: "Visão geral do ERP de molduraria." },
+      { title: "Calculadora — Molduraria ERP" },
+      { name: "description", content: "Calculadora de orçamento de molduraria." },
     ],
   }),
   component: DashboardPage,
@@ -35,30 +36,20 @@ function DashboardPage() {
   );
 
   return (
-    <AppShell title="Dashboard">
+    <AppShell title="Calculadora">
       <PageHeader
-        title="Visão geral"
-        description="Resumo dos principais indicadores da operação."
+        title="Calculadora de Orçamento"
+        description="Monte um quadro personalizado, veja custo, venda e lucro em tempo real e converta em orçamento ou pedido."
       />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <Calculadora />
+
+      <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={<Users className="h-4 w-4" />} label="Clientes" value={clientes.data?.length ?? 0} />
         <StatCard icon={<FileText className="h-4 w-4" />} label="Orçamentos" value={orcamentos.data?.length ?? 0} />
         <StatCard icon={<ShoppingBag className="h-4 w-4" />} label="Pedidos ativos" value={pedidosAtivos.length} />
         <StatCard icon={<CreditCard className="h-4 w-4" />} label="Total recebido" value={formatBRL(totalRecebido)} />
       </div>
-
-      <Card className="mt-8">
-        <CardHeader>
-          <CardTitle>Próximos passos</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>✓ Banco de dados, RLS, índices, triggers de auditoria e seeds criados.</p>
-          <p>✓ Camada de serviços tipada em <code className="rounded bg-muted px-1 py-0.5">src/lib/services/</code>.</p>
-          <p>✓ Rotas para cada módulo do ERP.</p>
-          <p>→ Próximos módulos: calculadora de quadros, formulários, geração de PDF, autenticação por papel.</p>
-        </CardContent>
-      </Card>
     </AppShell>
   );
 }
