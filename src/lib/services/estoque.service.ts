@@ -80,7 +80,7 @@ export const estoqueService = {
     }
 
     return (produtos ?? []).map((p) => {
-      const barras = Number(p.quantidade ?? 0);
+      const barras = Number((p as { estoque?: number }).estoque ?? 0);
       const totalBarrasCm = barras * compBarra;
       const retalhosCm = retalhosMap.get(p.id) ?? 0;
       const saldo = totalBarrasCm + retalhosCm;
@@ -176,18 +176,19 @@ export const estoqueService = {
   async ajustarEstoque(produtoId: string, deltaBarras: number, observacao?: string) {
     const { data: prod, error: eP } = await supabase
       .from("produtos")
-      .select("id, quantidade")
+      .select("id, estoque")
       .eq("id", produtoId)
       .single();
     if (eP) throw eP;
     const compBarra = await getComprimentoBarra();
-    const novaQtd = Math.max(0, Number(prod.quantidade ?? 0) + deltaBarras);
-    const saldoAntes = Number(prod.quantidade ?? 0) * compBarra;
+    const atual = Number((prod as { estoque?: number }).estoque ?? 0);
+    const novaQtd = Math.max(0, atual + deltaBarras);
+    const saldoAntes = atual * compBarra;
     const saldoDepois = novaQtd * compBarra;
 
     const { error: upErr } = await supabase
       .from("produtos")
-      .update({ quantidade: novaQtd })
+      .update({ estoque: novaQtd } as never)
       .eq("id", produtoId);
     if (upErr) throw upErr;
 

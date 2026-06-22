@@ -8,7 +8,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Boxes, Scissors, AlertTriangle, DollarSign } from "lucide-react";
 import { estoqueService } from "@/lib/services/estoque.service";
-import { formatCurrency } from "@/lib/format";
+import { formatBRL } from "@/lib/format";
 
 export const Route = createFileRoute("/estoque/")({
   component: EstoqueDashboardPage,
