@@ -141,6 +141,7 @@ export type Database = {
           descricao: string | null
           id: string
           largura_cm: number | null
+          metadados: Json
           observacoes: string | null
           orcamento_id: string
           produto_id: string | null
@@ -155,6 +156,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           largura_cm?: number | null
+          metadados?: Json
           observacoes?: string | null
           orcamento_id: string
           produto_id?: string | null
@@ -169,6 +171,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           largura_cm?: number | null
+          metadados?: Json
           observacoes?: string | null
           orcamento_id?: string
           produto_id?: string | null
@@ -199,6 +202,7 @@ export type Database = {
           cliente_id: string | null
           created_at: string
           id: string
+          metadados: Json
           numero_orcamento: number
           observacoes: string | null
           status: Database["public"]["Enums"]["orcamento_status"]
@@ -210,6 +214,7 @@ export type Database = {
           cliente_id?: string | null
           created_at?: string
           id?: string
+          metadados?: Json
           numero_orcamento?: number
           observacoes?: string | null
           status?: Database["public"]["Enums"]["orcamento_status"]
@@ -221,6 +226,7 @@ export type Database = {
           cliente_id?: string | null
           created_at?: string
           id?: string
+          metadados?: Json
           numero_orcamento?: number
           observacoes?: string | null
           status?: Database["public"]["Enums"]["orcamento_status"]
@@ -289,6 +295,7 @@ export type Database = {
           descricao: string | null
           id: string
           largura_cm: number | null
+          metadados: Json
           observacoes: string | null
           pedido_id: string
           produto_id: string | null
@@ -303,6 +310,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           largura_cm?: number | null
+          metadados?: Json
           observacoes?: string | null
           pedido_id: string
           produto_id?: string | null
@@ -317,6 +325,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           largura_cm?: number | null
+          metadados?: Json
           observacoes?: string | null
           pedido_id?: string
           produto_id?: string | null
@@ -344,11 +353,12 @@ export type Database = {
       }
       pedidos: {
         Row: {
-          cliente_id: string
+          cliente_id: string | null
           created_at: string
           data_entrega_prevista: string | null
           data_entrega_realizada: string | null
           id: string
+          metadados: Json
           numero_pedido: number
           observacoes: string | null
           orcamento_id: string | null
@@ -357,11 +367,12 @@ export type Database = {
           valor_total: number
         }
         Insert: {
-          cliente_id: string
+          cliente_id?: string | null
           created_at?: string
           data_entrega_prevista?: string | null
           data_entrega_realizada?: string | null
           id?: string
+          metadados?: Json
           numero_pedido?: number
           observacoes?: string | null
           orcamento_id?: string | null
@@ -370,11 +381,12 @@ export type Database = {
           valor_total?: number
         }
         Update: {
-          cliente_id?: string
+          cliente_id?: string | null
           created_at?: string
           data_entrega_prevista?: string | null
           data_entrega_realizada?: string | null
           id?: string
+          metadados?: Json
           numero_pedido?: number
           observacoes?: string | null
           orcamento_id?: string | null
