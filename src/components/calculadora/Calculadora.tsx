@@ -101,8 +101,8 @@ export function Calculadora() {
       quantidade,
       largura_interna_cm: largura,
       altura_interna_cm: altura,
-      molduras: molduras.map((produto) => ({ produto })),
-      passe_partouts: passes,
+      molduras: molduras.filter(Boolean).map((produto) => ({ produto })),
+      passe_partouts: passes.filter((pp) => pp.produto),
       protecao,
       fundo,
       servicos,
@@ -110,6 +110,7 @@ export function Calculadora() {
     }),
     [quantidade, largura, altura, molduras, passes, protecao, fundo, servicos, observacoes],
   );
+
 
   const result = React.useMemo(() => calcular(input), [input]);
 
