@@ -10,19 +10,23 @@ import {
   History,
   LayoutDashboard,
   Frame,
+  Boxes,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { to: "/",           label: "Calculadora", icon: LayoutDashboard },
-  { to: "/dashboard",  label: "Dashboard",   icon: LayoutDashboard },
-  { to: "/clientes",   label: "Clientes",    icon: Users },
-  { to: "/orcamentos", label: "Orçamentos",  icon: FileText },
-  { to: "/pedidos",    label: "Pedidos",     icon: ShoppingBag },
-  { to: "/producao",   label: "Produção",    icon: Hammer },
-  { to: "/pagamentos", label: "Pagamentos",  icon: CreditCard },
-  { to: "/produtos",   label: "Produtos",    icon: Package },
-  { to: "/historico",  label: "Histórico",   icon: History },
+  { to: "/",              label: "Calculadora", icon: LayoutDashboard },
+  { to: "/dashboard",     label: "Dashboard",   icon: LayoutDashboard },
+  { to: "/clientes",      label: "Clientes",    icon: Users },
+  { to: "/orcamentos",    label: "Orçamentos",  icon: FileText },
+  { to: "/pedidos",       label: "Pedidos",     icon: ShoppingBag },
+  { to: "/producao",      label: "Produção",    icon: Hammer },
+  { to: "/estoque",       label: "Estoque",     icon: Boxes },
+  { to: "/pagamentos",    label: "Pagamentos",  icon: CreditCard },
+  { to: "/produtos",      label: "Produtos",    icon: Package },
+  { to: "/historico",     label: "Histórico",   icon: History },
+  { to: "/configuracoes", label: "Configurações", icon: Settings },
 ] as const;
 
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
