@@ -17,6 +17,19 @@ export const clientesService = {
     return data;
   },
 
+  async search(termo: string): Promise<Cliente[]> {
+    const t = termo.trim();
+    if (!t) return this.list();
+    const { data, error } = await supabase
+      .from("clientes")
+      .select("*")
+      .or(`nome.ilike.%${t}%,telefone.ilike.%${t}%,whatsapp.ilike.%${t}%,cpf_cnpj.ilike.%${t}%`)
+      .order("nome", { ascending: true })
+      .limit(20);
+    if (error) throw error;
+    return data ?? [];
+  },
+
   async create(input: ClienteInsert): Promise<Cliente> {
     const { data, error } = await supabase.from("clientes").insert(input).select("*").single();
     if (error) throw error;

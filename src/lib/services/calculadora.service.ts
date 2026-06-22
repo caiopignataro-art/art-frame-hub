@@ -1,10 +1,10 @@
 /**
- * Persistência da Calculadora — salva como orçamento e, opcionalmente,
- * adiciona como item a um pedido novo/existente.
+ * Helpers da Calculadora — converte resultado da calculadora em
+ * um item-rascunho de pedido (PedidoItemDraft), pronto para ser
+ * adicionado à tela de Novo Pedido.
  */
-import { supabase } from "@/integrations/supabase/client";
 import type { CalcInput, CalcResult } from "@/lib/calculadora/types";
-import type { Orcamento, Pedido } from "@/types/erp";
+import type { PedidoItemDraft } from "@/types/erp";
 
 function buildItemDescricao(input: CalcInput, result: CalcResult): string {
   const moldura = input.molduras
@@ -14,7 +14,7 @@ function buildItemDescricao(input: CalcInput, result: CalcResult): string {
   return [moldura || "Quadro personalizado", tam].filter(Boolean).join(" — ");
 }
 
-function buildMetadados(input: CalcInput, result: CalcResult) {
+export function buildMetadados(input: CalcInput, result: CalcResult) {
   return {
     versao: 1,
     origem: "calculadora",
@@ -41,102 +41,46 @@ function buildMetadados(input: CalcInput, result: CalcResult) {
   };
 }
 
+export function buildDraftItem(input: CalcInput, result: CalcResult): PedidoItemDraft {
+  return {
+    descricao: buildItemDescricao(input, result),
+    quantidade: result.quantidade,
+    largura_cm: result.largura_final_cm,
+    altura_cm: result.altura_final_cm,
+    valor_unitario: result.total_venda / Math.max(1, result.quantidade),
+    valor_total: result.total_venda,
+    metadados: buildMetadados(input, result),
+  };
+}
+
+// ---- Sessão (transporta itens da calculadora → /pedidos/novo) ----
+const KEY = "molduraria-novo-pedido-itens";
+
+export const novoPedidoStore = {
+  read(): PedidoItemDraft[] {
+    if (typeof window === "undefined") return [];
+    try {
+      return JSON.parse(sessionStorage.getItem(KEY) || "[]");
+    } catch {
+      return [];
+    }
+  },
+  write(itens: PedidoItemDraft[]) {
+    if (typeof window === "undefined") return;
+    sessionStorage.setItem(KEY, JSON.stringify(itens));
+  },
+  add(item: PedidoItemDraft) {
+    const cur = this.read();
+    cur.push(item);
+    this.write(cur);
+  },
+  clear() {
+    if (typeof window === "undefined") return;
+    sessionStorage.removeItem(KEY);
+  },
+};
+
 export const calculadoraService = {
-  /** Salva como orçamento (rascunho) sem cliente. */
-  async salvarOrcamento(input: CalcInput, result: CalcResult): Promise<Orcamento> {
-    const { data: orc, error } = await supabase
-      .from("orcamentos")
-      .insert({
-        status: "rascunho",
-        valor_total: result.total_venda,
-        observacoes: input.observacoes ?? null,
-        metadados: buildMetadados(input, result),
-      } as any)
-      .select("*")
-      .single();
-    if (error) throw error;
-
-    const { error: itErr } = await supabase.from("orcamento_itens").insert({
-      orcamento_id: orc.id,
-      descricao: buildItemDescricao(input, result),
-      quantidade: result.quantidade,
-      largura_cm: result.largura_final_cm,
-      altura_cm: result.altura_final_cm,
-      valor_unitario: result.total_venda / Math.max(1, result.quantidade),
-      valor_total: result.total_venda,
-      metadados: buildMetadados(input, result),
-    } as any);
-    if (itErr) throw itErr;
-
-    return orc as Orcamento;
-  },
-
-  /** Adiciona um item calculado a um pedido existente. */
-  async adicionarAPedidoExistente(
-    pedidoId: string,
-    input: CalcInput,
-    result: CalcResult,
-  ): Promise<Pedido> {
-    const { error: itErr } = await supabase.from("pedido_itens").insert({
-      pedido_id: pedidoId,
-      descricao: buildItemDescricao(input, result),
-      quantidade: result.quantidade,
-      largura_cm: result.largura_final_cm,
-      altura_cm: result.altura_final_cm,
-      valor_unitario: result.total_venda / Math.max(1, result.quantidade),
-      valor_total: result.total_venda,
-      metadados: buildMetadados(input, result),
-    } as any);
-    if (itErr) throw itErr;
-
-    // recalcula total do pedido
-    const { data: itens } = await supabase
-      .from("pedido_itens")
-      .select("valor_total")
-      .eq("pedido_id", pedidoId);
-    const total = (itens ?? []).reduce((s, i) => s + Number(i.valor_total), 0);
-
-    const { data: ped, error: upErr } = await supabase
-      .from("pedidos")
-      .update({ valor_total: total })
-      .eq("id", pedidoId)
-      .select("*")
-      .single();
-    if (upErr) throw upErr;
-    return ped as Pedido;
-  },
-
-  /** Cria um pedido novo com o item calculado. */
-  async criarPedidoNovo(
-    input: CalcInput,
-    result: CalcResult,
-    opts?: { cliente_id?: string | null; observacoes?: string | null },
-  ): Promise<Pedido> {
-    const { data: ped, error } = await supabase
-      .from("pedidos")
-      .insert({
-        cliente_id: opts?.cliente_id ?? null,
-        status: "aguardando_producao",
-        valor_total: result.total_venda,
-        observacoes: opts?.observacoes ?? input.observacoes ?? null,
-        metadados: buildMetadados(input, result),
-      } as any)
-      .select("*")
-      .single();
-    if (error) throw error;
-
-    const { error: itErr } = await supabase.from("pedido_itens").insert({
-      pedido_id: ped.id,
-      descricao: buildItemDescricao(input, result),
-      quantidade: result.quantidade,
-      largura_cm: result.largura_final_cm,
-      altura_cm: result.altura_final_cm,
-      valor_unitario: result.total_venda / Math.max(1, result.quantidade),
-      valor_total: result.total_venda,
-      metadados: buildMetadados(input, result),
-    } as any);
-    if (itErr) throw itErr;
-
-    return ped as Pedido;
-  },
+  buildDraftItem,
+  buildMetadados,
 };

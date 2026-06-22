@@ -2,7 +2,6 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import {
   Users,
-  FileText,
   ShoppingBag,
   Hammer,
   CreditCard,
@@ -19,7 +18,6 @@ const NAV = [
   { to: "/",              label: "Calculadora", icon: LayoutDashboard },
   { to: "/dashboard",     label: "Dashboard",   icon: LayoutDashboard },
   { to: "/clientes",      label: "Clientes",    icon: Users },
-  { to: "/orcamentos",    label: "Orçamentos",  icon: FileText },
   { to: "/pedidos",       label: "Pedidos",     icon: ShoppingBag },
   { to: "/producao",      label: "Produção",    icon: Hammer },
   { to: "/estoque",       label: "Estoque",     icon: Boxes },
@@ -61,7 +59,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           })}
         </nav>
         <div className="border-t border-sidebar-border p-4 text-xs text-sidebar-foreground/60">
-          v0.1 · ambiente de desenvolvimento
+          v0.2 · ambiente de desenvolvimento
         </div>
       </aside>
 
