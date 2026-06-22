@@ -172,8 +172,10 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
         reset();
       } else {
         novoPedidoStore.add(item);
+        console.log("[Calculadora] item salvo em sessionStorage", item);
         toast.success("Item enviado para o novo pedido");
         reset();
+        console.log("[Calculadora] navegando para /pedidos/novo");
         navigate({ to: "/pedidos/novo" });
       }
     } finally {

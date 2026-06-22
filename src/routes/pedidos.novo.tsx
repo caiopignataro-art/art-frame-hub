@@ -53,10 +53,16 @@ function NovoPedidoPage() {
 
   // Carrega itens iniciais vindos da calculadora (sessionStorage)
   React.useEffect(() => {
-    const inicial = novoPedidoStore.read();
-    if (inicial.length > 0) {
-      setItens(inicial);
-      novoPedidoStore.clear();
+    console.log("[NovoPedido] rota acessada");
+    try {
+      const inicial = novoPedidoStore.read();
+      console.log("[NovoPedido] itens recuperados do sessionStorage:", inicial);
+      if (inicial.length > 0) {
+        setItens(inicial);
+        novoPedidoStore.clear();
+      }
+    } catch (err) {
+      console.error("[NovoPedido] erro lendo sessionStorage", err);
     }
   }, []);
 
