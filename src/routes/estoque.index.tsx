@@ -37,7 +37,7 @@ function EstoqueDashboardPage() {
         <KpiCard icon={<Boxes className="h-4 w-4" />} label="Barras em estoque" value={resumo?.total_barras?.toFixed(1) ?? "—"} />
         <KpiCard icon={<Scissors className="h-4 w-4" />} label="Retalhos (cm)" value={resumo?.total_retalhos?.toFixed(0) ?? "—"} />
         <KpiCard icon={<AlertTriangle className="h-4 w-4" />} label="Perfis abaixo do mínimo" value={String(resumo?.perfis_baixo_estoque ?? 0)} />
-        <KpiCard icon={<DollarSign className="h-4 w-4" />} label="Valor do estoque" value={resumo ? formatCurrency(resumo.valor_estoque) : "—"} />
+        <KpiCard icon={<DollarSign className="h-4 w-4" />} label="Valor do estoque" value={resumo ? formatBRL(resumo.valor_estoque) : "—"} />
       </div>
 
       {baixos.length > 0 && (
