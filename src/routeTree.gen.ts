@@ -13,7 +13,6 @@ import { Route as ProdutosRouteImport } from './routes/produtos'
 import { Route as ProducaoRouteImport } from './routes/producao'
 import { Route as PedidosRouteImport } from './routes/pedidos'
 import { Route as PagamentosRouteImport } from './routes/pagamentos'
-import { Route as OrcamentosRouteImport } from './routes/orcamentos'
 import { Route as HistoricoRouteImport } from './routes/historico'
 import { Route as EstoqueRouteImport } from './routes/estoque'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -45,11 +44,6 @@ const PedidosRoute = PedidosRouteImport.update({
 const PagamentosRoute = PagamentosRouteImport.update({
   id: '/pagamentos',
   path: '/pagamentos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OrcamentosRoute = OrcamentosRouteImport.update({
-  id: '/orcamentos',
-  path: '/orcamentos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HistoricoRoute = HistoricoRouteImport.update({
@@ -120,7 +114,6 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRouteWithChildren
   '/historico': typeof HistoricoRoute
-  '/orcamentos': typeof OrcamentosRoute
   '/pagamentos': typeof PagamentosRoute
   '/pedidos': typeof PedidosRoute
   '/producao': typeof ProducaoRoute
@@ -138,7 +131,6 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
   '/historico': typeof HistoricoRoute
-  '/orcamentos': typeof OrcamentosRoute
   '/pagamentos': typeof PagamentosRoute
   '/pedidos': typeof PedidosRoute
   '/producao': typeof ProducaoRoute
@@ -157,7 +149,6 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRouteWithChildren
   '/historico': typeof HistoricoRoute
-  '/orcamentos': typeof OrcamentosRoute
   '/pagamentos': typeof PagamentosRoute
   '/pedidos': typeof PedidosRoute
   '/producao': typeof ProducaoRoute
@@ -178,7 +169,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/estoque'
     | '/historico'
-    | '/orcamentos'
     | '/pagamentos'
     | '/pedidos'
     | '/producao'
@@ -196,7 +186,6 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/dashboard'
     | '/historico'
-    | '/orcamentos'
     | '/pagamentos'
     | '/pedidos'
     | '/producao'
@@ -214,7 +203,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/estoque'
     | '/historico'
-    | '/orcamentos'
     | '/pagamentos'
     | '/pedidos'
     | '/producao'
@@ -234,7 +222,6 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   EstoqueRoute: typeof EstoqueRouteWithChildren
   HistoricoRoute: typeof HistoricoRoute
-  OrcamentosRoute: typeof OrcamentosRoute
   PagamentosRoute: typeof PagamentosRoute
   PedidosRoute: typeof PedidosRoute
   ProducaoRoute: typeof ProducaoRoute
@@ -269,13 +256,6 @@ declare module '@tanstack/react-router' {
       path: '/pagamentos'
       fullPath: '/pagamentos'
       preLoaderRoute: typeof PagamentosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/orcamentos': {
-      id: '/orcamentos'
-      path: '/orcamentos'
-      fullPath: '/orcamentos'
-      preLoaderRoute: typeof OrcamentosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/historico': {
@@ -403,7 +383,6 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   EstoqueRoute: EstoqueRouteWithChildren,
   HistoricoRoute: HistoricoRoute,
-  OrcamentosRoute: OrcamentosRoute,
   PagamentosRoute: PagamentosRoute,
   PedidosRoute: PedidosRoute,
   ProducaoRoute: ProducaoRoute,

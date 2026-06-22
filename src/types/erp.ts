@@ -1,7 +1,5 @@
 /**
  * Tipos de domínio do ERP de Molduraria.
- * Re-exporta os tipos gerados pelo Supabase com aliases legíveis
- * e adiciona shapes auxiliares (com relações populadas).
  */
 import type { Database, Tables, TablesInsert, TablesUpdate, Enums } from "@/integrations/supabase/types";
 
@@ -53,7 +51,7 @@ export type PedidoComItens = Pedido & {
   pagamentos: Pagamento[];
 };
 
-// ---------- Labels (para UI) ----------
+// ---------- Labels ----------
 export const ORCAMENTO_STATUS_LABEL: Record<OrcamentoStatus, string> = {
   rascunho: "Rascunho",
   enviado: "Enviado",
@@ -64,7 +62,10 @@ export const ORCAMENTO_STATUS_LABEL: Record<OrcamentoStatus, string> = {
 };
 
 export const PEDIDO_STATUS_LABEL: Record<PedidoStatus, string> = {
-  aguardando_producao: "Aguardando",
+  orcamento: "Orçamento",
+  aguardando_aprovacao: "Aguardando aprovação",
+  aprovado: "Aprovado",
+  aguardando_producao: "Aguardando produção",
   em_producao: "Em produção",
   montagem: "Montagem",
   controle_qualidade: "Controle de qualidade",
@@ -73,14 +74,25 @@ export const PEDIDO_STATUS_LABEL: Record<PedidoStatus, string> = {
   cancelado: "Cancelado",
 };
 
-/** Ordem do fluxo de produção (sem cancelado). */
+/** Fluxo completo de status (sem cancelado). */
 export const PEDIDO_FLUXO: PedidoStatus[] = [
+  "orcamento",
+  "aguardando_aprovacao",
+  "aprovado",
   "aguardando_producao",
   "em_producao",
   "montagem",
   "controle_qualidade",
   "pronto",
   "entregue",
+];
+
+/** Status iniciais (antes de entrar em produção). */
+export const PEDIDO_STATUS_INICIAIS: PedidoStatus[] = [
+  "orcamento",
+  "aguardando_aprovacao",
+  "aprovado",
+  "cancelado",
 ];
 
 // ---------- WhatsApp ----------
@@ -124,7 +136,6 @@ export const PRODUTO_TIPO_LABEL: Record<ProdutoTipo, string> = {
   outro: "Outro",
 };
 
-/** Categorias suportadas pela importação de XLSX. */
 export const PRODUTO_CATEGORIAS_IMPORTACAO = [
   "perfil_moldura",
   "passe_partout",
@@ -134,3 +145,14 @@ export const PRODUTO_CATEGORIAS_IMPORTACAO = [
 ] as const satisfies readonly ProdutoTipo[];
 
 export type ProdutoCategoriaImportacao = (typeof PRODUTO_CATEGORIAS_IMPORTACAO)[number];
+
+// ---------- Item temporário da Calculadora (transferido para Novo Pedido) ----------
+export interface PedidoItemDraft {
+  descricao: string;
+  quantidade: number;
+  largura_cm: number;
+  altura_cm: number;
+  valor_unitario: number;
+  valor_total: number;
+  metadados: Record<string, unknown>;
+}
