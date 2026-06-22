@@ -90,11 +90,25 @@ export const FORMA_PAGAMENTO_LABEL: Record<FormaPagamento, string> = {
 };
 
 export const PRODUTO_TIPO_LABEL: Record<ProdutoTipo, string> = {
-  moldura: "Moldura",
-  vidro: "Vidro",
-  paspatur: "Paspatur",
+  perfil_moldura: "Perfil de Moldura",
+  passe_partout: "Passe-partout",
+  protecao_frontal: "Proteção Frontal",
   fundo: "Fundo",
-  acessorio: "Acessório",
   servico: "Serviço",
+  moldura: "Moldura (legado)",
+  vidro: "Vidro (legado)",
+  paspatur: "Paspatur (legado)",
+  acessorio: "Acessório (legado)",
   outro: "Outro",
 };
+
+/** Categorias suportadas pela importação de XLSX. */
+export const PRODUTO_CATEGORIAS_IMPORTACAO = [
+  "perfil_moldura",
+  "passe_partout",
+  "protecao_frontal",
+  "fundo",
+  "servico",
+] as const satisfies readonly ProdutoTipo[];
+
+export type ProdutoCategoriaImportacao = (typeof PRODUTO_CATEGORIAS_IMPORTACAO)[number];

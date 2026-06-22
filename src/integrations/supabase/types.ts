@@ -86,6 +86,54 @@ export type Database = {
         }
         Relationships: []
       }
+      importacoes: {
+        Row: {
+          arquivo_nome: string
+          atualizados: number
+          categoria: Database["public"]["Enums"]["produto_tipo"]
+          created_at: string
+          erros: number
+          erros_detalhe: Json
+          id: string
+          ignorados: number
+          inseridos: number
+          status: string
+          total_linhas: number
+          updated_at: string
+          usuario: string | null
+        }
+        Insert: {
+          arquivo_nome: string
+          atualizados?: number
+          categoria: Database["public"]["Enums"]["produto_tipo"]
+          created_at?: string
+          erros?: number
+          erros_detalhe?: Json
+          id?: string
+          ignorados?: number
+          inseridos?: number
+          status?: string
+          total_linhas?: number
+          updated_at?: string
+          usuario?: string | null
+        }
+        Update: {
+          arquivo_nome?: string
+          atualizados?: number
+          categoria?: Database["public"]["Enums"]["produto_tipo"]
+          created_at?: string
+          erros?: number
+          erros_detalhe?: Json
+          id?: string
+          ignorados?: number
+          inseridos?: number
+          status?: string
+          total_linhas?: number
+          updated_at?: string
+          usuario?: string | null
+        }
+        Relationships: []
+      }
       orcamento_itens: {
         Row: {
           altura_cm: number | null
@@ -353,14 +401,19 @@ export type Database = {
       }
       produtos: {
         Row: {
+          acabamento: string | null
+          altura_cm: number | null
           ativo: boolean
           codigo: string | null
           created_at: string
           descricao: string | null
           estoque: number
+          fabricante: string | null
           id: string
+          largura_cm: number | null
           nome: string
           observacoes: string | null
+          perfil: string | null
           preco_custo: number
           preco_venda: number
           tipo: Database["public"]["Enums"]["produto_tipo"]
@@ -368,14 +421,19 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          acabamento?: string | null
+          altura_cm?: number | null
           ativo?: boolean
           codigo?: string | null
           created_at?: string
           descricao?: string | null
           estoque?: number
+          fabricante?: string | null
           id?: string
+          largura_cm?: number | null
           nome: string
           observacoes?: string | null
+          perfil?: string | null
           preco_custo?: number
           preco_venda?: number
           tipo?: Database["public"]["Enums"]["produto_tipo"]
@@ -383,14 +441,19 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          acabamento?: string | null
+          altura_cm?: number | null
           ativo?: boolean
           codigo?: string | null
           created_at?: string
           descricao?: string | null
           estoque?: number
+          fabricante?: string | null
           id?: string
+          largura_cm?: number | null
           nome?: string
           observacoes?: string | null
+          perfil?: string | null
           preco_custo?: number
           preco_venda?: number
           tipo?: Database["public"]["Enums"]["produto_tipo"]
@@ -443,6 +506,9 @@ export type Database = {
         | "acessorio"
         | "servico"
         | "outro"
+        | "perfil_moldura"
+        | "passe_partout"
+        | "protecao_frontal"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -610,6 +676,9 @@ export const Constants = {
         "acessorio",
         "servico",
         "outro",
+        "perfil_moldura",
+        "passe_partout",
+        "protecao_frontal",
       ],
     },
   },
