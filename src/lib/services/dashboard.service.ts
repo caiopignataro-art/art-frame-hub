@@ -54,7 +54,7 @@ export const dashboardService = {
     // Produtos mais utilizados
     const mapaProd = new Map<string, { quantidade: number; total: number }>();
     itens.forEach((i) => {
-      const k = i.descricao;
+      const k = i.descricao ?? "—";
       const cur = mapaProd.get(k) ?? { quantidade: 0, total: 0 };
       cur.quantidade += Number(i.quantidade);
       cur.total += Number(i.valor_total);
