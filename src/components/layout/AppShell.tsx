@@ -14,14 +14,15 @@ import {
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { to: "/",           label: "Dashboard",  icon: LayoutDashboard },
-  { to: "/clientes",   label: "Clientes",   icon: Users },
-  { to: "/orcamentos", label: "Orçamentos", icon: FileText },
-  { to: "/pedidos",    label: "Pedidos",    icon: ShoppingBag },
-  { to: "/producao",   label: "Produção",   icon: Hammer },
-  { to: "/pagamentos", label: "Pagamentos", icon: CreditCard },
-  { to: "/produtos",   label: "Produtos",   icon: Package },
-  { to: "/historico",  label: "Histórico",  icon: History },
+  { to: "/",           label: "Calculadora", icon: LayoutDashboard },
+  { to: "/dashboard",  label: "Dashboard",   icon: LayoutDashboard },
+  { to: "/clientes",   label: "Clientes",    icon: Users },
+  { to: "/orcamentos", label: "Orçamentos",  icon: FileText },
+  { to: "/pedidos",    label: "Pedidos",     icon: ShoppingBag },
+  { to: "/producao",   label: "Produção",    icon: Hammer },
+  { to: "/pagamentos", label: "Pagamentos",  icon: CreditCard },
+  { to: "/produtos",   label: "Produtos",    icon: Package },
+  { to: "/historico",  label: "Histórico",   icon: History },
 ] as const;
 
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {

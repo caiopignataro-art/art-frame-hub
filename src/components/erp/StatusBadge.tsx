@@ -19,6 +19,8 @@ const ORC_VARIANT: Record<OrcamentoStatus, "default" | "secondary" | "outline" |
 const PED_VARIANT: Record<PedidoStatus, "default" | "secondary" | "outline" | "destructive"> = {
   aguardando_producao: "secondary",
   em_producao: "outline",
+  montagem: "outline",
+  controle_qualidade: "outline",
   pronto: "default",
   entregue: "default",
   cancelado: "destructive",
