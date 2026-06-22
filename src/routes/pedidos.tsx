@@ -1,10 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { pedidosService } from "@/lib/services/pedidos.service";
@@ -39,7 +41,15 @@ function PedidosPage() {
 
   return (
     <AppShell title="Pedidos">
-      <PageHeader title="Pedidos" description="Pedidos confirmados e em fluxo." />
+      <PageHeader
+        title="Pedidos"
+        description="Pedidos do orçamento à entrega."
+        actions={
+          <Button asChild>
+            <Link to="/pedidos/novo"><Plus className="mr-2 h-4 w-4" /> Novo pedido</Link>
+          </Button>
+        }
+      />
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row">
         <Input

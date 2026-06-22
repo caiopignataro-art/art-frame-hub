@@ -19,6 +19,7 @@ export type Database = {
           cpf_cnpj: string | null
           created_at: string
           email: string | null
+          endereco: string | null
           id: string
           nome: string
           observacoes: string | null
@@ -30,6 +31,7 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string
           email?: string | null
+          endereco?: string | null
           id?: string
           nome: string
           observacoes?: string | null
@@ -41,6 +43,7 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string
           email?: string | null
+          endereco?: string | null
           id?: string
           nome?: string
           observacoes?: string | null
@@ -666,42 +669,58 @@ export type Database = {
           created_at: string
           data_entrega_prevista: string | null
           data_entrega_realizada: string | null
+          data_pedido: string
+          forma_pagamento: Database["public"]["Enums"]["forma_pagamento"] | null
           id: string
           metadados: Json
           numero_pedido: number
           observacoes: string | null
           orcamento_id: string | null
+          pdf_url: string | null
           status: Database["public"]["Enums"]["pedido_status"]
           updated_at: string
           valor_total: number
+          whatsapp_enviado: boolean
         }
         Insert: {
           cliente_id?: string | null
           created_at?: string
           data_entrega_prevista?: string | null
           data_entrega_realizada?: string | null
+          data_pedido?: string
+          forma_pagamento?:
+            | Database["public"]["Enums"]["forma_pagamento"]
+            | null
           id?: string
           metadados?: Json
           numero_pedido?: number
           observacoes?: string | null
           orcamento_id?: string | null
+          pdf_url?: string | null
           status?: Database["public"]["Enums"]["pedido_status"]
           updated_at?: string
           valor_total?: number
+          whatsapp_enviado?: boolean
         }
         Update: {
           cliente_id?: string | null
           created_at?: string
           data_entrega_prevista?: string | null
           data_entrega_realizada?: string | null
+          data_pedido?: string
+          forma_pagamento?:
+            | Database["public"]["Enums"]["forma_pagamento"]
+            | null
           id?: string
           metadados?: Json
           numero_pedido?: number
           observacoes?: string | null
           orcamento_id?: string | null
+          pdf_url?: string | null
           status?: Database["public"]["Enums"]["pedido_status"]
           updated_at?: string
           valor_total?: number
+          whatsapp_enviado?: boolean
         }
         Relationships: [
           {
@@ -985,6 +1004,9 @@ export type Database = {
         | "estornado"
         | "cancelado"
       pedido_status:
+        | "orcamento"
+        | "aguardando_aprovacao"
+        | "aprovado"
         | "aguardando_producao"
         | "em_producao"
         | "pronto"
@@ -1175,6 +1197,9 @@ export const Constants = {
         "cancelado",
       ],
       pedido_status: [
+        "orcamento",
+        "aguardando_aprovacao",
+        "aprovado",
         "aguardando_producao",
         "em_producao",
         "pronto",

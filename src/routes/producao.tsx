@@ -18,6 +18,7 @@ export const Route = createFileRoute("/producao")({
 });
 
 const COLUMNS: { status: PedidoStatus; label: string }[] = [
+  { status: "aprovado", label: "Aprovado" },
   { status: "aguardando_producao", label: "Aguardando" },
   { status: "em_producao", label: "Em produção" },
   { status: "montagem", label: "Montagem" },
@@ -49,8 +50,8 @@ function ProducaoPage() {
 
   return (
     <AppShell title="Produção">
-      <PageHeader title="Fluxo de produção" description="Visão Kanban dos pedidos por estágio." />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <PageHeader title="Fluxo de produção" description="Visão Kanban dos pedidos aprovados em produção." />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         {COLUMNS.map((col) => {
           const items = pedidos.filter((p) => p.status === col.status);
           return (

@@ -1,14 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { CheckCircle2, MessageCircle, XCircle } from "lucide-react";
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { PedidoStatusBadge } from "@/components/erp/StatusBadge";
 import { pedidosService } from "@/lib/services/pedidos.service";
 import { historicoService } from "@/lib/services/historico.service";
 import { whatsappService } from "@/lib/services/whatsapp.service";
 import { formatBRL, formatDate, formatDateTime } from "@/lib/format";
 import { PEDIDO_FLUXO, PEDIDO_STATUS_LABEL, type PedidoStatus } from "@/types/erp";
+import { gerarPedidoPDF, gerarMensagemWhatsapp, whatsappUrl } from "@/lib/pdf/pedidoPDF";
 
 export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: string | null; onOpenChange: (open: boolean) => void }) {
+  const qc = useQueryClient();
   const open = !!pedidoId;
   const pedido = useQuery({
     queryKey: ["pedido", pedidoId],
@@ -29,12 +35,56 @@ export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: strin
   const p = pedido.data;
   const statusAtualIdx = p ? PEDIDO_FLUXO.indexOf(p.status as PedidoStatus) : -1;
 
+  const setStatus = useMutation({
+    mutationFn: (s: PedidoStatus) => pedidosService.setStatus(pedidoId!, s),
+    onSuccess: () => {
+      toast.success("Status atualizado");
+      qc.invalidateQueries({ queryKey: ["pedido", pedidoId] });
+      qc.invalidateQueries({ queryKey: ["pedidos"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const handleEnviarWhats = async () => {
+    if (!p) return;
+    try {
+      const { blob, filename } = gerarPedidoPDF({
+        pedido: p,
+        cliente: p.cliente,
+        itens: p.itens ?? [],
+      });
+      // baixa o PDF localmente para o usuário anexar no WhatsApp
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      const msg = gerarMensagemWhatsapp({
+        pedido: p,
+        cliente: p.cliente,
+        itens: p.itens ?? [],
+      });
+      const tel = p.cliente?.whatsapp ?? p.cliente?.telefone ?? "";
+      window.open(whatsappUrl(tel, msg), "_blank");
+
+      await pedidosService.marcarWhatsappEnviado(p.id);
+      qc.invalidateQueries({ queryKey: ["pedido", pedidoId] });
+      toast.success("PDF baixado e WhatsApp aberto.");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao gerar PDF");
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {p ? <>Pedido #{p.numero_pedido} <PedidoStatusBadge status={p.status} /></> : "Pedido"}
+            {p ? <span className="inline-flex items-center gap-2">Pedido #{p.numero_pedido} <PedidoStatusBadge status={p.status} /></span> : "Pedido"}
           </DialogTitle>
         </DialogHeader>
 
@@ -47,7 +97,33 @@ export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: strin
               <div><span className="text-muted-foreground">Entregue em:</span> {formatDate(p.data_entrega_realizada)}</div>
             </div>
 
-            {/* Linha do tempo de produção */}
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={handleEnviarWhats} variant="default">
+                <MessageCircle className="mr-1 h-4 w-4" />
+                {p.whatsapp_enviado ? "Reenviar via WhatsApp" : "Enviar pedido via WhatsApp"}
+              </Button>
+              {p.status === "orcamento" && (
+                <Button size="sm" variant="outline" onClick={() => setStatus.mutate("aguardando_aprovacao")} disabled={setStatus.isPending}>
+                  Enviar para aprovação
+                </Button>
+              )}
+              {p.status === "aguardando_aprovacao" && (
+                <>
+                  <Button size="sm" onClick={() => setStatus.mutate("aprovado")} disabled={setStatus.isPending}>
+                    <CheckCircle2 className="mr-1 h-4 w-4" /> Aprovar
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => setStatus.mutate("cancelado")} disabled={setStatus.isPending}>
+                    <XCircle className="mr-1 h-4 w-4" /> Cancelar
+                  </Button>
+                </>
+              )}
+              {p.status === "aprovado" && (
+                <Button size="sm" onClick={() => setStatus.mutate("aguardando_producao")} disabled={setStatus.isPending}>
+                  Liberar para produção
+                </Button>
+              )}
+            </div>
+
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">Linha do tempo</CardTitle></CardHeader>
               <CardContent>

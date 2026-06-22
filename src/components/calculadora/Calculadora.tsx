@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { Plus, Trash2, Calculator as CalcIcon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,14 +20,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
   Table,
   TableBody,
   TableCell,
@@ -36,15 +29,14 @@ import {
 } from "@/components/ui/table";
 
 import { produtosService } from "@/lib/services/produtos.service";
-import { pedidosService } from "@/lib/services/pedidos.service";
-import { calculadoraService } from "@/lib/services/calculadora.service";
+import { calculadoraService, novoPedidoStore } from "@/lib/services/calculadora.service";
 import { calcular } from "@/lib/calculadora/calculator";
 import type {
   CalcInput,
   MaterialOrigem,
   PassePartoutSelecionado,
 } from "@/lib/calculadora/types";
-import type { Produto } from "@/types/erp";
+import type { Produto, PedidoItemDraft } from "@/types/erp";
 import { formatBRL } from "@/lib/format";
 import { ProdutoAutocomplete } from "./ProdutoAutocomplete";
 
@@ -56,7 +48,21 @@ const ORIGEM_LABEL: Record<MaterialOrigem, string> = {
   servico: "Serviço",
 };
 
-export function Calculadora() {
+export interface CalculadoraProps {
+  /**
+   * Quando fornecido, o botão "Adicionar" entrega o item-rascunho via callback
+   * (sem navegar). Usado embutida na tela de Novo Pedido.
+   */
+  onAdd?: (item: PedidoItemDraft) => void;
+  /** Texto do botão de cancelar (default: "Cancelar"). */
+  cancelLabel?: string;
+  /** Callback do botão Cancelar. Default: navegar para "/". */
+  onCancel?: () => void;
+}
+
+export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: CalculadoraProps) {
+  const navigate = useNavigate();
+
   const perfilQ = useQuery({
     queryKey: ["produtos", "perfil_moldura"],
     queryFn: () => produtosService.list({ tipo: "perfil_moldura", ativo: true }),
@@ -77,10 +83,6 @@ export function Calculadora() {
     queryKey: ["produtos", "servico"],
     queryFn: () => produtosService.list({ tipo: "servico", ativo: true }),
   });
-  const pedidosQ = useQuery({
-    queryKey: ["pedidos", "ativos"],
-    queryFn: () => pedidosService.list(),
-  });
 
   const [quantidade, setQuantidade] = React.useState(1);
   const [largura, setLargura] = React.useState(30);
@@ -91,10 +93,7 @@ export function Calculadora() {
   const [fundo, setFundo] = React.useState<Produto | null>(null);
   const [servicos, setServicos] = React.useState<Produto[]>([]);
   const [observacoes, setObservacoes] = React.useState("");
-
   const [saving, setSaving] = React.useState(false);
-  const [pickPedidoOpen, setPickPedidoOpen] = React.useState(false);
-  const [selectedPedidoId, setSelectedPedidoId] = React.useState<string | null>(null);
 
   const input: CalcInput = React.useMemo(
     () => ({
@@ -110,7 +109,6 @@ export function Calculadora() {
     }),
     [quantidade, largura, altura, molduras, passes, protecao, fundo, servicos, observacoes],
   );
-
 
   const result = React.useMemo(() => calcular(input), [input]);
 
@@ -157,50 +155,27 @@ export function Calculadora() {
     setObservacoes("");
   };
 
-  const handleSalvarOrcamento = async () => {
-    setSaving(true);
-    try {
-      const orc = await calculadoraService.salvarOrcamento(input, result);
-      toast.success(`Orçamento #${orc.numero_orcamento} salvo`);
-      reset();
-    } catch (e: any) {
-      toast.error(e.message ?? "Falha ao salvar orçamento");
-    } finally {
-      setSaving(false);
-    }
+  const handleCancelar = () => {
+    reset();
+    if (onCancel) onCancel();
+    else navigate({ to: "/" });
   };
 
-  const handleNovoPedido = async () => {
+  const handleAdicionar = () => {
+    if (!canSave) return;
     setSaving(true);
     try {
-      // salva orçamento automaticamente (auditoria/rastro)
-      await calculadoraService.salvarOrcamento(input, result);
-      const ped = await calculadoraService.criarPedidoNovo(input, result);
-      toast.success(`Pedido #${ped.numero_pedido} criado`);
-      reset();
-    } catch (e: any) {
-      toast.error(e.message ?? "Falha ao criar pedido");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleAdicionarPedido = async () => {
-    if (!selectedPedidoId) return;
-    setSaving(true);
-    try {
-      await calculadoraService.salvarOrcamento(input, result);
-      const ped = await calculadoraService.adicionarAPedidoExistente(
-        selectedPedidoId,
-        input,
-        result,
-      );
-      toast.success(`Adicionado ao pedido #${ped.numero_pedido}`);
-      setPickPedidoOpen(false);
-      setSelectedPedidoId(null);
-      reset();
-    } catch (e: any) {
-      toast.error(e.message ?? "Falha ao adicionar ao pedido");
+      const item = calculadoraService.buildDraftItem(input, result);
+      if (onAdd) {
+        onAdd(item);
+        toast.success("Item adicionado ao pedido");
+        reset();
+      } else {
+        novoPedidoStore.add(item);
+        toast.success("Item enviado para o novo pedido");
+        reset();
+        navigate({ to: "/pedidos/novo" });
+      }
     } finally {
       setSaving(false);
     }
@@ -251,7 +226,6 @@ export function Calculadora() {
               </Field>
             </div>
 
-            {/* Molduras */}
             <SectionHeader
               title="Perfil de Moldura"
               hint="Permite múltiplas molduras"
@@ -259,9 +233,7 @@ export function Calculadora() {
               addLabel="Adicionar moldura"
             />
             <div className="space-y-2">
-              {molduras.length === 0 && (
-                <EmptyHint text="Nenhuma moldura selecionada." />
-              )}
+              {molduras.length === 0 && <EmptyHint text="Nenhuma moldura selecionada." />}
               {molduras.map((m, idx) => (
                 <div key={idx} className="flex gap-2">
                   <div className="flex-1">
@@ -278,7 +250,6 @@ export function Calculadora() {
               ))}
             </div>
 
-            {/* Passe-partout */}
             <SectionHeader
               title="Passe-partout"
               hint="Permite múltiplos passe-partouts, cada um com sua medida"
@@ -311,7 +282,6 @@ export function Calculadora() {
               ))}
             </div>
 
-            {/* Proteção / Fundo */}
             <div className="grid grid-cols-2 gap-3">
               <Field label="Proteção frontal">
                 <Select
@@ -355,7 +325,6 @@ export function Calculadora() {
               </Field>
             </div>
 
-            {/* Serviços */}
             <div>
               <Label className="text-sm font-medium">Serviços</Label>
               <p className="text-xs text-muted-foreground mb-2">Seleção múltipla.</p>
@@ -432,17 +401,13 @@ export function Calculadora() {
                     {result.materiais.map((m, i) => (
                       <TableRow key={i}>
                         <TableCell className="text-xs">
-                          <Badge variant="outline" className="mr-1">
-                            {ORIGEM_LABEL[m.origem]}
-                          </Badge>
+                          <Badge variant="outline" className="mr-1">{ORIGEM_LABEL[m.origem]}</Badge>
                           {m.codigo && (
                             <span className="font-mono text-muted-foreground">[{m.codigo}] </span>
                           )}
                           {m.descricao}
                         </TableCell>
-                        <TableCell className="text-right text-xs">
-                          {m.quantidade} {m.unidade}
-                        </TableCell>
+                        <TableCell className="text-right text-xs">{m.quantidade} {m.unidade}</TableCell>
                         <TableCell className="text-right text-xs">{formatBRL(m.custo_total)}</TableCell>
                         <TableCell className="text-right text-xs">{formatBRL(m.venda_total)}</TableCell>
                         <TableCell className="text-right text-xs">{formatBRL(m.lucro)}</TableCell>
@@ -463,76 +428,17 @@ export function Calculadora() {
             </div>
 
             <div className="flex flex-wrap gap-2 pt-2">
-              <Button variant="outline" onClick={reset} disabled={saving}>
-                Cancelar
+              <Button variant="outline" onClick={handleCancelar} disabled={saving}>
+                {cancelLabel}
               </Button>
-              <Button
-                variant="secondary"
-                onClick={handleSalvarOrcamento}
-                disabled={!canSave || saving}
-              >
-                Salvar orçamento
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setPickPedidoOpen(true)}
-                disabled={!canSave || saving}
-              >
-                Adicionar a pedido existente
-              </Button>
-              <Button onClick={handleNovoPedido} disabled={!canSave || saving}>
+              <Button onClick={handleAdicionar} disabled={!canSave || saving}>
                 <Plus className="h-4 w-4 mr-1" />
-                Adicionar a novo pedido
+                Adicionar
               </Button>
             </div>
           </div>
         </div>
       </CardContent>
-
-      {/* Diálogo: escolher pedido existente */}
-      <Dialog open={pickPedidoOpen} onOpenChange={setPickPedidoOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Adicionar a pedido existente</DialogTitle>
-            <DialogDescription>
-              Selecione um pedido em aberto para anexar este item calculado.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="max-h-72 overflow-y-auto rounded-md border divide-y">
-            {(pedidosQ.data ?? []).length === 0 && (
-              <p className="p-3 text-sm text-muted-foreground">Nenhum pedido cadastrado.</p>
-            )}
-            {(pedidosQ.data ?? []).map((p) => (
-              <label
-                key={p.id}
-                className="flex items-center gap-3 p-3 text-sm cursor-pointer hover:bg-muted"
-              >
-                <input
-                  type="radio"
-                  name="pedido"
-                  value={p.id}
-                  checked={selectedPedidoId === p.id}
-                  onChange={() => setSelectedPedidoId(p.id)}
-                />
-                <span className="flex-1">
-                  <span className="font-mono">#{p.numero_pedido}</span> —{" "}
-                  {p.cliente?.nome ?? <span className="italic text-muted-foreground">sem cliente</span>}
-                </span>
-                <Badge variant="outline">{p.status}</Badge>
-                <span>{formatBRL(Number(p.valor_total))}</span>
-              </label>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setPickPedidoOpen(false)} disabled={saving}>
-              Cancelar
-            </Button>
-            <Button onClick={handleAdicionarPedido} disabled={!selectedPedidoId || saving}>
-              Anexar item
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 }
