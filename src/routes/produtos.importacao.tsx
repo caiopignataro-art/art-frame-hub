@@ -11,10 +11,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, XCircle, Boxes, Info } from "lucide-react";
 import { PRODUTO_CATEGORIAS_IMPORTACAO, PRODUTO_TIPO_LABEL, type ProdutoCategoriaImportacao } from "@/types/erp";
 import { parsePlanilha, type ParseResult } from "@/lib/importacao/parsers";
-import { importacoesService } from "@/lib/services/importacoes.service";
+import { importacoesService, type ImportacaoModo } from "@/lib/services/importacoes.service";
 import { formatBRL } from "@/lib/format";
 
 export const Route = createFileRoute("/produtos/importacao")({
@@ -26,13 +38,17 @@ function ImportacaoPage() {
   const qc = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [categoria, setCategoria] = useState<ProdutoCategoriaImportacao>("perfil_moldura");
+  const [modo, setModo] = useState<ImportacaoModo>("estoque");
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const historico = useQuery({
     queryKey: ["importacoes"],
     queryFn: () => importacoesService.list(20),
   });
+
+  const modoEstoqueDisponivel = categoria === "perfil_moldura";
 
   const commitMutation = useMutation({
     mutationFn: async () => {
@@ -42,12 +58,19 @@ function ImportacaoPage() {
         arquivo_nome: fileName,
         rows: parseResult.rows,
         issues: parseResult.issues,
+        modo: modoEstoqueDisponivel ? modo : "completo",
       });
     },
     onSuccess: (res) => {
-      toast.success(
-        `Importação concluída: ${res.inseridos} novo(s), ${res.atualizados} atualizado(s), ${res.erros} erro(s).`,
-      );
+      if (res.modo === "estoque") {
+        toast.success(
+          `Estoque atualizado: ${res.somente_estoque} registro(s) · ${res.nao_encontrados} não encontrado(s) · ${res.erros} erro(s).`,
+        );
+      } else {
+        toast.success(
+          `Importação concluída: ${res.inseridos} novo(s), ${res.atualizados} atualizado(s), ${res.erros} erro(s).`,
+        );
+      }
       qc.invalidateQueries({ queryKey: ["produtos"] });
       qc.invalidateQueries({ queryKey: ["importacoes"] });
       setParseResult(null);
@@ -84,6 +107,8 @@ function ImportacaoPage() {
   const erros = useMemo(() => parseResult?.issues.filter((i) => i.severidade === "erro") ?? [], [parseResult]);
   const avisos = useMemo(() => parseResult?.issues.filter((i) => i.severidade === "aviso") ?? [], [parseResult]);
 
+  const modoEfetivo: ImportacaoModo = modoEstoqueDisponivel ? modo : "completo";
+
   return (
     <>
       <PageHeader
@@ -91,7 +116,7 @@ function ImportacaoPage() {
         description="Carregue planilhas XLSX para inserir e atualizar o catálogo automaticamente."
       />
 
-      <Card className="p-6">
+      <Card className="p-6 space-y-6">
         <div className="grid gap-4 md:grid-cols-[1fr_auto_auto] md:items-end">
           <div>
             <label className="mb-2 block text-sm font-medium">Categoria</label>
@@ -119,15 +144,73 @@ function ImportacaoPage() {
           </Button>
           <Button
             disabled={!parseResult || parseResult.rows.length === 0 || commitMutation.isPending}
-            onClick={() => commitMutation.mutate()}
+            onClick={() => setConfirmOpen(true)}
           >
             <FileSpreadsheet className="mr-2 h-4 w-4" />
             {commitMutation.isPending ? "Importando…" : "Confirmar importação"}
           </Button>
         </div>
+
+        {modoEstoqueDisponivel && (
+          <div className="space-y-3 rounded-md border border-border bg-muted/30 p-4">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Boxes className="h-4 w-4" /> Modo de Importação
+            </div>
+            <RadioGroup
+              value={modo}
+              onValueChange={(v) => setModo(v as ImportacaoModo)}
+              className="grid gap-3 md:grid-cols-2"
+            >
+              <label
+                htmlFor="modo-estoque"
+                className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${
+                  modo === "estoque" ? "border-primary bg-primary/5" : "border-border"
+                }`}
+              >
+                <RadioGroupItem id="modo-estoque" value="estoque" className="mt-0.5" />
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">Atualizar Apenas Estoque <Badge variant="secondary" className="ml-1">padrão</Badge></div>
+                  <p className="text-xs text-muted-foreground">
+                    Localiza pelo <strong>Código</strong> e atualiza somente a quantidade. Preço,
+                    descrição, perfil e demais campos cadastrais permanecem inalterados.
+                  </p>
+                </div>
+              </label>
+              <label
+                htmlFor="modo-completo"
+                className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${
+                  modo === "completo" ? "border-primary bg-primary/5" : "border-border"
+                }`}
+              >
+                <RadioGroupItem id="modo-completo" value="completo" className="mt-0.5" />
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">Importação Completa</div>
+                  <p className="text-xs text-muted-foreground">
+                    Insere novos produtos e atualiza todos os campos (preços, descrição, dimensões,
+                    estoque). Use para cadastro inicial ou atualização de catálogo.
+                  </p>
+                </div>
+              </label>
+            </RadioGroup>
+          </div>
+        )}
+
+        {!modoEstoqueDisponivel && (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Importação completa</AlertTitle>
+            <AlertDescription>
+              O modo "Atualizar Apenas Estoque" está disponível apenas para a categoria
+              <strong> Perfil de Moldura</strong>.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {fileName && (
-          <p className="mt-3 text-sm text-muted-foreground">
-            Arquivo: <span className="font-mono">{fileName}</span> · Categoria: <strong>{PRODUTO_TIPO_LABEL[categoria]}</strong>
+          <p className="text-sm text-muted-foreground">
+            Arquivo: <span className="font-mono">{fileName}</span> · Categoria:{" "}
+            <strong>{PRODUTO_TIPO_LABEL[categoria]}</strong> · Modo:{" "}
+            <strong>{modoEfetivo === "estoque" ? "Atualizar Apenas Estoque" : "Importação Completa"}</strong>
           </p>
         )}
       </Card>
@@ -193,9 +276,9 @@ function ImportacaoPage() {
                     <TableCell>{r.acabamento ?? "—"}</TableCell>
                     <TableCell className="text-right">{r.altura_cm ?? "—"}</TableCell>
                     <TableCell className="text-right">{r.largura_cm ?? "—"}</TableCell>
-                    <TableCell className="text-right">{formatBRL(r.preco_custo)}</TableCell>
-                    <TableCell className="text-right">{formatBRL(r.preco_venda)}</TableCell>
-                    <TableCell className="text-right">{r.estoque}</TableCell>
+                    <TableCell className={`text-right ${modoEfetivo === "estoque" ? "text-muted-foreground line-through" : ""}`}>{formatBRL(r.preco_custo)}</TableCell>
+                    <TableCell className={`text-right ${modoEfetivo === "estoque" ? "text-muted-foreground line-through" : ""}`}>{formatBRL(r.preco_venda)}</TableCell>
+                    <TableCell className="text-right font-semibold">{r.estoque}</TableCell>
                     <TableCell>
                       <Badge variant={r.ativo ? "default" : "secondary"}>{r.ativo ? "Sim" : "Não"}</Badge>
                     </TableCell>
@@ -204,6 +287,12 @@ function ImportacaoPage() {
               </TableBody>
             </Table>
           </ScrollArea>
+          {modoEfetivo === "estoque" && (
+            <div className="border-t border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+              No modo "Atualizar Apenas Estoque" os campos riscados serão ignorados — somente a
+              coluna <strong>Estoque</strong> será aplicada aos produtos existentes.
+            </div>
+          )}
         </Card>
       )}
 
@@ -252,6 +341,38 @@ function ImportacaoPage() {
           </TableBody>
         </Table>
       </Card>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {modoEfetivo === "estoque" ? "Atualizar Apenas Estoque" : "Importação Completa"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {modoEfetivo === "estoque"
+                ? "Esta operação atualizará somente as quantidades em estoque dos produtos existentes (identificados pelo Código). Nenhum preço ou dado cadastral será alterado."
+                : "Esta operação poderá atualizar preços e informações cadastrais, além de inserir novos produtos. Tem certeza que deseja continuar?"}
+              <br />
+              <br />
+              <span className="text-xs">
+                Arquivo: <strong>{fileName}</strong> · Linhas válidas:{" "}
+                <strong>{parseResult?.rows.length ?? 0}</strong>
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmOpen(false);
+                commitMutation.mutate();
+              }}
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
