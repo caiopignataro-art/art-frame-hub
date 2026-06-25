@@ -127,13 +127,13 @@ export const produtosService = {
       entidade_id: preview[0]?.id ?? crypto.randomUUID(),
       acao: "atualizado",
       descricao: `${descricao} • ${preview.length} produto(s)`,
-      dados_depois: {
+      dados_depois: JSON.parse(JSON.stringify({
         scope,
         mode,
         afetados: preview.length,
         impacto_venda: impacto,
         itens: preview.slice(0, 50),
-      },
+      })),
     });
 
     return { afetados: preview.filter((r) => r.preco_novo !== r.preco_atual).length, impactoVenda: impacto };
