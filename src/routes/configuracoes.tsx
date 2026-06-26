@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { configuracoesService } from "@/lib/services/configuracoes.service";
 import { CONFIG_KEYS } from "@/types/estoque";
+import { CONFIG_KEY_MAX_PARCELAS, DEFAULT_MAX_PARCELAS } from "@/lib/pagamento/modalidade";
+
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — Molduraria ERP" }] }),
@@ -26,6 +28,8 @@ function ConfiguracoesPage() {
   const [barra, setBarra] = useState("270");
   const [perda, setPerda] = useState("15");
   const [minDefault, setMinDefault] = useState("2");
+  const [maxParcelas, setMaxParcelas] = useState(String(DEFAULT_MAX_PARCELAS));
+
 
   useEffect(() => {
     for (const c of configs ?? []) {
@@ -33,8 +37,10 @@ function ConfiguracoesPage() {
       if (c.chave === CONFIG_KEYS.comprimento_barra_cm) setBarra(v);
       if (c.chave === CONFIG_KEYS.perda_corte_percentual) setPerda(v);
       if (c.chave === CONFIG_KEYS.estoque_minimo_default) setMinDefault(v);
+      if (c.chave === CONFIG_KEY_MAX_PARCELAS) setMaxParcelas(v);
     }
   }, [configs]);
+
 
   const salvar = useMutation({
     mutationFn: async () => {
@@ -53,7 +59,14 @@ function ConfiguracoesPage() {
         Number(minDefault),
         "Estoque mínimo padrão (barras)",
       );
+      const mp = Math.max(1, Math.min(12, Number(maxParcelas) || DEFAULT_MAX_PARCELAS));
+      await configuracoesService.setNumber(
+        CONFIG_KEY_MAX_PARCELAS,
+        mp,
+        "Quantidade máxima de parcelas no crédito parcelado (1 a 12)",
+      );
     },
+
     onSuccess: () => {
       toast.success("Configurações salvas");
       qc.invalidateQueries({ queryKey: ["configs"] });
@@ -97,10 +110,31 @@ function ConfiguracoesPage() {
             </Button>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Pagamentos</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Field
+              label="Quantidade máxima de parcelas"
+              value={maxParcelas}
+              onChange={(v) => {
+                const n = Math.max(1, Math.min(12, Number(v) || 1));
+                setMaxParcelas(String(n));
+              }}
+              hint="Entre 1 e 12. Define o limite de parcelas no Crédito Parcelado (padrão: 6)."
+            />
+            <Button onClick={() => salvar.mutate()} disabled={salvar.isPending} variant="outline">
+              {salvar.isPending ? "Salvando..." : "Salvar configurações"}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </AppShell>
   );
 }
+
 
 function Field({
   label, value, onChange, hint,

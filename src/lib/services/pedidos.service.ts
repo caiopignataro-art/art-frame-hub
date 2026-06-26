@@ -74,7 +74,8 @@ export const pedidosService = {
   },
 
   /**
-   * Cria um pedido completo (com cliente já resolvido) e seus itens vindos da calculadora.
+   * Cria um pedido completo (com cliente já resolvido), seus itens e o registro
+   * financeiro em `pagamentos` baseado no snapshot.
    */
   async criarPedidoCompleto(opts: {
     cliente_id: string | null;
@@ -84,8 +85,16 @@ export const pedidosService = {
     data_entrega_prevista: string;
     observacoes?: string | null;
     status?: PedidoStatus;
+    /** Snapshot financeiro (modalidade UI, parcelas, sinal, desconto). */
+    pagamento?: import("@/lib/pagamento/modalidade").PagamentoSnapshot;
   }): Promise<Pedido> {
-    const total = opts.itens.reduce((s, i) => s + Number(i.valor_total), 0);
+    const total =
+      opts.pagamento?.total_final ??
+      opts.itens.reduce((s, i) => s + Number(i.valor_total), 0);
+
+    const metadados: Record<string, unknown> = {};
+    if (opts.pagamento) metadados.pagamento = opts.pagamento;
+
     const { data: pedido, error } = await supabase
       .from("pedidos")
       .insert({
@@ -96,6 +105,7 @@ export const pedidosService = {
         forma_pagamento: opts.forma_pagamento,
         data_pedido: opts.data_pedido,
         data_entrega_prevista: opts.data_entrega_prevista,
+        metadados: metadados as any,
       } as any)
       .select("*")
       .single();
@@ -115,6 +125,43 @@ export const pedidosService = {
       const { error: iErr } = await supabase.from("pedido_itens").insert(rows as any);
       if (iErr) throw iErr;
     }
+
+    // Cria registro em pagamentos (auto)
+    if (opts.pagamento && opts.forma_pagamento) {
+      const snap = opts.pagamento;
+      const status =
+        snap.situacao === "pago"
+          ? "pago"
+          : snap.situacao === "sinal"
+          ? "parcial"
+          : "pendente";
+      const valorPago =
+        snap.situacao === "pago"
+          ? snap.total_final
+          : snap.situacao === "sinal"
+          ? snap.valor_sinal
+          : 0;
+      const obs = JSON.stringify({
+        modalidade: snap.modalidade,
+        parcelas: snap.parcelas,
+        subtotal: snap.subtotal,
+        desconto_percentual: snap.desconto_percentual,
+        desconto_valor: snap.desconto_valor,
+        total_final: snap.total_final,
+        valor_pago: valorPago,
+        saldo_devedor: snap.saldo_devedor,
+      });
+      const { error: pErr } = await supabase.from("pagamentos").insert({
+        pedido_id: pedido.id,
+        forma_pagamento: opts.forma_pagamento,
+        status,
+        valor: snap.total_final,
+        data_pagamento: snap.situacao === "aberto" ? null : new Date().toISOString(),
+        observacoes: obs,
+      } as any);
+      if (pErr) console.error("[criarPedidoCompleto] falha ao criar pagamento", pErr);
+    }
+
     return pedido as Pedido;
   },
 
@@ -129,3 +176,4 @@ export const pedidosService = {
     return p?.cliente ?? null;
   },
 };
+

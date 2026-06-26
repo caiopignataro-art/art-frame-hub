@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, Save, Search, UserPlus } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, Search, UserPlus, X, Check } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/erp/PageHeader";
@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -20,24 +21,36 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
 
 import { Calculadora } from "@/components/calculadora/Calculadora";
 import { ClienteFormDialog } from "@/components/erp/ClienteFormDialog";
 import { clientesService } from "@/lib/services/clientes.service";
 import { pedidosService } from "@/lib/services/pedidos.service";
+import { configuracoesService } from "@/lib/services/configuracoes.service";
 import { novoPedidoStore } from "@/lib/services/calculadora.service";
 import { formatBRL } from "@/lib/format";
-import { FORMA_PAGAMENTO_LABEL, type FormaPagamento, type PedidoItemDraft, type Cliente } from "@/types/erp";
+import type { PedidoItemDraft, Cliente } from "@/types/erp";
+import {
+  MODALIDADES,
+  MODALIDADE_LABEL,
+  MODALIDADES_COM_DESCONTO,
+  modalidadeToFormaPagamento,
+  calcularSnapshot,
+  CONFIG_KEY_MAX_PARCELAS,
+  DEFAULT_MAX_PARCELAS,
+  type ModalidadePagamento,
+} from "@/lib/pagamento/modalidade";
 
 export const Route = createFileRoute("/pedidos/novo")({
   head: () => ({ meta: [{ title: "Novo pedido — Molduraria ERP" }] }),
   component: NovoPedidoPage,
 });
 
-const FORMAS: FormaPagamento[] = [
-  "pix", "dinheiro", "cartao_credito", "cartao_debito", "transferencia", "outro",
-];
+const DESCONTOS_PCT = [0, 5, 10, 15, 20];
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -47,16 +60,14 @@ function NovoPedidoPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
+  // Itens (vindos da calculadora via sessionStorage)
   const [itens, setItens] = React.useState<PedidoItemDraft[]>([]);
   const [calcOpen, setCalcOpen] = React.useState(false);
   const [cadCliOpen, setCadCliOpen] = React.useState(false);
 
-  // Carrega itens iniciais vindos da calculadora (sessionStorage)
   React.useEffect(() => {
-    console.log("[NovoPedido] rota acessada");
     try {
       const inicial = novoPedidoStore.read();
-      console.log("[NovoPedido] itens recuperados do sessionStorage:", inicial);
       if (inicial.length > 0) {
         setItens(inicial);
         novoPedidoStore.clear();
@@ -66,56 +77,118 @@ function NovoPedidoPage() {
     }
   }, []);
 
-  // Cliente
-  const [clienteId, setClienteId] = React.useState<string | null>(null);
+  // ---------- Cliente (autocomplete único) ----------
+  const [cliente, setCliente] = React.useState<Cliente | null>(null);
   const [busca, setBusca] = React.useState("");
+  const [openClienteBox, setOpenClienteBox] = React.useState(false);
   const clientesQ = useQuery({
     queryKey: ["clientes", "busca", busca],
     queryFn: () => clientesService.search(busca),
+    enabled: openClienteBox,
   });
-  const clienteSelecionado = (clientesQ.data ?? []).find((c) => c.id === clienteId) ?? null;
 
-  // Pagamento e datas
-  const [formaPagamento, setFormaPagamento] = React.useState<FormaPagamento>("pix");
+  const handleSavedCliente = (c: Cliente) => {
+    setCliente(c);
+    qc.invalidateQueries({ queryKey: ["clientes"] });
+  };
+
+  // ---------- Pagamento ----------
+  const [modalidade, setModalidade] = React.useState<ModalidadePagamento>("pix");
+  const [parcelas, setParcelas] = React.useState<number>(1);
+  const [descontoPct, setDescontoPct] = React.useState<number>(0);
+  const [situacao, setSituacao] = React.useState<"pago" | "sinal" | "aberto">("aberto");
+  const [valorSinal, setValorSinal] = React.useState<number>(0);
+
+  // Config: max parcelas
+  const maxParcelasQ = useQuery({
+    queryKey: ["config", CONFIG_KEY_MAX_PARCELAS],
+    queryFn: () => configuracoesService.getNumber(CONFIG_KEY_MAX_PARCELAS, DEFAULT_MAX_PARCELAS),
+  });
+  const maxParcelas = Math.max(1, Math.min(12, maxParcelasQ.data ?? DEFAULT_MAX_PARCELAS));
+
+  // Datas / observações
   const [dataPedido, setDataPedido] = React.useState<string>(todayIso());
   const [dataEntrega, setDataEntrega] = React.useState<string>("");
   const [observacoes, setObservacoes] = React.useState("");
 
-  const subtotal = itens.reduce((s, i) => s + Number(i.valor_total), 0);
+  // ---------- Cálculo em tempo real ----------
+  const subtotal = React.useMemo(
+    () => itens.reduce((s, i) => s + Number(i.valor_total), 0),
+    [itens],
+  );
+  const aceitaDesconto = MODALIDADES_COM_DESCONTO.includes(modalidade);
 
+  // Limpa desconto se modalidade muda para crédito
+  React.useEffect(() => {
+    if (!aceitaDesconto && descontoPct !== 0) setDescontoPct(0);
+    if (modalidade !== "credito_parcelado" && parcelas !== 1) setParcelas(1);
+  }, [modalidade]); // eslint-disable-line
+
+  const snapshot = React.useMemo(
+    () =>
+      calcularSnapshot({
+        modalidade,
+        parcelas,
+        subtotal,
+        descontoPct,
+        situacao,
+        valorSinal,
+      }),
+    [modalidade, parcelas, subtotal, descontoPct, situacao, valorSinal],
+  );
+
+  // ---------- Itens ----------
   const removeItem = (idx: number) => setItens((arr) => arr.filter((_, i) => i !== idx));
-
   const handleAddItem = (item: PedidoItemDraft) => {
     setItens((arr) => [...arr, item]);
     setCalcOpen(false);
   };
 
-  const handleSavedCliente = (c: Cliente) => {
-    setClienteId(c.id);
-    qc.invalidateQueries({ queryKey: ["clientes"] });
+  // ---------- Save ----------
+  const canSalvar = itens.length > 0 && !!dataEntrega;
+  const [saving, setSaving] = React.useState(false);
+
+  const handleToggleSinal = (checked: boolean) => {
+    if (checked) {
+      setSituacao("sinal");
+    } else if (situacao === "sinal") {
+      setSituacao("aberto");
+      setValorSinal(0);
+    }
+  };
+  const handleTogglePago = (checked: boolean) => {
+    if (checked) {
+      setSituacao("pago");
+      setValorSinal(0);
+    } else if (situacao === "pago") {
+      setSituacao("aberto");
+    }
   };
 
-  const canSalvar = itens.length > 0 && !!dataEntrega;
-
-  const [saving, setSaving] = React.useState(false);
   const handleSalvar = async (statusFinal: "orcamento" | "aguardando_aprovacao" = "orcamento") => {
     if (!canSalvar) {
       toast.error("Adicione pelo menos um item e informe a data prevista de entrega.");
       return;
     }
+    if (situacao === "sinal" && (snapshot.valor_sinal <= 0 || snapshot.valor_sinal > snapshot.total_final)) {
+      toast.error("Valor do sinal deve ser maior que 0 e menor ou igual ao total.");
+      return;
+    }
     setSaving(true);
     try {
       const pedido = await pedidosService.criarPedidoCompleto({
-        cliente_id: clienteId,
+        cliente_id: cliente?.id ?? null,
         itens,
-        forma_pagamento: formaPagamento,
+        forma_pagamento: modalidadeToFormaPagamento(modalidade),
         data_pedido: new Date(dataPedido).toISOString(),
         data_entrega_prevista: dataEntrega,
         observacoes: observacoes || null,
         status: statusFinal,
+        pagamento: snapshot,
       });
       toast.success(`Pedido #${pedido.numero_pedido} criado`);
       qc.invalidateQueries({ queryKey: ["pedidos"] });
+      qc.invalidateQueries({ queryKey: ["pagamentos"] });
       navigate({ to: "/pedidos" });
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao salvar pedido");
@@ -139,73 +212,132 @@ function NovoPedidoPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Cliente */}
         <Card className="lg:col-span-2">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Cliente</CardTitle>
+            <Button size="sm" variant="ghost" onClick={() => setCadCliOpen(true)}>
+              <UserPlus className="mr-2 h-4 w-4" /> Cadastro rápido
+            </Button>
           </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="existente">
-              <TabsList>
-                <TabsTrigger value="existente"><Search className="mr-1 h-4 w-4" /> Existente</TabsTrigger>
-                <TabsTrigger value="novo"><UserPlus className="mr-1 h-4 w-4" /> Cadastro rápido</TabsTrigger>
-              </TabsList>
-              <TabsContent value="existente" className="space-y-2 pt-3">
-                <Input
-                  placeholder="Buscar por nome, telefone, CPF…"
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                />
-                <div className="max-h-56 overflow-y-auto rounded-md border divide-y">
-                  {(clientesQ.data ?? []).length === 0 && (
-                    <p className="p-3 text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
-                  )}
-                  {(clientesQ.data ?? []).map((c) => (
-                    <label
-                      key={c.id}
-                      className="flex items-center gap-2 p-3 text-sm cursor-pointer hover:bg-muted"
-                    >
-                      <input
-                        type="radio"
-                        name="cliente"
-                        value={c.id}
-                        checked={clienteId === c.id}
-                        onChange={() => setClienteId(c.id)}
-                      />
-                      <span className="flex-1">
-                        <span className="font-medium">{c.nome}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          {c.whatsapp ?? c.telefone ?? "—"}
-                        </span>
+          <CardContent className="space-y-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Cliente existente</Label>
+              <Popover open={openClienteBox} onOpenChange={setOpenClienteBox}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between font-normal mt-1"
+                  >
+                    {cliente ? (
+                      <span className="truncate">{cliente.nome}</span>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        <Search className="inline h-3.5 w-3.5 mr-2" />
+                        Buscar por nome, WhatsApp ou CPF…
                       </span>
-                    </label>
-                  ))}
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Digite nome, WhatsApp ou CPF…"
+                      value={busca}
+                      onValueChange={setBusca}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        {clientesQ.isFetching ? "Buscando…" : "Nenhum cliente encontrado."}
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {(clientesQ.data ?? []).map((c) => (
+                          <CommandItem
+                            key={c.id}
+                            value={c.id}
+                            onSelect={() => {
+                              setCliente(c);
+                              setOpenClienteBox(false);
+                            }}
+                          >
+                            <Check className={`mr-2 h-4 w-4 ${cliente?.id === c.id ? "opacity-100" : "opacity-0"}`} />
+                            <div className="flex-1">
+                              <div className="font-medium">{c.nome}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {[c.whatsapp ?? c.telefone, c.cpf_cnpj].filter(Boolean).join(" · ") || "—"}
+                              </div>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {cliente && (
+              <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <div className="font-medium">{cliente.nome}</div>
+                    <div className="text-xs text-muted-foreground">
+                      WhatsApp: {cliente.whatsapp ?? "—"} · Tel: {cliente.telefone ?? "—"}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      CPF/CNPJ: {cliente.cpf_cnpj ?? "—"} · E-mail: {cliente.email ?? "—"}
+                    </div>
+                    {cliente.endereco && (
+                      <div className="text-xs text-muted-foreground">Endereço: {cliente.endereco}</div>
+                    )}
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => setCliente(null)}
+                    aria-label="Remover cliente"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
-                {clienteSelecionado && (
-                  <p className="text-xs text-muted-foreground">
-                    Selecionado: <strong>{clienteSelecionado.nome}</strong>
-                  </p>
-                )}
-              </TabsContent>
-              <TabsContent value="novo" className="pt-3">
-                <p className="text-sm text-muted-foreground mb-2">
-                  Cadastre um cliente novo. Ele será vinculado ao pedido automaticamente.
-                </p>
-                <Button onClick={() => setCadCliOpen(true)} variant="outline">
-                  <UserPlus className="mr-2 h-4 w-4" /> Cadastrar cliente
-                </Button>
-              </TabsContent>
-            </Tabs>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Resumo */}
+        {/* Resumo financeiro */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Resumo</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Resumo financeiro</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
             <Row label="Itens" value={String(itens.length)} />
-            <Row label="Subtotal" value={formatBRL(subtotal)} />
-            <Row label="Descontos" value={formatBRL(0)} muted />
+            <Row label="Subtotal" value={formatBRL(snapshot.subtotal)} />
+            {snapshot.desconto_valor > 0 && (
+              <Row
+                label={`Desconto (${snapshot.desconto_percentual}%)`}
+                value={`- ${formatBRL(snapshot.desconto_valor)}`}
+                muted
+              />
+            )}
             <div className="border-t pt-2">
-              <Row label="Total geral" value={formatBRL(subtotal)} strong />
+              <Row label="Total final" value={formatBRL(snapshot.total_final)} strong />
+            </div>
+            {snapshot.valor_sinal > 0 && (
+              <Row label="Sinal" value={`- ${formatBRL(snapshot.valor_sinal)}`} muted />
+            )}
+            <Row
+              label="Saldo devedor"
+              value={formatBRL(snapshot.saldo_devedor)}
+              strong
+            />
+            <div className="pt-1 text-xs text-muted-foreground">
+              Situação:{" "}
+              <strong>
+                {snapshot.situacao === "pago"
+                  ? "Pago"
+                  : snapshot.situacao === "sinal"
+                  ? "Pagamento Parcial"
+                  : "Em Aberto"}
+              </strong>
+              {modalidade === "credito_parcelado" && ` · ${snapshot.parcelas}x`}
             </div>
           </CardContent>
         </Card>
@@ -260,21 +392,88 @@ function NovoPedidoPage() {
         </CardContent>
       </Card>
 
-      {/* Pagamento / datas */}
-      <div className="mt-4 grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader><CardTitle className="text-base">Forma de pagamento</CardTitle></CardHeader>
-          <CardContent>
-            <Select value={formaPagamento} onValueChange={(v) => setFormaPagamento(v as FormaPagamento)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+      {/* Pagamento */}
+      <Card className="mt-4">
+        <CardHeader><CardTitle className="text-base">Forma de pagamento</CardTitle></CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <div>
+            <Label className="text-xs text-muted-foreground">Forma de pagamento</Label>
+            <Select value={modalidade} onValueChange={(v) => setModalidade(v as ModalidadePagamento)}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {FORMAS.map((f) => (
-                  <SelectItem key={f} value={f}>{FORMA_PAGAMENTO_LABEL[f]}</SelectItem>
+                {MODALIDADES.map((m) => (
+                  <SelectItem key={m} value={m}>{MODALIDADE_LABEL[m]}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </CardContent>
-        </Card>
+          </div>
+
+          {modalidade === "credito_parcelado" && (
+            <div>
+              <Label className="text-xs text-muted-foreground">Parcelamento</Label>
+              <Select value={String(parcelas)} onValueChange={(v) => setParcelas(Number(v))}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: maxParcelas }, (_, i) => i + 1).map((n) => (
+                    <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {aceitaDesconto && (
+            <div>
+              <Label className="text-xs text-muted-foreground">Desconto</Label>
+              <Select value={String(descontoPct)} onValueChange={(v) => setDescontoPct(Number(v))}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {DESCONTOS_PCT.map((p) => (
+                    <SelectItem key={p} value={String(p)}>
+                      {p === 0 ? "Sem desconto" : `${p}%`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="md:col-span-3 flex flex-wrap items-center gap-6 border-t pt-4">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox
+                checked={situacao === "sinal"}
+                onCheckedChange={(c) => handleToggleSinal(!!c)}
+              />
+              Sinal
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox
+                checked={situacao === "pago"}
+                onCheckedChange={(c) => handleTogglePago(!!c)}
+              />
+              Pago
+            </label>
+
+            {situacao === "sinal" && (
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground">Valor do sinal (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  max={snapshot.total_final}
+                  value={valorSinal || ""}
+                  onChange={(e) => setValorSinal(Number(e.target.value) || 0)}
+                  className="w-36"
+                />
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Datas */}
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="text-base">Data do pedido</CardTitle></CardHeader>
           <CardContent>
@@ -331,11 +530,6 @@ function NovoPedidoPage() {
     </AppShell>
   );
 }
-
-function Label_({ children }: { children: React.ReactNode }) {
-  return <Label className="text-xs font-medium text-muted-foreground">{children}</Label>;
-}
-void Label_;
 
 function Row({ label, value, strong, muted }: { label: string; value: string; strong?: boolean; muted?: boolean }) {
   return (
