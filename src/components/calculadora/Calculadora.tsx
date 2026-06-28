@@ -150,6 +150,8 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     );
   const setPasseMedida = (idx: number, v: number) =>
     setPasses((arr) => arr.map((pp, i) => (i === idx ? { ...pp, medida_cm: v } : pp)));
+  const setPasseOrdem = (idx: number, ordem: PasseOrdem) =>
+    setPasses((arr) => arr.map((pp, i) => (i === idx ? { ...pp, ordem } : pp)));
   const removePasse = (idx: number) =>
     setPasses((arr) => arr.filter((_, i) => i !== idx));
 
