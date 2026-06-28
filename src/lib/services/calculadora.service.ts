@@ -10,22 +10,23 @@ function buildItemDescricao(input: CalcInput, result: CalcResult): string {
   const moldura = input.molduras
     .map((m) => m.produto.codigo ?? m.produto.nome)
     .join(" + ");
-  const tam = `${result.largura_final_cm}×${result.altura_final_cm}cm (arte ${result.largura_interna_cm}×${result.altura_interna_cm})`;
+  const tam = `${result.largura_final_cm}×${result.altura_final_cm}cm (arte ${result.largura_arte_cm}×${result.altura_arte_cm})`;
   return [moldura || "Quadro personalizado", tam].filter(Boolean).join(" — ");
 }
 
 export function buildMetadados(input: CalcInput, result: CalcResult) {
   return {
-    versao: 1,
+    versao: 2,
     origem: "calculadora",
     entrada: {
-      largura_interna_cm: input.largura_interna_cm,
-      altura_interna_cm: input.altura_interna_cm,
+      largura_arte_cm: input.largura_interna_cm,
+      altura_arte_cm: input.altura_interna_cm,
       passe_partouts: input.passe_partouts.map((pp) => ({
         produto_id: pp.produto.id,
         codigo: pp.produto.codigo,
         descricao: pp.produto.nome,
         medida_cm: pp.medida_cm,
+        ordem: pp.ordem ?? null,
       })),
       molduras: input.molduras.map((m) => ({
         produto_id: m.produto.id,
@@ -36,6 +37,7 @@ export function buildMetadados(input: CalcInput, result: CalcResult) {
       fundo_id: input.fundo?.id ?? null,
       servicos: input.servicos.map((s) => s.id),
       observacoes: input.observacoes ?? null,
+      barra_cm: input.barra_cm ?? 270,
     },
     calculo: result,
   };
@@ -47,8 +49,8 @@ export function buildDraftItem(input: CalcInput, result: CalcResult): PedidoItem
     quantidade: result.quantidade,
     largura_cm: result.largura_final_cm,
     altura_cm: result.altura_final_cm,
-    valor_unitario: result.total_venda / Math.max(1, result.quantidade),
-    valor_total: result.total_venda,
+    valor_unitario: result.valor_unitario,
+    valor_total: result.valor_total,
     metadados: buildMetadados(input, result),
   };
 }
