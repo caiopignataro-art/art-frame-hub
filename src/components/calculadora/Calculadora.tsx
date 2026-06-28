@@ -30,11 +30,14 @@ import {
 
 import { produtosService } from "@/lib/services/produtos.service";
 import { calculadoraService, novoPedidoStore } from "@/lib/services/calculadora.service";
+import { configuracoesService } from "@/lib/services/configuracoes.service";
+import { CONFIG_KEYS } from "@/types/estoque";
 import { calcular } from "@/lib/calculadora/calculator";
 import type {
   CalcInput,
   MaterialOrigem,
   PassePartoutSelecionado,
+  PasseOrdem,
 } from "@/lib/calculadora/types";
 import type { Produto, PedidoItemDraft } from "@/types/erp";
 import { formatBRL } from "@/lib/format";
