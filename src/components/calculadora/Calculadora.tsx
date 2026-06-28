@@ -663,6 +663,10 @@ function SectionHeader({
   );
 }
 
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function EmptyHint({ text }: { text: string }) {
   return <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">{text}</p>;
 }
