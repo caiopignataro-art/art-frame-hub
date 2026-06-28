@@ -109,6 +109,12 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
   const [imagemArte, setImagemArte] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const barraQ = useQuery({
+    queryKey: ["config", CONFIG_KEYS.comprimento_barra_cm],
+    queryFn: () => configuracoesService.getNumber(CONFIG_KEYS.comprimento_barra_cm, 270),
+  });
+  const barraCm = barraQ.data ?? 270;
+
   const input: CalcInput = React.useMemo(
     () => ({
       quantidade: quantidade || 1,
@@ -120,8 +126,9 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
       fundo,
       servicos,
       observacoes: observacoes || undefined,
+      barra_cm: barraCm,
     }),
-    [quantidade, largura, altura, molduras, passes, protecao, fundo, servicos, observacoes],
+    [quantidade, largura, altura, molduras, passes, protecao, fundo, servicos, observacoes, barraCm],
   );
 
   const result = React.useMemo(() => calcular(input), [input]);
