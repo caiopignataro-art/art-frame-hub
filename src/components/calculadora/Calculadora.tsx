@@ -30,11 +30,14 @@ import {
 
 import { produtosService } from "@/lib/services/produtos.service";
 import { calculadoraService, novoPedidoStore } from "@/lib/services/calculadora.service";
+import { configuracoesService } from "@/lib/services/configuracoes.service";
+import { CONFIG_KEYS } from "@/types/estoque";
 import { calcular } from "@/lib/calculadora/calculator";
 import type {
   CalcInput,
   MaterialOrigem,
   PassePartoutSelecionado,
+  PasseOrdem,
 } from "@/lib/calculadora/types";
 import type { Produto, PedidoItemDraft } from "@/types/erp";
 import { formatBRL } from "@/lib/format";
@@ -106,6 +109,12 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
   const [imagemArte, setImagemArte] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const barraQ = useQuery({
+    queryKey: ["config", CONFIG_KEYS.comprimento_barra_cm],
+    queryFn: () => configuracoesService.getNumber(CONFIG_KEYS.comprimento_barra_cm, 270),
+  });
+  const barraCm = barraQ.data ?? 270;
+
   const input: CalcInput = React.useMemo(
     () => ({
       quantidade: quantidade || 1,
@@ -117,8 +126,9 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
       fundo,
       servicos,
       observacoes: observacoes || undefined,
+      barra_cm: barraCm,
     }),
-    [quantidade, largura, altura, molduras, passes, protecao, fundo, servicos, observacoes],
+    [quantidade, largura, altura, molduras, passes, protecao, fundo, servicos, observacoes, barraCm],
   );
 
   const result = React.useMemo(() => calcular(input), [input]);
@@ -140,6 +150,8 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     );
   const setPasseMedida = (idx: number, v: number) =>
     setPasses((arr) => arr.map((pp, i) => (i === idx ? { ...pp, medida_cm: v } : pp)));
+  const setPasseOrdem = (idx: number, ordem: PasseOrdem) =>
+    setPasses((arr) => arr.map((pp, i) => (i === idx ? { ...pp, ordem } : pp)));
   const removePasse = (idx: number) =>
     setPasses((arr) => arr.filter((_, i) => i !== idx));
 
@@ -294,26 +306,47 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
               {passes.length === 0 && (
                 <EmptyHint text="Sem passe-partout — a moldura encosta na arte." />
               )}
-              {passes.map((pp, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_120px_auto] gap-2">
-                  <ProdutoAutocomplete
-                    produtos={passeQ.data ?? []}
-                    value={pp.produto?.id ?? null}
-                    onChange={(p) => setPasseProduto(idx, p)}
-                  />
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.1"
-                    placeholder="Medida cm"
-                    value={pp.medida_cm}
-                    onChange={(e) => setPasseMedida(idx, Number(e.target.value) || 0)}
-                  />
-                  <Button variant="ghost" size="icon" onClick={() => removePasse(idx)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+              {passes.map((pp, idx) => {
+                const showOrdem = passes.length > 1;
+                return (
+                  <div
+                    key={idx}
+                    className={`grid gap-2 ${showOrdem ? "grid-cols-[1fr_110px_130px_auto]" : "grid-cols-[1fr_120px_auto]"}`}
+                  >
+                    <ProdutoAutocomplete
+                      produtos={passeQ.data ?? []}
+                      value={pp.produto?.id ?? null}
+                      onChange={(p) => setPasseProduto(idx, p)}
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      placeholder="Medida cm"
+                      value={pp.medida_cm}
+                      onChange={(e) => setPasseMedida(idx, Number(e.target.value) || 0)}
+                    />
+                    {showOrdem && (
+                      <Select
+                        value={pp.ordem ?? ""}
+                        onValueChange={(v) => setPasseOrdem(idx, v as PasseOrdem)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Ordem" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="interno">Interno</SelectItem>
+                          <SelectItem value="meio">Meio</SelectItem>
+                          <SelectItem value="externo">Externo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <Button variant="ghost" size="icon" onClick={() => removePasse(idx)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -445,21 +478,96 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
 
           {/* ====== RESUMO ====== */}
           <div className="space-y-4">
-            <div className="rounded-lg border bg-muted/30 p-4">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <Metric label="Arte (interna)" value={`${result.largura_interna_cm} × ${result.altura_interna_cm} cm`} />
-                <Metric
-                  label="Tamanho final"
-                  value={`${result.largura_final_cm} × ${result.altura_final_cm} cm`}
-                  highlight
-                />
-                <Metric label="Σ passe-partout" value={`${result.soma_passe_partout_cm} cm`} />
-                <Metric label="Quantidade" value={`${result.quantidade} quadro(s)`} />
-                <Metric label="Perímetro moldura" value={`${result.perimetro_ml.toFixed(3)} m`} />
-                <Metric label="Área materiais" value={`${result.area_m2.toFixed(4)} m²`} />
+            {/* Tamanhos */}
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-2 text-sm">
+              <h4 className="text-sm font-semibold">Tamanhos</h4>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Arte</span>
+                <span className="font-medium">
+                  {result.largura_arte_cm} × {result.altura_arte_cm} cm
+                </span>
               </div>
+              {result.passe_partouts.length > 0 && (
+                <div className="space-y-1">
+                  {result.passe_partouts.map((pp, i) => (
+                    <div key={i} className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">
+                        Após PP{pp.ordem ? ` ${capitalize(pp.ordem)}` : ` ${i + 1}`} ({pp.medida_cm} cm)
+                      </span>
+                      <span>
+                        {pp.apos_largura_cm} × {pp.apos_altura_cm} cm
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Abertura</span>
+                <span>
+                  {result.largura_abertura_cm} × {result.altura_abertura_cm} cm
+                </span>
+              </div>
+              <Separator />
+              <div className="flex justify-between">
+                <span className="font-medium">Tamanho final</span>
+                <span className="font-semibold text-primary">
+                  {result.largura_final_cm} × {result.altura_final_cm} cm
+                </span>
+              </div>
+              {result.passe_partout_excede_chapa && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  ⚠ O tamanho final do Passe-partout ultrapassa a chapa padrão de 100 × 80 cm.
+                </p>
+              )}
             </div>
 
+            {/* Produção da moldura */}
+            {result.molduras.length > 0 && (
+              <div className="rounded-lg border p-4 space-y-3">
+                <h4 className="text-sm font-semibold">Produção da moldura</h4>
+                {result.molduras.map((m, i) => (
+                  <div key={i} className="space-y-1.5 text-xs">
+                    <div className="font-medium text-sm">
+                      {m.codigo && <span className="font-mono">[{m.codigo}] </span>}
+                      {m.descricao}
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                      <span className="text-muted-foreground">Peça horizontal</span>
+                      <span className="text-right">{m.peca_horizontal_cm} cm × 2</span>
+                      <span className="text-muted-foreground">Peça vertical</span>
+                      <span className="text-right">{m.peca_vertical_cm} cm × 2</span>
+                      <span className="text-muted-foreground">Consumo comercial</span>
+                      <span className="text-right">
+                        {m.perimetro_comercial_m.toFixed(3)} m
+                        {m.perimetro_cobrado_m > m.perimetro_comercial_m && (
+                          <span className="text-amber-600 dark:text-amber-400"> (cobrado: {m.perimetro_cobrado_m.toFixed(2)} m)</span>
+                        )}
+                      </span>
+                      <span className="text-muted-foreground">Barras necessárias</span>
+                      <span className="text-right font-medium">{m.total_barras}</span>
+                    </div>
+                    <div className="rounded-md bg-muted/40 p-2 space-y-1">
+                      {m.barras.map((b, bi) => (
+                        <div key={bi} className="flex justify-between">
+                          <span className="text-muted-foreground">Barra {bi + 1}</span>
+                          <span>
+                            {b.pecas.join(" + ")} cm
+                            <span className="text-muted-foreground"> · retalho {b.retalho_cm} cm</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {m.peca_excede_barra && (
+                      <p className="text-xs text-destructive">
+                        ⚠ Alguma peça excede o comprimento da barra ({barraCm} cm).
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Materiais */}
             <div>
               <h4 className="text-sm font-medium mb-2">Materiais utilizados</h4>
               <div className="rounded-md border overflow-x-auto">
@@ -468,15 +576,13 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
                     <TableRow>
                       <TableHead>Item</TableHead>
                       <TableHead className="text-right">Qtd</TableHead>
-                      <TableHead className="text-right">Custo</TableHead>
-                      <TableHead className="text-right">Venda</TableHead>
-                      <TableHead className="text-right">Lucro</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {result.materiais.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-xs text-muted-foreground">
+                        <TableCell colSpan={3} className="text-center text-xs text-muted-foreground">
                           Selecione materiais para ver o resumo.
                         </TableCell>
                       </TableRow>
@@ -491,9 +597,7 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
                           {m.descricao}
                         </TableCell>
                         <TableCell className="text-right text-xs">{m.quantidade} {m.unidade}</TableCell>
-                        <TableCell className="text-right text-xs">{formatBRL(m.custo_total)}</TableCell>
-                        <TableCell className="text-right text-xs">{formatBRL(m.venda_total)}</TableCell>
-                        <TableCell className="text-right text-xs">{formatBRL(m.lucro)}</TableCell>
+                        <TableCell className="text-right text-xs">{formatBRL(m.valor_total)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -504,10 +608,8 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
             <Separator />
 
             <div className="grid grid-cols-2 gap-3">
-              <Metric label="Custo total" value={formatBRL(result.total_custo)} />
-              <Metric label="Venda total" value={formatBRL(result.total_venda)} highlight />
-              <Metric label="Lucro bruto" value={formatBRL(result.lucro_bruto)} />
-              <Metric label="Margem" value={`${result.margem_pct.toFixed(2)}%`} />
+              <Metric label="Valor unitário" value={formatBRL(result.valor_unitario)} />
+              <Metric label="Valor total" value={formatBRL(result.valor_total)} highlight />
             </div>
 
             <div className="flex flex-wrap gap-2 pt-2">
@@ -559,6 +661,10 @@ function SectionHeader({
       </Button>
     </div>
   );
+}
+
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function EmptyHint({ text }: { text: string }) {
