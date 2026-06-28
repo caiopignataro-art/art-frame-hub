@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, Trash2, Calculator as CalcIcon } from "lucide-react";
+import { Plus, Trash2, Calculator as CalcIcon, Upload, X, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,8 @@ const ORIGEM_LABEL: Record<MaterialOrigem, string> = {
   servico: "Serviço",
 };
 
+const TIPOS_IMAGEM = ["image/jpeg", "image/png", "image/webp"];
+
 export interface CalculadoraProps {
   /**
    * Quando fornecido, o botão "Adicionar" entrega o item-rascunho via callback
@@ -84,9 +86,14 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     queryFn: () => produtosService.list({ tipo: "servico", ativo: true }),
   });
 
-  const [quantidade, setQuantidade] = React.useState(1);
-  const [largura, setLargura] = React.useState(30);
-  const [altura, setAltura] = React.useState(40);
+  const [quantidadeStr, setQuantidadeStr] = React.useState("");
+  const [larguraStr, setLarguraStr] = React.useState("");
+  const [alturaStr, setAlturaStr] = React.useState("");
+
+  const quantidade = quantidadeStr === "" ? 0 : Number(quantidadeStr);
+  const largura = larguraStr === "" ? 0 : Number(larguraStr);
+  const altura = alturaStr === "" ? 0 : Number(alturaStr);
+
   const [molduras, setMolduras] = React.useState<Produto[]>([]);
   const [passes, setPasses] = React.useState<PassePartoutSelecionado[]>([]);
   const [protecao, setProtecao] = React.useState<Produto | null>(null);
@@ -95,9 +102,13 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
   const [observacoes, setObservacoes] = React.useState("");
   const [saving, setSaving] = React.useState(false);
 
+  // Imagem da arte
+  const [imagemArte, setImagemArte] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   const input: CalcInput = React.useMemo(
     () => ({
-      quantidade,
+      quantidade: quantidade || 1,
       largura_interna_cm: largura,
       altura_interna_cm: altura,
       molduras: molduras.filter(Boolean).map((produto) => ({ produto })),
@@ -138,21 +149,25 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     );
 
   const canSave =
+    quantidadeStr !== "" &&
+    larguraStr !== "" &&
+    alturaStr !== "" &&
     largura > 0 &&
     altura > 0 &&
     quantidade > 0 &&
     (molduras.length > 0 || servicos.length > 0 || protecao || fundo);
 
   const reset = () => {
-    setQuantidade(1);
-    setLargura(30);
-    setAltura(40);
+    setQuantidadeStr("");
+    setLarguraStr("");
+    setAlturaStr("");
     setMolduras([]);
     setPasses([]);
     setProtecao(null);
     setFundo(null);
     setServicos([]);
     setObservacoes("");
+    setImagemArte(null);
   };
 
   const handleCancelar = () => {
@@ -183,6 +198,27 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     }
   };
 
+  // ---- imagem ----
+  const handleFile = (file: File) => {
+    if (!TIPOS_IMAGEM.includes(file.type)) {
+      toast.error("Formato não suportado. Use JPG, PNG ou WEBP.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => setImagemArte(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -190,10 +226,6 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
           <CalcIcon className="h-5 w-5 text-primary" />
           Calculadora de Orçamento
         </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Funciona sem cliente cadastrado. Materiais carregados exclusivamente da
-          base importada por XLSX.
-        </p>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-2">
@@ -204,26 +236,26 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
                 <Input
                   type="number"
                   min={1}
-                  value={quantidade}
-                  onChange={(e) => setQuantidade(Number(e.target.value) || 1)}
+                  value={quantidadeStr}
+                  onChange={(e) => setQuantidadeStr(e.target.value)}
                 />
               </Field>
-              <Field label="Largura interna (cm)">
+              <Field label="Largura (cm)">
                 <Input
                   type="number"
                   min={0}
                   step="0.1"
-                  value={largura}
-                  onChange={(e) => setLargura(Number(e.target.value) || 0)}
+                  value={larguraStr}
+                  onChange={(e) => setLarguraStr(e.target.value)}
                 />
               </Field>
-              <Field label="Altura interna (cm)">
+              <Field label="Altura (cm)">
                 <Input
                   type="number"
                   min={0}
                   step="0.1"
-                  value={altura}
-                  onChange={(e) => setAltura(Number(e.target.value) || 0)}
+                  value={alturaStr}
+                  onChange={(e) => setAlturaStr(e.target.value)}
                 />
               </Field>
             </div>
@@ -330,7 +362,7 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
             <div>
               <Label className="text-sm font-medium">Serviços</Label>
               <p className="text-xs text-muted-foreground mb-2">Seleção múltipla.</p>
-              <div className="space-y-1 rounded-md border p-3 max-h-40 overflow-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-md border p-3">
                 {(servicosQ.data ?? []).length === 0 && (
                   <EmptyHint text="Nenhum serviço cadastrado na base." />
                 )}
@@ -345,7 +377,6 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
                       <span className="flex-1">
                         {s.codigo ? `[${s.codigo}] ` : ""}{s.nome}
                       </span>
-                      <span className="text-muted-foreground">{formatBRL(Number(s.preco_venda))}</span>
                     </label>
                   );
                 })}
@@ -360,6 +391,56 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
                 placeholder="Notas internas, instruções de produção…"
               />
             </Field>
+
+            {/* Imagem da Arte */}
+            <div>
+              <Label className="text-sm font-medium">Imagem da Arte</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Referência visual do pedido. JPG, PNG ou WEBP.
+              </p>
+              {imagemArte ? (
+                <div className="relative inline-block">
+                  <img
+                    src={imagemArte}
+                    alt="Pré-visualização da arte"
+                    className="h-40 w-auto rounded-md border object-contain"
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="destructive"
+                    className="absolute -right-2 -top-2 h-6 w-6"
+                    onClick={() => setImagemArte(null)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <div
+                  onDragOver={onDragOver}
+                  onDrop={onDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="cursor-pointer rounded-md border border-dashed p-6 text-center hover:bg-muted/50 transition-colors"
+                >
+                  <ImageIcon className="mx-auto h-8 w-8 text-muted-foreground" />
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Clique para upload ou arraste a imagem aqui
+                  </p>
+                  <p className="text-xs text-muted-foreground">JPG · PNG · WEBP</p>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFile(file);
+                  e.target.value = "";
+                }}
+              />
+            </div>
           </div>
 
           {/* ====== RESUMO ====== */}
