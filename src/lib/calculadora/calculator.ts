@@ -1,19 +1,22 @@
 /**
  * Engine de cálculo da Calculadora de Orçamento.
  *
- * Regras (vide docs/calculadora.md):
- *  - largura/altura informadas = tamanho INTERNO da arte
- *  - largura_final = largura_interna + (soma_passe_partout * 2)
- *  - altura_final  = altura_interna  + (soma_passe_partout * 2)
- *  - moldura (m linear) = ((largura_final + altura_final) * 2) / 100
- *  - área de materiais (m²) = (largura_final * altura_final) / 10000
- *  - tudo multiplicado pela quantidade de quadros
+ * Duas regras independentes para a moldura:
+ *  1. Comercial (preço): usa apenas a abertura do quadro, com mínimo de 1m linear.
+ *  2. Produção/estoque: usa a abertura + 2× largura do perfil para gerar peças
+ *     e distribuição de barras (FFD — First Fit Decreasing).
+ *
+ * Demais materiais (vidro/fundo/passe-partout) usam a área da abertura (m²).
  */
 import type {
   CalcInput,
   CalcResult,
   MaterialCalculado,
   MaterialOrigem,
+  MolduraDetalhe,
+  BarraDistribuicao,
+  PassePartoutDetalhe,
+  PasseOrdem,
 } from "./types";
 import type { Produto } from "@/types/erp";
 
@@ -22,15 +25,15 @@ const round = (n: number, d = 4) => {
   return Math.round(n * f) / f;
 };
 
-function material(
+const ORDEM_RANK: Record<PasseOrdem, number> = { interno: 0, meio: 1, externo: 2 };
+
+function materialDePreco(
   produto: Produto,
   origem: MaterialOrigem,
   quantidadeUnitaria: number,
-  quantidadeQuadros: number,
+  quadros: number,
 ): MaterialCalculado {
-  const qty = round(quantidadeUnitaria * quantidadeQuadros);
-  const custo = round(qty * Number(produto.preco_custo));
-  const venda = round(qty * Number(produto.preco_venda));
+  const qty = round(quantidadeUnitaria * quadros);
   return {
     produto_id: produto.id,
     codigo: produto.codigo,
@@ -38,66 +41,167 @@ function material(
     origem,
     unidade: produto.unidade,
     quantidade: qty,
-    preco_custo: Number(produto.preco_custo),
     preco_venda: Number(produto.preco_venda),
-    custo_total: custo,
-    venda_total: venda,
-    lucro: round(venda - custo),
+    valor_total: round(qty * Number(produto.preco_venda), 2),
   };
+}
+
+/** First Fit Decreasing: distribui peças em barras minimizando o número de barras. */
+function packBarras(pecasOriginais: number[], barraCm: number): {
+  barras: BarraDistribuicao[];
+  excede: boolean;
+} {
+  const pecas = [...pecasOriginais].sort((a, b) => b - a);
+  let excede = false;
+  const barras: BarraDistribuicao[] = [];
+
+  for (const p of pecas) {
+    if (p > barraCm) {
+      excede = true;
+      // ainda registra em uma barra dedicada para visibilidade
+      barras.push({ pecas: [p], retalho_cm: 0 });
+      continue;
+    }
+    // procura a barra com MENOR retalho que ainda comporte (best-fit decreasing)
+    let melhor = -1;
+    let melhorSobra = Infinity;
+    for (let i = 0; i < barras.length; i++) {
+      const sobra = barras[i].retalho_cm - p;
+      if (sobra >= 0 && sobra < melhorSobra) {
+        melhor = i;
+        melhorSobra = sobra;
+      }
+    }
+    if (melhor >= 0) {
+      barras[melhor].pecas.push(p);
+      barras[melhor].retalho_cm = round(melhorSobra, 2);
+    } else {
+      barras.push({ pecas: [p], retalho_cm: round(barraCm - p, 2) });
+    }
+  }
+
+  return { barras, excede };
 }
 
 export function calcular(input: CalcInput): CalcResult {
   const qtd = Math.max(1, Number(input.quantidade) || 1);
-  const li = Math.max(0, Number(input.largura_interna_cm) || 0);
-  const ai = Math.max(0, Number(input.altura_interna_cm) || 0);
+  const la = Math.max(0, Number(input.largura_interna_cm) || 0);
+  const aa = Math.max(0, Number(input.altura_interna_cm) || 0);
+  const barraCm = Math.max(1, Number(input.barra_cm) || 270);
 
-  const somaPp = input.passe_partouts.reduce(
+  // ----- Passe-partouts (ordenados) -----
+  const passesValidos = input.passe_partouts.filter((pp) => pp.produto);
+  const passesOrdenados = [...passesValidos].sort((a, b) => {
+    if (passesValidos.length <= 1) return 0;
+    const ra = a.ordem ? ORDEM_RANK[a.ordem] : 99;
+    const rb = b.ordem ? ORDEM_RANK[b.ordem] : 99;
+    return ra - rb;
+  });
+
+  const somaPp = passesOrdenados.reduce(
     (s, pp) => s + Math.max(0, Number(pp.medida_cm) || 0),
     0,
   );
 
-  const largFinal = round(li + somaPp * 2, 2);
-  const altFinal = round(ai + somaPp * 2, 2);
+  const aberturaL = round(la + somaPp * 2, 2);
+  const aberturaA = round(aa + somaPp * 2, 2);
+  const areaM2 = round((aberturaL * aberturaA) / 10000);
 
-  const perimetroMl = round(((largFinal + altFinal) * 2) / 100);
-  const areaM2 = round((largFinal * altFinal) / 10000);
+  // Acumulado por PP
+  let acL = la;
+  let acA = aa;
+  const passe_partouts: PassePartoutDetalhe[] = passesOrdenados.map((pp) => {
+    acL = round(acL + pp.medida_cm * 2, 2);
+    acA = round(acA + pp.medida_cm * 2, 2);
+    return {
+      produto_id: pp.produto.id,
+      codigo: pp.produto.codigo,
+      descricao: pp.produto.nome,
+      medida_cm: pp.medida_cm,
+      ordem: pp.ordem ?? null,
+      apos_largura_cm: acL,
+      apos_altura_cm: acA,
+    };
+  });
 
+  const passe_partout_excede_chapa = aberturaL > 100 || aberturaA > 80;
+
+  // ----- Molduras (produção + comercial) -----
+  const perfilLargura = Math.max(0, Number(input.molduras[0]?.produto?.largura_cm) || 0);
+  const larguraFinal = round(aberturaL + perfilLargura * 2, 2);
+  const alturaFinal = round(aberturaA + perfilLargura * 2, 2);
+
+  const molduras: MolduraDetalhe[] = input.molduras
+    .filter((m) => m.produto)
+    .map((m) => {
+      const produto = m.produto;
+      const larg = Math.max(0, Number(produto.largura_cm) || 0);
+      const pecaH = round(aberturaL + larg * 2, 2);
+      const pecaV = round(aberturaA + larg * 2, 2);
+      const todasPecas: number[] = [];
+      for (let i = 0; i < qtd; i++) {
+        todasPecas.push(pecaH, pecaH, pecaV, pecaV);
+      }
+      const { barras, excede } = packBarras(todasPecas, barraCm);
+
+      const perimetro = round(((aberturaL + aberturaA) * 2) / 100, 4);
+      const perimetroCobrado = round(Math.max(perimetro, 1), 4);
+
+      return {
+        produto_id: produto.id,
+        codigo: produto.codigo,
+        descricao: produto.nome,
+        perfil_largura_cm: larg,
+        perimetro_comercial_m: perimetro,
+        perimetro_cobrado_m: perimetroCobrado,
+        peca_horizontal_cm: pecaH,
+        peca_vertical_cm: pecaV,
+        total_pecas: todasPecas.length,
+        barras,
+        total_barras: barras.length,
+        peca_excede_barra: excede,
+      };
+    });
+
+  // ----- Materiais (preço) -----
   const materiais: MaterialCalculado[] = [];
 
-  for (const m of input.molduras) {
-    materiais.push(material(m.produto, "perfil_moldura", perimetroMl, qtd));
+  for (const m of molduras) {
+    const produto = input.molduras.find((x) => x.produto.id === m.produto_id)!.produto;
+    materiais.push(materialDePreco(produto, "perfil_moldura", m.perimetro_cobrado_m, qtd));
   }
-  for (const pp of input.passe_partouts) {
-    materiais.push(material(pp.produto, "passe_partout", areaM2, qtd));
+  for (const pp of passesOrdenados) {
+    materiais.push(materialDePreco(pp.produto, "passe_partout", areaM2, qtd));
   }
   if (input.protecao) {
-    materiais.push(material(input.protecao, "protecao_frontal", areaM2, qtd));
+    materiais.push(materialDePreco(input.protecao, "protecao_frontal", areaM2, qtd));
   }
   if (input.fundo) {
-    materiais.push(material(input.fundo, "fundo", areaM2, qtd));
+    materiais.push(materialDePreco(input.fundo, "fundo", areaM2, qtd));
   }
   for (const s of input.servicos) {
-    materiais.push(material(s, "servico", 1, qtd));
+    materiais.push(materialDePreco(s, "servico", 1, qtd));
   }
 
-  const total_custo = round(materiais.reduce((s, m) => s + m.custo_total, 0), 2);
-  const total_venda = round(materiais.reduce((s, m) => s + m.venda_total, 0), 2);
-  const lucro_bruto = round(total_venda - total_custo, 2);
-  const margem_pct = total_venda > 0 ? round((lucro_bruto / total_venda) * 100, 2) : 0;
+  const valor_total = round(materiais.reduce((s, m) => s + m.valor_total, 0), 2);
+  const valor_unitario = round(valor_total / Math.max(1, qtd), 2);
 
   return {
     quantidade: qtd,
-    largura_interna_cm: li,
-    altura_interna_cm: ai,
+    largura_arte_cm: la,
+    altura_arte_cm: aa,
     soma_passe_partout_cm: somaPp,
-    largura_final_cm: largFinal,
-    altura_final_cm: altFinal,
-    perimetro_ml: perimetroMl,
+    largura_abertura_cm: aberturaL,
+    altura_abertura_cm: aberturaA,
+    largura_final_cm: larguraFinal,
+    altura_final_cm: alturaFinal,
+    perfil_largura_cm: perfilLargura,
+    passe_partouts,
+    passe_partout_excede_chapa,
+    molduras,
     area_m2: areaM2,
     materiais,
-    total_custo,
-    total_venda,
-    lucro_bruto,
-    margem_pct,
+    valor_unitario,
+    valor_total,
   };
 }
