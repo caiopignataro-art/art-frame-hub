@@ -306,26 +306,47 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
               {passes.length === 0 && (
                 <EmptyHint text="Sem passe-partout — a moldura encosta na arte." />
               )}
-              {passes.map((pp, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_120px_auto] gap-2">
-                  <ProdutoAutocomplete
-                    produtos={passeQ.data ?? []}
-                    value={pp.produto?.id ?? null}
-                    onChange={(p) => setPasseProduto(idx, p)}
-                  />
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.1"
-                    placeholder="Medida cm"
-                    value={pp.medida_cm}
-                    onChange={(e) => setPasseMedida(idx, Number(e.target.value) || 0)}
-                  />
-                  <Button variant="ghost" size="icon" onClick={() => removePasse(idx)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+              {passes.map((pp, idx) => {
+                const showOrdem = passes.length > 1;
+                return (
+                  <div
+                    key={idx}
+                    className={`grid gap-2 ${showOrdem ? "grid-cols-[1fr_110px_130px_auto]" : "grid-cols-[1fr_120px_auto]"}`}
+                  >
+                    <ProdutoAutocomplete
+                      produtos={passeQ.data ?? []}
+                      value={pp.produto?.id ?? null}
+                      onChange={(p) => setPasseProduto(idx, p)}
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      placeholder="Medida cm"
+                      value={pp.medida_cm}
+                      onChange={(e) => setPasseMedida(idx, Number(e.target.value) || 0)}
+                    />
+                    {showOrdem && (
+                      <Select
+                        value={pp.ordem ?? ""}
+                        onValueChange={(v) => setPasseOrdem(idx, v as PasseOrdem)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Ordem" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="interno">Interno</SelectItem>
+                          <SelectItem value="meio">Meio</SelectItem>
+                          <SelectItem value="externo">Externo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <Button variant="ghost" size="icon" onClick={() => removePasse(idx)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
