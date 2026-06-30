@@ -405,55 +405,14 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
               />
             </Field>
 
-            {/* Imagem da Arte */}
-            <div>
-              <Label className="text-sm font-medium">Imagem da Arte</Label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Referência visual do pedido. JPG, PNG ou WEBP.
-              </p>
-              {imagemArte ? (
-                <div className="relative inline-block">
-                  <img
-                    src={imagemArte}
-                    alt="Pré-visualização da arte"
-                    className="h-40 w-auto rounded-md border object-contain"
-                  />
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="destructive"
-                    className="absolute -right-2 -top-2 h-6 w-6"
-                    onClick={() => setImagemArte(null)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              ) : (
-                <div
-                  onDragOver={onDragOver}
-                  onDrop={onDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="cursor-pointer rounded-md border border-dashed p-6 text-center hover:bg-muted/50 transition-colors"
-                >
-                  <ImageIcon className="mx-auto h-8 w-8 text-muted-foreground" />
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Clique para upload ou arraste a imagem aqui
-                  </p>
-                  <p className="text-xs text-muted-foreground">JPG · PNG · WEBP</p>
-                </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".jpg,.jpeg,.png,.webp"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFile(file);
-                  e.target.value = "";
-                }}
-              />
-            </div>
+            {/* Fotos do pedido */}
+            <PhotoManager
+              value={imagens}
+              onChange={setImagens}
+              max={MAX_FOTOS}
+              label="Adicionar fotos"
+              hint="Tire fotos pela câmera (celular/tablet) ou selecione da galeria. Até 8 imagens."
+            />
           </div>
 
           {/* ====== RESUMO ====== */}
