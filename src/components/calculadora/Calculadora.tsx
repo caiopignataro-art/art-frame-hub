@@ -1,7 +1,8 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, Trash2, Calculator as CalcIcon, Upload, X, Image as ImageIcon } from "lucide-react";
+import { Plus, Trash2, Calculator as CalcIcon } from "lucide-react";
+import { PhotoManager } from "./PhotoManager";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
