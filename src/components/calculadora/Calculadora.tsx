@@ -52,7 +52,7 @@ const ORIGEM_LABEL: Record<MaterialOrigem, string> = {
   servico: "Serviço",
 };
 
-const TIPOS_IMAGEM = ["image/jpeg", "image/png", "image/webp"];
+const MAX_FOTOS = 8;
 
 export interface CalculadoraProps {
   /**
