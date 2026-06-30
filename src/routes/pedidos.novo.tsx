@@ -372,21 +372,40 @@ function NovoPedidoPage() {
                   </TableCell>
                 </TableRow>
               )}
-              {itens.map((i, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>{idx + 1}</TableCell>
-                  <TableCell className="max-w-md">{i.descricao}</TableCell>
-                  <TableCell>{i.largura_cm}×{i.altura_cm} cm</TableCell>
-                  <TableCell className="text-right">{i.quantidade}</TableCell>
-                  <TableCell className="text-right">{formatBRL(i.valor_unitario)}</TableCell>
-                  <TableCell className="text-right">{formatBRL(i.valor_total)}</TableCell>
-                  <TableCell>
-                    <Button size="icon" variant="ghost" onClick={() => removeItem(idx)} aria-label="Remover">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {itens.map((i, idx) => {
+                const imgs = ((i.metadados as any)?.entrada?.imagens ?? []) as string[];
+                return (
+                  <TableRow key={idx}>
+                    <TableCell>{idx + 1}</TableCell>
+                    <TableCell className="max-w-md">
+                      <div className="flex items-start gap-2">
+                        {imgs.length > 0 && (
+                          <div className="flex -space-x-1 shrink-0">
+                            {imgs.slice(0, 3).map((src, ii) => (
+                              <img key={ii} src={src} alt="" className="h-8 w-8 rounded border-2 border-background object-cover" />
+                            ))}
+                            {imgs.length > 3 && (
+                              <span className="grid h-8 w-8 place-items-center rounded border-2 border-background bg-muted text-[10px] font-medium">
+                                +{imgs.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <span>{i.descricao}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{i.largura_cm}×{i.altura_cm} cm</TableCell>
+                    <TableCell className="text-right">{i.quantidade}</TableCell>
+                    <TableCell className="text-right">{formatBRL(i.valor_unitario)}</TableCell>
+                    <TableCell className="text-right">{formatBRL(i.valor_total)}</TableCell>
+                    <TableCell>
+                      <Button size="icon" variant="ghost" onClick={() => removeItem(idx)} aria-label="Remover">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>

@@ -26,6 +26,8 @@ export interface CalcInput {
   fundo: Produto | null;
   servicos: Produto[];
   observacoes?: string;
+  /** Fotos do pedido (data URLs já comprimidas). */
+  imagens?: string[];
   /** Comprimento de cada barra de moldura (cm). Default 270. */
   barra_cm?: number;
 }

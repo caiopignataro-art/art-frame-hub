@@ -139,13 +139,27 @@ export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: strin
 
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">Itens ({p.itens?.length ?? 0})</CardTitle></CardHeader>
-              <CardContent className="space-y-1 text-sm">
-                {(p.itens ?? []).map((i) => (
-                  <div key={i.id} className="flex justify-between border-b border-border/50 pb-1 last:border-0">
-                    <span className="truncate">{i.descricao}</span>
-                    <span>{Number(i.quantidade)} · {formatBRL(i.valor_total)}</span>
-                  </div>
-                ))}
+              <CardContent className="space-y-2 text-sm">
+                {(p.itens ?? []).map((i) => {
+                  const imgs = (((i as any).metadados)?.entrada?.imagens ?? []) as string[];
+                  return (
+                    <div key={i.id} className="border-b border-border/50 pb-2 last:border-0">
+                      <div className="flex justify-between gap-2">
+                        <span className="truncate">{i.descricao}</span>
+                        <span className="shrink-0">{Number(i.quantidade)} · {formatBRL(i.valor_total)}</span>
+                      </div>
+                      {imgs.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {imgs.map((src, ii) => (
+                            <a key={ii} href={src} target="_blank" rel="noreferrer">
+                              <img src={src} alt={`Foto ${ii + 1}`} className="h-14 w-14 rounded border object-cover" />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 {(!p.itens || p.itens.length === 0) && <p className="text-xs text-muted-foreground">Sem itens.</p>}
               </CardContent>
             </Card>

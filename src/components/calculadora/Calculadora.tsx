@@ -1,7 +1,8 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, Trash2, Calculator as CalcIcon, Upload, X, Image as ImageIcon } from "lucide-react";
+import { Plus, Trash2, Calculator as CalcIcon } from "lucide-react";
+import { PhotoManager } from "./PhotoManager";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,7 @@ const ORIGEM_LABEL: Record<MaterialOrigem, string> = {
   servico: "Serviço",
 };
 
-const TIPOS_IMAGEM = ["image/jpeg", "image/png", "image/webp"];
+const MAX_FOTOS = 8;
 
 export interface CalculadoraProps {
   /**
@@ -105,9 +106,8 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
   const [observacoes, setObservacoes] = React.useState("");
   const [saving, setSaving] = React.useState(false);
 
-  // Imagem da arte
-  const [imagemArte, setImagemArte] = React.useState<string | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  // Fotos do pedido (referências visuais — viajam com o item via metadados)
+  const [imagens, setImagens] = React.useState<string[]>([]);
 
   const barraQ = useQuery({
     queryKey: ["config", CONFIG_KEYS.comprimento_barra_cm],
@@ -126,9 +126,10 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
       fundo,
       servicos,
       observacoes: observacoes || undefined,
+      imagens,
       barra_cm: barraCm,
     }),
-    [quantidade, largura, altura, molduras, passes, protecao, fundo, servicos, observacoes, barraCm],
+    [quantidade, largura, altura, molduras, passes, protecao, fundo, servicos, observacoes, imagens, barraCm],
   );
 
   const result = React.useMemo(() => calcular(input), [input]);
@@ -179,7 +180,7 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     setFundo(null);
     setServicos([]);
     setObservacoes("");
-    setImagemArte(null);
+    setImagens([]);
   };
 
   const handleCancelar = () => {
@@ -210,26 +211,6 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     }
   };
 
-  // ---- imagem ----
-  const handleFile = (file: File) => {
-    if (!TIPOS_IMAGEM.includes(file.type)) {
-      toast.error("Formato não suportado. Use JPG, PNG ou WEBP.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onloadend = () => setImagemArte(reader.result as string);
-    reader.readAsDataURL(file);
-  };
-
-  const onDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFile(file);
-  };
 
   return (
     <Card>
@@ -425,55 +406,14 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
               />
             </Field>
 
-            {/* Imagem da Arte */}
-            <div>
-              <Label className="text-sm font-medium">Imagem da Arte</Label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Referência visual do pedido. JPG, PNG ou WEBP.
-              </p>
-              {imagemArte ? (
-                <div className="relative inline-block">
-                  <img
-                    src={imagemArte}
-                    alt="Pré-visualização da arte"
-                    className="h-40 w-auto rounded-md border object-contain"
-                  />
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="destructive"
-                    className="absolute -right-2 -top-2 h-6 w-6"
-                    onClick={() => setImagemArte(null)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              ) : (
-                <div
-                  onDragOver={onDragOver}
-                  onDrop={onDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="cursor-pointer rounded-md border border-dashed p-6 text-center hover:bg-muted/50 transition-colors"
-                >
-                  <ImageIcon className="mx-auto h-8 w-8 text-muted-foreground" />
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Clique para upload ou arraste a imagem aqui
-                  </p>
-                  <p className="text-xs text-muted-foreground">JPG · PNG · WEBP</p>
-                </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".jpg,.jpeg,.png,.webp"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFile(file);
-                  e.target.value = "";
-                }}
-              />
-            </div>
+            {/* Fotos do pedido */}
+            <PhotoManager
+              value={imagens}
+              onChange={setImagens}
+              max={MAX_FOTOS}
+              label="Adicionar fotos"
+              hint="Tire fotos pela câmera (celular/tablet) ou selecione da galeria. Até 8 imagens."
+            />
           </div>
 
           {/* ====== RESUMO ====== */}
