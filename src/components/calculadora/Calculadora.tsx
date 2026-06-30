@@ -179,7 +179,7 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     setFundo(null);
     setServicos([]);
     setObservacoes("");
-    setImagemArte(null);
+    setImagens([]);
   };
 
   const handleCancelar = () => {
