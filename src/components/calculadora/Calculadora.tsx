@@ -126,9 +126,10 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
       fundo,
       servicos,
       observacoes: observacoes || undefined,
+      imagens,
       barra_cm: barraCm,
     }),
-    [quantidade, largura, altura, molduras, passes, protecao, fundo, servicos, observacoes, barraCm],
+    [quantidade, largura, altura, molduras, passes, protecao, fundo, servicos, observacoes, imagens, barraCm],
   );
 
   const result = React.useMemo(() => calcular(input), [input]);
