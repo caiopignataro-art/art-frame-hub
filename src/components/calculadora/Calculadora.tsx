@@ -106,9 +106,8 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
   const [observacoes, setObservacoes] = React.useState("");
   const [saving, setSaving] = React.useState(false);
 
-  // Imagem da arte
-  const [imagemArte, setImagemArte] = React.useState<string | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  // Fotos do pedido (referências visuais — viajam com o item via metadados)
+  const [imagens, setImagens] = React.useState<string[]>([]);
 
   const barraQ = useQuery({
     queryKey: ["config", CONFIG_KEYS.comprimento_barra_cm],
