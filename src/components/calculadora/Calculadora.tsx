@@ -210,26 +210,6 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     }
   };
 
-  // ---- imagem ----
-  const handleFile = (file: File) => {
-    if (!TIPOS_IMAGEM.includes(file.type)) {
-      toast.error("Formato não suportado. Use JPG, PNG ou WEBP.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onloadend = () => setImagemArte(reader.result as string);
-    reader.readAsDataURL(file);
-  };
-
-  const onDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFile(file);
-  };
 
   return (
     <Card>
