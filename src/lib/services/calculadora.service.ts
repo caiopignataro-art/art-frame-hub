@@ -37,6 +37,7 @@ export function buildMetadados(input: CalcInput, result: CalcResult) {
       fundo_id: input.fundo?.id ?? null,
       servicos: input.servicos.map((s) => s.id),
       observacoes: input.observacoes ?? null,
+      imagens: input.imagens ?? [],
       barra_cm: input.barra_cm ?? 270,
     },
     calculo: result,
