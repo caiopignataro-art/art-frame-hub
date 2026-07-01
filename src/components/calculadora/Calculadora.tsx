@@ -49,6 +49,8 @@ const ORIGEM_LABEL: Record<MaterialOrigem, string> = {
   passe_partout: "Passe-partout",
   protecao_frontal: "Proteção frontal",
   fundo: "Fundo",
+  impressao: "Impressão",
+  chassi: "Chassi",
   servico: "Serviço",
 };
 
