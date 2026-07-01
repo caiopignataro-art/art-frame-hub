@@ -59,7 +59,8 @@ function ProdutosPage() {
   );
 
   const filtered = useMemo(() => {
-    let rows = data ?? [];
+    // Catálogo mostra apenas Molduras e Passe-partout (importadas via XLSX)
+    let rows = (data ?? []).filter((p) => (PRODUTO_CATEGORIAS_IMPORTACAO as readonly ProdutoTipo[]).includes(p.tipo));
     const q = search.trim().toLowerCase();
     if (q) {
       rows = rows.filter(
