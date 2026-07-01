@@ -1,11 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { dashboardService } from "@/lib/services/dashboard.service";
+import { produtosService } from "@/lib/services/produtos.service";
 import { formatBRL } from "@/lib/format";
-import { TrendingUp, Receipt, ShoppingBag, PiggyBank, Hammer } from "lucide-react";
+import { TrendingUp, Receipt, ShoppingBag, PiggyBank, Hammer, AlertTriangle } from "lucide-react";
+import { PRODUTO_TIPO_LABEL } from "@/types/erp";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Molduraria ERP" }] }),
