@@ -17,6 +17,10 @@ export const Route = createFileRoute("/dashboard")({
 
 function DashboardPage() {
   const { data, isLoading } = useQuery({ queryKey: ["dashboard"], queryFn: dashboardService.load });
+  const alertasQ = useQuery({
+    queryKey: ["alertas-essenciais"],
+    queryFn: () => produtosService.listAlertasEssenciais(),
+  });
 
   const maxSerie = Math.max(1, ...(data?.serieFaturamento.map((s) => s.valor) ?? [0]));
 
