@@ -1,6 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Produto, ProdutoInsert, ProdutoUpdate, ProdutoTipo } from "@/types/erp";
 
+export interface EssencialAlerta {
+  produto: Produto;
+  estoque_real: number;
+  estoque_minimo: number;
+}
+
 export type BulkScope =
   | { kind: "todos" }
   | { kind: "categoria"; tipo: ProdutoTipo }
