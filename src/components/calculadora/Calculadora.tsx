@@ -87,6 +87,14 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     queryKey: ["produtos", "fundo"],
     queryFn: () => produtosService.list({ tipo: "fundo", ativo: true }),
   });
+  const impressaoQ = useQuery({
+    queryKey: ["produtos", "impressao"],
+    queryFn: () => produtosService.list({ tipo: "impressao", ativo: true }),
+  });
+  const chassiQ = useQuery({
+    queryKey: ["produtos", "chassi"],
+    queryFn: () => produtosService.list({ tipo: "chassi", ativo: true }),
+  });
   const servicosQ = useQuery({
     queryKey: ["produtos", "servico"],
     queryFn: () => produtosService.list({ tipo: "servico", ativo: true }),
