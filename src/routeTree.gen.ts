@@ -23,6 +23,7 @@ import { Route as ProdutosIndexRouteImport } from './routes/produtos.index'
 import { Route as PedidosIndexRouteImport } from './routes/pedidos.index'
 import { Route as EstoqueIndexRouteImport } from './routes/estoque.index'
 import { Route as ProdutosImportacaoRouteImport } from './routes/produtos.importacao'
+import { Route as ProdutosEssenciaisRouteImport } from './routes/produtos.essenciais'
 import { Route as PedidosNovoRouteImport } from './routes/pedidos.novo'
 import { Route as EstoqueRetalhosRouteImport } from './routes/estoque.retalhos'
 import { Route as EstoqueOrdensRouteImport } from './routes/estoque.ordens'
@@ -98,6 +99,11 @@ const ProdutosImportacaoRoute = ProdutosImportacaoRouteImport.update({
   path: '/importacao',
   getParentRoute: () => ProdutosRoute,
 } as any)
+const ProdutosEssenciaisRoute = ProdutosEssenciaisRouteImport.update({
+  id: '/essenciais',
+  path: '/essenciais',
+  getParentRoute: () => ProdutosRoute,
+} as any)
 const PedidosNovoRoute = PedidosNovoRouteImport.update({
   id: '/novo',
   path: '/novo',
@@ -134,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/estoque/ordens': typeof EstoqueOrdensRoute
   '/estoque/retalhos': typeof EstoqueRetalhosRoute
   '/pedidos/novo': typeof PedidosNovoRoute
+  '/produtos/essenciais': typeof ProdutosEssenciaisRoute
   '/produtos/importacao': typeof ProdutosImportacaoRoute
   '/estoque/': typeof EstoqueIndexRoute
   '/pedidos/': typeof PedidosIndexRoute
@@ -151,6 +158,7 @@ export interface FileRoutesByTo {
   '/estoque/ordens': typeof EstoqueOrdensRoute
   '/estoque/retalhos': typeof EstoqueRetalhosRoute
   '/pedidos/novo': typeof PedidosNovoRoute
+  '/produtos/essenciais': typeof ProdutosEssenciaisRoute
   '/produtos/importacao': typeof ProdutosImportacaoRoute
   '/estoque': typeof EstoqueIndexRoute
   '/pedidos': typeof PedidosIndexRoute
@@ -172,6 +180,7 @@ export interface FileRoutesById {
   '/estoque/ordens': typeof EstoqueOrdensRoute
   '/estoque/retalhos': typeof EstoqueRetalhosRoute
   '/pedidos/novo': typeof PedidosNovoRoute
+  '/produtos/essenciais': typeof ProdutosEssenciaisRoute
   '/produtos/importacao': typeof ProdutosImportacaoRoute
   '/estoque/': typeof EstoqueIndexRoute
   '/pedidos/': typeof PedidosIndexRoute
@@ -194,6 +203,7 @@ export interface FileRouteTypes {
     | '/estoque/ordens'
     | '/estoque/retalhos'
     | '/pedidos/novo'
+    | '/produtos/essenciais'
     | '/produtos/importacao'
     | '/estoque/'
     | '/pedidos/'
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
     | '/estoque/ordens'
     | '/estoque/retalhos'
     | '/pedidos/novo'
+    | '/produtos/essenciais'
     | '/produtos/importacao'
     | '/estoque'
     | '/pedidos'
@@ -231,6 +242,7 @@ export interface FileRouteTypes {
     | '/estoque/ordens'
     | '/estoque/retalhos'
     | '/pedidos/novo'
+    | '/produtos/essenciais'
     | '/produtos/importacao'
     | '/estoque/'
     | '/pedidos/'
@@ -350,6 +362,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProdutosImportacaoRouteImport
       parentRoute: typeof ProdutosRoute
     }
+    '/produtos/essenciais': {
+      id: '/produtos/essenciais'
+      path: '/essenciais'
+      fullPath: '/produtos/essenciais'
+      preLoaderRoute: typeof ProdutosEssenciaisRouteImport
+      parentRoute: typeof ProdutosRoute
+    }
     '/pedidos/novo': {
       id: '/pedidos/novo'
       path: '/novo'
@@ -412,11 +431,13 @@ const PedidosRouteWithChildren =
   PedidosRoute._addFileChildren(PedidosRouteChildren)
 
 interface ProdutosRouteChildren {
+  ProdutosEssenciaisRoute: typeof ProdutosEssenciaisRoute
   ProdutosImportacaoRoute: typeof ProdutosImportacaoRoute
   ProdutosIndexRoute: typeof ProdutosIndexRoute
 }
 
 const ProdutosRouteChildren: ProdutosRouteChildren = {
+  ProdutosEssenciaisRoute: ProdutosEssenciaisRoute,
   ProdutosImportacaoRoute: ProdutosImportacaoRoute,
   ProdutosIndexRoute: ProdutosIndexRoute,
 }
