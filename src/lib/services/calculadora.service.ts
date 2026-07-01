@@ -35,6 +35,8 @@ export function buildMetadados(input: CalcInput, result: CalcResult) {
       })),
       protecao_id: input.protecao?.id ?? null,
       fundo_id: input.fundo?.id ?? null,
+      impressao_id: input.impressao?.id ?? null,
+      chassi_id: input.chassi?.id ?? null,
       servicos: input.servicos.map((s) => s.id),
       observacoes: input.observacoes ?? null,
       imagens: input.imagens ?? [],
