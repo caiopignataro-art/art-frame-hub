@@ -31,6 +31,29 @@ function DashboardPage() {
         description="Indicadores de faturamento, produção e clientes."
       />
 
+      {alertasQ.data && alertasQ.data.length > 0 && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>🔴 Estoque crítico ({alertasQ.data.length})</AlertTitle>
+          <AlertDescription>
+            <ul className="mt-1 space-y-0.5 text-sm">
+              {alertasQ.data.slice(0, 5).map((a) => (
+                <li key={a.produto.id}>
+                  <strong>{PRODUTO_TIPO_LABEL[a.produto.tipo]}</strong> — {a.produto.nome}:{" "}
+                  {a.estoque_real} {a.produto.unidade_estoque ?? a.produto.unidade} restante(s)
+                </li>
+              ))}
+              {alertasQ.data.length > 5 && (
+                <li className="text-xs opacity-80">+ {alertasQ.data.length - 5} outros</li>
+              )}
+            </ul>
+            <Link to="/produtos/essenciais" className="mt-2 inline-block underline text-sm">
+              Ver produtos essenciais →
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {isLoading && <p className="text-sm text-muted-foreground">Carregando indicadores…</p>}
 
       {data && (
