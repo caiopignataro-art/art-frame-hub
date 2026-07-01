@@ -26,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { produtosService } from "@/lib/services/produtos.service";
-import { PRODUTO_TIPO_LABEL, type Produto, type ProdutoTipo } from "@/types/erp";
+import { PRODUTO_TIPO_LABEL, PRODUTO_CATEGORIAS_IMPORTACAO, type Produto, type ProdutoTipo } from "@/types/erp";
 import { formatBRL } from "@/lib/format";
 import { ProdutoEditDialog } from "@/components/produtos/ProdutoEditDialog";
 import { BulkPriceDialog } from "@/components/produtos/BulkPriceDialog";
