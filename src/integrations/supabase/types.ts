@@ -744,12 +744,17 @@ export type Database = {
           acabamento: string | null
           altura_cm: number | null
           ativo: boolean
+          chapa_altura_cm: number | null
+          chapa_largura_cm: number | null
           codigo: string | null
           created_at: string
           descricao: string | null
           estoque: number
+          estoque_ideal: number
+          estoque_minimo: number
           estoque_minimo_barras: number
           fabricante: string | null
+          fornecedor: string | null
           id: string
           largura_cm: number | null
           nome: string
@@ -757,20 +762,29 @@ export type Database = {
           perfil: string | null
           preco_custo: number
           preco_venda: number
+          preco_venda_acima_m2: number | null
+          preco_venda_limite_m2: number | null
           tipo: Database["public"]["Enums"]["produto_tipo"]
           unidade: string
+          unidade_estoque: string | null
+          unidade_venda: string | null
           updated_at: string
         }
         Insert: {
           acabamento?: string | null
           altura_cm?: number | null
           ativo?: boolean
+          chapa_altura_cm?: number | null
+          chapa_largura_cm?: number | null
           codigo?: string | null
           created_at?: string
           descricao?: string | null
           estoque?: number
+          estoque_ideal?: number
+          estoque_minimo?: number
           estoque_minimo_barras?: number
           fabricante?: string | null
+          fornecedor?: string | null
           id?: string
           largura_cm?: number | null
           nome: string
@@ -778,20 +792,29 @@ export type Database = {
           perfil?: string | null
           preco_custo?: number
           preco_venda?: number
+          preco_venda_acima_m2?: number | null
+          preco_venda_limite_m2?: number | null
           tipo?: Database["public"]["Enums"]["produto_tipo"]
           unidade?: string
+          unidade_estoque?: string | null
+          unidade_venda?: string | null
           updated_at?: string
         }
         Update: {
           acabamento?: string | null
           altura_cm?: number | null
           ativo?: boolean
+          chapa_altura_cm?: number | null
+          chapa_largura_cm?: number | null
           codigo?: string | null
           created_at?: string
           descricao?: string | null
           estoque?: number
+          estoque_ideal?: number
+          estoque_minimo?: number
           estoque_minimo_barras?: number
           fabricante?: string | null
+          fornecedor?: string | null
           id?: string
           largura_cm?: number | null
           nome?: string
@@ -799,8 +822,12 @@ export type Database = {
           perfil?: string | null
           preco_custo?: number
           preco_venda?: number
+          preco_venda_acima_m2?: number | null
+          preco_venda_limite_m2?: number | null
           tipo?: Database["public"]["Enums"]["produto_tipo"]
           unidade?: string
+          unidade_estoque?: string | null
+          unidade_venda?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -964,6 +991,7 @@ export type Database = {
         Args: { _pedido_id: string }
         Returns: undefined
       }
+      proximo_codigo_produto: { Args: never; Returns: string }
     }
     Enums: {
       estoque_movimento_tipo:
@@ -1025,6 +1053,8 @@ export type Database = {
         | "perfil_moldura"
         | "passe_partout"
         | "protecao_frontal"
+        | "impressao"
+        | "chassi"
       reserva_status: "ativa" | "consumida" | "estornada"
       retalho_status: "disponivel" | "usado" | "descartado"
     }
@@ -1219,6 +1249,8 @@ export const Constants = {
         "perfil_moldura",
         "passe_partout",
         "protecao_frontal",
+        "impressao",
+        "chassi",
       ],
       reserva_status: ["ativa", "consumida", "estornada"],
       retalho_status: ["disponivel", "usado", "descartado"],

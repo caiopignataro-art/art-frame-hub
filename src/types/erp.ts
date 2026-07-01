@@ -128,6 +128,8 @@ export const PRODUTO_TIPO_LABEL: Record<ProdutoTipo, string> = {
   passe_partout: "Passe-partout",
   protecao_frontal: "Proteção Frontal",
   fundo: "Fundo",
+  impressao: "Impressão",
+  chassi: "Chassi",
   servico: "Serviço",
   moldura: "Moldura (legado)",
   vidro: "Vidro (legado)",
@@ -136,12 +138,20 @@ export const PRODUTO_TIPO_LABEL: Record<ProdutoTipo, string> = {
   outro: "Outro",
 };
 
+/** Categorias cadastradas manualmente (aba Essenciais). */
+export const PRODUTO_CATEGORIAS_ESSENCIAIS = [
+  "protecao_frontal",
+  "fundo",
+  "impressao",
+  "chassi",
+] as const satisfies readonly ProdutoTipo[];
+
+export type ProdutoCategoriaEssencial = (typeof PRODUTO_CATEGORIAS_ESSENCIAIS)[number];
+
+/** Categorias importadas via XLSX (aba Catálogo). */
 export const PRODUTO_CATEGORIAS_IMPORTACAO = [
   "perfil_moldura",
   "passe_partout",
-  "protecao_frontal",
-  "fundo",
-  "servico",
 ] as const satisfies readonly ProdutoTipo[];
 
 export type ProdutoCategoriaImportacao = (typeof PRODUTO_CATEGORIAS_IMPORTACAO)[number];

@@ -26,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { produtosService } from "@/lib/services/produtos.service";
-import { PRODUTO_TIPO_LABEL, type Produto, type ProdutoTipo } from "@/types/erp";
+import { PRODUTO_TIPO_LABEL, PRODUTO_CATEGORIAS_IMPORTACAO, type Produto, type ProdutoTipo } from "@/types/erp";
 import { formatBRL } from "@/lib/format";
 import { ProdutoEditDialog } from "@/components/produtos/ProdutoEditDialog";
 import { BulkPriceDialog } from "@/components/produtos/BulkPriceDialog";
@@ -59,7 +59,8 @@ function ProdutosPage() {
   );
 
   const filtered = useMemo(() => {
-    let rows = data ?? [];
+    // Catálogo mostra apenas Molduras e Passe-partout (importadas via XLSX)
+    let rows = (data ?? []).filter((p) => (PRODUTO_CATEGORIAS_IMPORTACAO as readonly ProdutoTipo[]).includes(p.tipo));
     const q = search.trim().toLowerCase();
     if (q) {
       rows = rows.filter(
@@ -186,8 +187,8 @@ function ProdutosPage() {
           <Select value={filtroCat} onValueChange={setFiltroCat}>
             <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="todas">Todas as categorias</SelectItem>
-              {(Object.keys(PRODUTO_TIPO_LABEL) as ProdutoTipo[]).map((t) => (
+              <SelectItem value="todas">Todas (Molduras + Passe-partout)</SelectItem>
+              {(PRODUTO_CATEGORIAS_IMPORTACAO as readonly ProdutoTipo[]).map((t) => (
                 <SelectItem key={t} value={t}>{PRODUTO_TIPO_LABEL[t]}</SelectItem>
               ))}
             </SelectContent>

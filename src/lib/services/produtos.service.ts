@@ -1,6 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Produto, ProdutoInsert, ProdutoUpdate, ProdutoTipo } from "@/types/erp";
 
+export interface EssencialAlerta {
+  produto: Produto;
+  estoque_real: number;
+  estoque_minimo: number;
+}
+
 export type BulkScope =
   | { kind: "todos" }
   | { kind: "categoria"; tipo: ProdutoTipo }
@@ -55,11 +61,39 @@ export const produtosService = {
     return data;
   },
 
+  async proximoCodigo(): Promise<string> {
+    const { data, error } = await supabase.rpc("proximo_codigo_produto");
+    if (error) throw error;
+    return String(data ?? "0001");
+  },
+
   async create(input: ProdutoInsert): Promise<Produto> {
-    const { data, error } = await supabase.from("produtos").insert(input).select("*").single();
+    const payload: ProdutoInsert = { ...input };
+    if (!payload.codigo) {
+      payload.codigo = await this.proximoCodigo();
+    }
+    const { data, error } = await supabase.from("produtos").insert(payload).select("*").single();
     if (error) throw error;
     return data;
   },
+
+  async listAlertasEssenciais(): Promise<EssencialAlerta[]> {
+    const tipos: ProdutoTipo[] = ["protecao_frontal", "fundo", "impressao", "chassi"];
+    const { data, error } = await supabase
+      .from("produtos")
+      .select("*")
+      .in("tipo", tipos)
+      .eq("ativo", true);
+    if (error) throw error;
+    return (data ?? [])
+      .filter((p) => Number(p.estoque_minimo ?? 0) > 0 && Number(p.estoque) <= Number(p.estoque_minimo))
+      .map((p) => ({
+        produto: p,
+        estoque_real: Number(p.estoque),
+        estoque_minimo: Number(p.estoque_minimo ?? 0),
+      }));
+  },
+
 
   async update(id: string, patch: ProdutoUpdate): Promise<Produto> {
     // Nunca permitir alteração de código (chave única do produto)

@@ -151,9 +151,6 @@ export function parseGenerico(
 
   const unidadePadrao: Record<typeof categoria, string> = {
     passe_partout: "folha",
-    protecao_frontal: "folha",
-    fundo: "folha",
-    servico: "un",
   };
 
   rawRows.forEach((raw, idx) => {

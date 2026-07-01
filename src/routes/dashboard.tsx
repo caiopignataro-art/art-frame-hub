@@ -1,11 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { dashboardService } from "@/lib/services/dashboard.service";
+import { produtosService } from "@/lib/services/produtos.service";
 import { formatBRL } from "@/lib/format";
-import { TrendingUp, Receipt, ShoppingBag, PiggyBank, Hammer } from "lucide-react";
+import { TrendingUp, Receipt, ShoppingBag, PiggyBank, Hammer, AlertTriangle } from "lucide-react";
+import { PRODUTO_TIPO_LABEL } from "@/types/erp";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Molduraria ERP" }] }),
@@ -14,6 +17,10 @@ export const Route = createFileRoute("/dashboard")({
 
 function DashboardPage() {
   const { data, isLoading } = useQuery({ queryKey: ["dashboard"], queryFn: dashboardService.load });
+  const alertasQ = useQuery({
+    queryKey: ["alertas-essenciais"],
+    queryFn: () => produtosService.listAlertasEssenciais(),
+  });
 
   const maxSerie = Math.max(1, ...(data?.serieFaturamento.map((s) => s.valor) ?? [0]));
 
@@ -23,6 +30,29 @@ function DashboardPage() {
         title="Visão geral do negócio"
         description="Indicadores de faturamento, produção e clientes."
       />
+
+      {alertasQ.data && alertasQ.data.length > 0 && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>🔴 Estoque crítico ({alertasQ.data.length})</AlertTitle>
+          <AlertDescription>
+            <ul className="mt-1 space-y-0.5 text-sm">
+              {alertasQ.data.slice(0, 5).map((a) => (
+                <li key={a.produto.id}>
+                  <strong>{PRODUTO_TIPO_LABEL[a.produto.tipo]}</strong> — {a.produto.nome}:{" "}
+                  {a.estoque_real} {a.produto.unidade_estoque ?? a.produto.unidade} restante(s)
+                </li>
+              ))}
+              {alertasQ.data.length > 5 && (
+                <li className="text-xs opacity-80">+ {alertasQ.data.length - 5} outros</li>
+              )}
+            </ul>
+            <Link to="/produtos/essenciais" className="mt-2 inline-block underline text-sm">
+              Ver produtos essenciais →
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando indicadores…</p>}
 

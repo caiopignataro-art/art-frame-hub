@@ -24,6 +24,8 @@ export interface CalcInput {
   passe_partouts: PassePartoutSelecionado[];
   protecao: Produto | null;
   fundo: Produto | null;
+  impressao: Produto | null;
+  chassi: Produto | null;
   servicos: Produto[];
   observacoes?: string;
   /** Fotos do pedido (data URLs já comprimidas). */
@@ -37,6 +39,8 @@ export type MaterialOrigem =
   | "passe_partout"
   | "protecao_frontal"
   | "fundo"
+  | "impressao"
+  | "chassi"
   | "servico";
 
 export interface MaterialCalculado {

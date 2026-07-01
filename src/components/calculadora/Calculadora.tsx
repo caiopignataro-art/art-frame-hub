@@ -49,6 +49,8 @@ const ORIGEM_LABEL: Record<MaterialOrigem, string> = {
   passe_partout: "Passe-partout",
   protecao_frontal: "Proteção frontal",
   fundo: "Fundo",
+  impressao: "Impressão",
+  chassi: "Chassi",
   servico: "Serviço",
 };
 
@@ -85,6 +87,14 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     queryKey: ["produtos", "fundo"],
     queryFn: () => produtosService.list({ tipo: "fundo", ativo: true }),
   });
+  const impressaoQ = useQuery({
+    queryKey: ["produtos", "impressao"],
+    queryFn: () => produtosService.list({ tipo: "impressao", ativo: true }),
+  });
+  const chassiQ = useQuery({
+    queryKey: ["produtos", "chassi"],
+    queryFn: () => produtosService.list({ tipo: "chassi", ativo: true }),
+  });
   const servicosQ = useQuery({
     queryKey: ["produtos", "servico"],
     queryFn: () => produtosService.list({ tipo: "servico", ativo: true }),
@@ -102,6 +112,8 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
   const [passes, setPasses] = React.useState<PassePartoutSelecionado[]>([]);
   const [protecao, setProtecao] = React.useState<Produto | null>(null);
   const [fundo, setFundo] = React.useState<Produto | null>(null);
+  const [impressao, setImpressao] = React.useState<Produto | null>(null);
+  const [chassi, setChassi] = React.useState<Produto | null>(null);
   const [servicos, setServicos] = React.useState<Produto[]>([]);
   const [observacoes, setObservacoes] = React.useState("");
   const [saving, setSaving] = React.useState(false);
@@ -124,12 +136,14 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
       passe_partouts: passes.filter((pp) => pp.produto),
       protecao,
       fundo,
+      impressao,
+      chassi,
       servicos,
       observacoes: observacoes || undefined,
       imagens,
       barra_cm: barraCm,
     }),
-    [quantidade, largura, altura, molduras, passes, protecao, fundo, servicos, observacoes, imagens, barraCm],
+    [quantidade, largura, altura, molduras, passes, protecao, fundo, impressao, chassi, servicos, observacoes, imagens, barraCm],
   );
 
   const result = React.useMemo(() => calcular(input), [input]);
@@ -168,7 +182,7 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     largura > 0 &&
     altura > 0 &&
     quantidade > 0 &&
-    (molduras.length > 0 || servicos.length > 0 || protecao || fundo);
+    (molduras.length > 0 || servicos.length > 0 || protecao || fundo || impressao || chassi);
 
   const reset = () => {
     setQuantidadeStr("");
@@ -178,6 +192,8 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     setPasses([]);
     setProtecao(null);
     setFundo(null);
+    setImpressao(null);
+    setChassi(null);
     setServicos([]);
     setObservacoes("");
     setImagens([]);
@@ -364,6 +380,49 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
                   <SelectContent>
                     <SelectItem value="_none">— sem fundo —</SelectItem>
                     {(fundoQ.data ?? []).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.codigo ? `[${p.codigo}] ` : ""}{p.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Impressão">
+                <Select
+                  value={impressao?.id ?? "_none"}
+                  onValueChange={(v) =>
+                    setImpressao(v === "_none" ? null : (impressaoQ.data ?? []).find((p) => p.id === v) ?? null)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">— sem impressão —</SelectItem>
+                    {(impressaoQ.data ?? []).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.codigo ? `[${p.codigo}] ` : ""}{p.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Chassi">
+                <Select
+                  value={chassi?.id ?? "_none"}
+                  onValueChange={(v) =>
+                    setChassi(v === "_none" ? null : (chassiQ.data ?? []).find((p) => p.id === v) ?? null)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">— sem chassi —</SelectItem>
+                    {(chassiQ.data ?? []).map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.codigo ? `[${p.codigo}] ` : ""}{p.nome}
                       </SelectItem>
