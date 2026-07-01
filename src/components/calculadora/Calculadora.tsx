@@ -389,6 +389,49 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
               </Field>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Impressão">
+                <Select
+                  value={impressao?.id ?? "_none"}
+                  onValueChange={(v) =>
+                    setImpressao(v === "_none" ? null : (impressaoQ.data ?? []).find((p) => p.id === v) ?? null)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">— sem impressão —</SelectItem>
+                    {(impressaoQ.data ?? []).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.codigo ? `[${p.codigo}] ` : ""}{p.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Chassi">
+                <Select
+                  value={chassi?.id ?? "_none"}
+                  onValueChange={(v) =>
+                    setChassi(v === "_none" ? null : (chassiQ.data ?? []).find((p) => p.id === v) ?? null)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">— sem chassi —</SelectItem>
+                    {(chassiQ.data ?? []).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.codigo ? `[${p.codigo}] ` : ""}{p.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+
             <div>
               <Label className="text-sm font-medium">Serviços</Label>
               <p className="text-xs text-muted-foreground mb-2">Seleção múltipla.</p>
