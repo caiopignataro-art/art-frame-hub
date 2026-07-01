@@ -182,7 +182,7 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     largura > 0 &&
     altura > 0 &&
     quantidade > 0 &&
-    (molduras.length > 0 || servicos.length > 0 || protecao || fundo);
+    (molduras.length > 0 || servicos.length > 0 || protecao || fundo || impressao || chassi);
 
   const reset = () => {
     setQuantidadeStr("");
@@ -192,6 +192,8 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     setPasses([]);
     setProtecao(null);
     setFundo(null);
+    setImpressao(null);
+    setChassi(null);
     setServicos([]);
     setObservacoes("");
     setImagens([]);
