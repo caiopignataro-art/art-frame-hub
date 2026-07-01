@@ -39,6 +39,8 @@ export type MaterialOrigem =
   | "passe_partout"
   | "protecao_frontal"
   | "fundo"
+  | "impressao"
+  | "chassi"
   | "servico";
 
 export interface MaterialCalculado {
