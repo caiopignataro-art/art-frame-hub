@@ -112,6 +112,8 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
   const [passes, setPasses] = React.useState<PassePartoutSelecionado[]>([]);
   const [protecao, setProtecao] = React.useState<Produto | null>(null);
   const [fundo, setFundo] = React.useState<Produto | null>(null);
+  const [impressao, setImpressao] = React.useState<Produto | null>(null);
+  const [chassi, setChassi] = React.useState<Produto | null>(null);
   const [servicos, setServicos] = React.useState<Produto[]>([]);
   const [observacoes, setObservacoes] = React.useState("");
   const [saving, setSaving] = React.useState(false);
@@ -134,12 +136,14 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
       passe_partouts: passes.filter((pp) => pp.produto),
       protecao,
       fundo,
+      impressao,
+      chassi,
       servicos,
       observacoes: observacoes || undefined,
       imagens,
       barra_cm: barraCm,
     }),
-    [quantidade, largura, altura, molduras, passes, protecao, fundo, servicos, observacoes, imagens, barraCm],
+    [quantidade, largura, altura, molduras, passes, protecao, fundo, impressao, chassi, servicos, observacoes, imagens, barraCm],
   );
 
   const result = React.useMemo(() => calcular(input), [input]);
