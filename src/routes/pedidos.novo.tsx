@@ -324,44 +324,8 @@ function NovoPedidoPage() {
           </CardContent>
         </Card>
 
-        {/* Resumo financeiro */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">Resumo financeiro</CardTitle></CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <Row label="Itens" value={String(itens.length)} />
-            <Row label="Subtotal" value={formatBRL(snapshot.subtotal)} />
-            {snapshot.desconto_valor > 0 && (
-              <Row
-                label={`Desconto (${snapshot.desconto_percentual}%)`}
-                value={`- ${formatBRL(snapshot.desconto_valor)}`}
-                muted
-              />
-            )}
-            <div className="border-t pt-2">
-              <Row label="Total final" value={formatBRL(snapshot.total_final)} strong />
-            </div>
-            {snapshot.valor_sinal > 0 && (
-              <Row label="Sinal" value={`- ${formatBRL(snapshot.valor_sinal)}`} muted />
-            )}
-            <Row
-              label="Saldo devedor"
-              value={formatBRL(snapshot.saldo_devedor)}
-              strong
-            />
-            <div className="pt-1 text-xs text-muted-foreground">
-              Situação:{" "}
-              <strong>
-                {snapshot.situacao === "pago"
-                  ? "Pago"
-                  : snapshot.situacao === "sinal"
-                  ? "Pagamento Parcial"
-                  : "Em Aberto"}
-              </strong>
-              {modalidade === "credito_parcelado" && ` · ${snapshot.parcelas}x`}
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
 
       {/* Itens */}
       <Card className="mt-4">
