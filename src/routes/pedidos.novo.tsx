@@ -140,9 +140,28 @@ function NovoPedidoPage() {
 
   // ---------- Itens ----------
   const removeItem = (idx: number) => setItens((arr) => arr.filter((_, i) => i !== idx));
+  const cloneItem = (idx: number) =>
+    setItens((arr) => {
+      const clone: PedidoItemDraft = JSON.parse(JSON.stringify(arr[idx]));
+      return [...arr.slice(0, idx + 1), clone, ...arr.slice(idx + 1)];
+    });
+  const startEditItem = (idx: number) => {
+    setEditingIndex(idx);
+    setCalcOpen(true);
+  };
   const handleAddItem = (item: PedidoItemDraft) => {
-    setItens((arr) => [...arr, item]);
+    if (editingIndex != null) {
+      const idx = editingIndex;
+      setItens((arr) => arr.map((it, i) => (i === idx ? item : it)));
+      setEditingIndex(null);
+    } else {
+      setItens((arr) => [...arr, item]);
+    }
     setCalcOpen(false);
+  };
+  const handleDialogChange = (open: boolean) => {
+    setCalcOpen(open);
+    if (!open) setEditingIndex(null);
   };
 
   // ---------- Save ----------
