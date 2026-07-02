@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, Save, Search, UserPlus, X, Check } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, Search, UserPlus, X, Check, Copy, Pencil } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/erp/PageHeader";
@@ -64,6 +64,7 @@ function NovoPedidoPage() {
   const [itens, setItens] = React.useState<PedidoItemDraft[]>([]);
   const [calcOpen, setCalcOpen] = React.useState(false);
   const [cadCliOpen, setCadCliOpen] = React.useState(false);
+  const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     try {
@@ -139,9 +140,28 @@ function NovoPedidoPage() {
 
   // ---------- Itens ----------
   const removeItem = (idx: number) => setItens((arr) => arr.filter((_, i) => i !== idx));
+  const cloneItem = (idx: number) =>
+    setItens((arr) => {
+      const clone: PedidoItemDraft = JSON.parse(JSON.stringify(arr[idx]));
+      return [...arr.slice(0, idx + 1), clone, ...arr.slice(idx + 1)];
+    });
+  const startEditItem = (idx: number) => {
+    setEditingIndex(idx);
+    setCalcOpen(true);
+  };
   const handleAddItem = (item: PedidoItemDraft) => {
-    setItens((arr) => [...arr, item]);
+    if (editingIndex != null) {
+      const idx = editingIndex;
+      setItens((arr) => arr.map((it, i) => (i === idx ? item : it)));
+      setEditingIndex(null);
+    } else {
+      setItens((arr) => [...arr, item]);
+    }
     setCalcOpen(false);
+  };
+  const handleDialogChange = (open: boolean) => {
+    setCalcOpen(open);
+    if (!open) setEditingIndex(null);
   };
 
   // ---------- Save ----------
@@ -209,9 +229,9 @@ function NovoPedidoPage() {
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div>
         {/* Cliente */}
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Cliente</CardTitle>
             <Button size="sm" variant="ghost" onClick={() => setCadCliOpen(true)}>
@@ -304,44 +324,8 @@ function NovoPedidoPage() {
           </CardContent>
         </Card>
 
-        {/* Resumo financeiro */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">Resumo financeiro</CardTitle></CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <Row label="Itens" value={String(itens.length)} />
-            <Row label="Subtotal" value={formatBRL(snapshot.subtotal)} />
-            {snapshot.desconto_valor > 0 && (
-              <Row
-                label={`Desconto (${snapshot.desconto_percentual}%)`}
-                value={`- ${formatBRL(snapshot.desconto_valor)}`}
-                muted
-              />
-            )}
-            <div className="border-t pt-2">
-              <Row label="Total final" value={formatBRL(snapshot.total_final)} strong />
-            </div>
-            {snapshot.valor_sinal > 0 && (
-              <Row label="Sinal" value={`- ${formatBRL(snapshot.valor_sinal)}`} muted />
-            )}
-            <Row
-              label="Saldo devedor"
-              value={formatBRL(snapshot.saldo_devedor)}
-              strong
-            />
-            <div className="pt-1 text-xs text-muted-foreground">
-              Situação:{" "}
-              <strong>
-                {snapshot.situacao === "pago"
-                  ? "Pago"
-                  : snapshot.situacao === "sinal"
-                  ? "Pagamento Parcial"
-                  : "Em Aberto"}
-              </strong>
-              {modalidade === "credito_parcelado" && ` · ${snapshot.parcelas}x`}
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
 
       {/* Itens */}
       <Card className="mt-4">
@@ -356,12 +340,12 @@ function NovoPedidoPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">#</TableHead>
-                <TableHead>Descrição</TableHead>
+                <TableHead>Códigos</TableHead>
                 <TableHead>Medidas</TableHead>
                 <TableHead className="text-right">Qtd</TableHead>
                 <TableHead className="text-right">Unit.</TableHead>
                 <TableHead className="text-right">Total</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-[132px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -374,6 +358,7 @@ function NovoPedidoPage() {
               )}
               {itens.map((i, idx) => {
                 const imgs = ((i.metadados as any)?.entrada?.imagens ?? []) as string[];
+                const grupos = codigosPorCategoria(i);
                 return (
                   <TableRow key={idx}>
                     <TableCell>{idx + 1}</TableCell>
@@ -391,7 +376,18 @@ function NovoPedidoPage() {
                             )}
                           </div>
                         )}
-                        <span>{i.descricao}</span>
+                        <div className="space-y-0.5 text-xs">
+                          {grupos.length === 0 ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            grupos.map((g) => (
+                              <div key={g.label}>
+                                <span className="text-muted-foreground">{g.label}:</span>{" "}
+                                <span className="font-mono">{g.codigos}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>{i.largura_cm}×{i.altura_cm} cm</TableCell>
@@ -399,9 +395,17 @@ function NovoPedidoPage() {
                     <TableCell className="text-right">{formatBRL(i.valor_unitario)}</TableCell>
                     <TableCell className="text-right">{formatBRL(i.valor_total)}</TableCell>
                     <TableCell>
-                      <Button size="icon" variant="ghost" onClick={() => removeItem(idx)} aria-label="Remover">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1 justify-end">
+                        <Button size="icon" variant="ghost" onClick={() => startEditItem(idx)} aria-label="Editar" title="Editar">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => cloneItem(idx)} aria-label="Clonar" title="Clonar">
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => removeItem(idx)} aria-label="Remover" title="Remover">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -410,6 +414,41 @@ function NovoPedidoPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Resumo financeiro (logo abaixo dos itens) */}
+      <Card className="mt-4">
+        <CardHeader><CardTitle className="text-base">Resumo financeiro</CardTitle></CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <Row label="Itens" value={String(itens.length)} />
+          <Row label="Subtotal" value={formatBRL(snapshot.subtotal)} />
+          {snapshot.desconto_valor > 0 && (
+            <Row
+              label={`Desconto (${snapshot.desconto_percentual}%)`}
+              value={`- ${formatBRL(snapshot.desconto_valor)}`}
+              muted
+            />
+          )}
+          <div className="border-t pt-2">
+            <Row label="Total final" value={formatBRL(snapshot.total_final)} strong />
+          </div>
+          {snapshot.valor_sinal > 0 && (
+            <Row label="Sinal" value={`- ${formatBRL(snapshot.valor_sinal)}`} muted />
+          )}
+          <Row label="Saldo devedor" value={formatBRL(snapshot.saldo_devedor)} strong />
+          <div className="pt-1 text-xs text-muted-foreground">
+            Situação:{" "}
+            <strong>
+              {snapshot.situacao === "pago"
+                ? "Pago"
+                : snapshot.situacao === "sinal"
+                ? "Pagamento Parcial"
+                : "Em Aberto"}
+            </strong>
+            {modalidade === "credito_parcelado" && ` · ${snapshot.parcelas}x`}
+          </div>
+        </CardContent>
+      </Card>
+
 
       {/* Pagamento */}
       <Card className="mt-4">
@@ -532,15 +571,18 @@ function NovoPedidoPage() {
       </div>
 
       {/* Dialog Calculadora */}
-      <Dialog open={calcOpen} onOpenChange={setCalcOpen}>
+      <Dialog open={calcOpen} onOpenChange={handleDialogChange}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Adicionar item ao pedido</DialogTitle>
+            <DialogTitle>{editingIndex != null ? "Editar item" : "Adicionar item ao pedido"}</DialogTitle>
           </DialogHeader>
           <Calculadora
+            key={editingIndex ?? "novo"}
             onAdd={handleAddItem}
             cancelLabel="Fechar"
-            onCancel={() => setCalcOpen(false)}
+            onCancel={() => handleDialogChange(false)}
+            initialItem={editingIndex != null ? itens[editingIndex] : undefined}
+            submitLabel={editingIndex != null ? "Salvar alterações" : "Adicionar"}
           />
         </DialogContent>
       </Dialog>
@@ -558,3 +600,30 @@ function Row({ label, value, strong, muted }: { label: string; value: string; st
     </div>
   );
 }
+
+const CATEGORIA_LABEL: Record<string, string> = {
+  perfil_moldura: "Moldura",
+  passe_partout: "Passe-partout",
+  protecao_frontal: "Vidro",
+  fundo: "Fundo",
+  impressao: "Impressão",
+  chassi: "Chassi",
+  servico: "Serviço",
+};
+
+function codigosPorCategoria(item: PedidoItemDraft): { label: string; codigos: string }[] {
+  const materiais = ((item.metadados as any)?.calculo?.materiais ?? []) as Array<{ origem: string; codigo: string | null; descricao: string }>;
+  const grouped = new Map<string, string[]>();
+  for (const m of materiais) {
+    const code = m.codigo || m.descricao;
+    if (!code) continue;
+    const arr = grouped.get(m.origem) ?? [];
+    if (!arr.includes(code)) arr.push(code);
+    grouped.set(m.origem, arr);
+  }
+  return Array.from(grouped.entries()).map(([origem, codes]) => ({
+    label: CATEGORIA_LABEL[origem] ?? origem,
+    codigos: codes.join(", "),
+  }));
+}
+

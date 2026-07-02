@@ -1,9 +1,10 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, Trash2, Calculator as CalcIcon } from "lucide-react";
+import { Plus, Trash2, Calculator as CalcIcon, ChevronRight } from "lucide-react";
 import { PhotoManager } from "./PhotoManager";
 import { toast } from "sonner";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,9 +67,13 @@ export interface CalculadoraProps {
   cancelLabel?: string;
   /** Callback do botão Cancelar. Default: navegar para "/". */
   onCancel?: () => void;
+  /** Item existente para edição — pré-preenche o formulário. */
+  initialItem?: PedidoItemDraft;
+  /** Rótulo do botão principal (default: "Adicionar"). */
+  submitLabel?: string;
 }
 
-export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: CalculadoraProps) {
+export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel, initialItem, submitLabel = "Adicionar" }: CalculadoraProps) {
   const navigate = useNavigate();
 
   const perfilQ = useQuery({
@@ -126,6 +131,58 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
     queryFn: () => configuracoesService.getNumber(CONFIG_KEYS.comprimento_barra_cm, 270),
   });
   const barraCm = barraQ.data ?? 270;
+
+  // Produção da moldura — seção recolhível (default retraída)
+  const [producaoOpen, setProducaoOpen] = React.useState(false);
+
+  // Restauração para edição
+  const restoredRef = React.useRef(false);
+  React.useEffect(() => {
+    if (restoredRef.current || !initialItem) return;
+    const md = initialItem.metadados as any;
+    const en = md?.entrada;
+    if (!en) { restoredRef.current = true; return; }
+    const need = {
+      mold: (en.molduras ?? []).length > 0,
+      pass: (en.passe_partouts ?? []).length > 0,
+      prot: !!en.protecao_id,
+      fund: !!en.fundo_id,
+      impr: !!en.impressao_id,
+      chas: !!en.chassi_id,
+      serv: (en.servicos ?? []).length > 0,
+    };
+    if (need.mold && !perfilQ.data) return;
+    if (need.pass && !passeQ.data) return;
+    if (need.prot && !protecaoQ.data) return;
+    if (need.fund && !fundoQ.data) return;
+    if (need.impr && !impressaoQ.data) return;
+    if (need.chas && !chassiQ.data) return;
+    if (need.serv && !servicosQ.data) return;
+
+    setQuantidadeStr(String(initialItem.quantidade ?? ""));
+    setLarguraStr(String(en.largura_arte_cm ?? ""));
+    setAlturaStr(String(en.altura_arte_cm ?? ""));
+    setMolduras(((en.molduras ?? []) as any[])
+      .map((m) => (perfilQ.data ?? []).find((p) => p.id === m.produto_id))
+      .filter(Boolean) as Produto[]);
+    setPasses(((en.passe_partouts ?? []) as any[])
+      .map((pp) => {
+        const produto = (passeQ.data ?? []).find((p) => p.id === pp.produto_id);
+        return produto ? { produto, medida_cm: pp.medida_cm, ordem: pp.ordem ?? undefined } : null;
+      })
+      .filter(Boolean) as PassePartoutSelecionado[]);
+    setProtecao(en.protecao_id ? (protecaoQ.data ?? []).find((p) => p.id === en.protecao_id) ?? null : null);
+    setFundo(en.fundo_id ? (fundoQ.data ?? []).find((p) => p.id === en.fundo_id) ?? null : null);
+    setImpressao(en.impressao_id ? (impressaoQ.data ?? []).find((p) => p.id === en.impressao_id) ?? null : null);
+    setChassi(en.chassi_id ? (chassiQ.data ?? []).find((p) => p.id === en.chassi_id) ?? null : null);
+    setServicos(((en.servicos ?? []) as string[])
+      .map((id) => (servicosQ.data ?? []).find((p) => p.id === id))
+      .filter(Boolean) as Produto[]);
+    setObservacoes(en.observacoes ?? "");
+    setImagens(en.imagens ?? []);
+    restoredRef.current = true;
+  }, [initialItem, perfilQ.data, passeQ.data, protecaoQ.data, fundoQ.data, impressaoQ.data, chassiQ.data, servicosQ.data]);
+
 
   const input: CalcInput = React.useMemo(
     () => ({
@@ -513,57 +570,62 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
                   {result.largura_final_cm} × {result.altura_final_cm} cm
                 </span>
               </div>
-              {result.passe_partout_excede_chapa && (
+              {result.passe_partouts.length > 0 && result.passe_partout_excede_chapa && (
                 <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
                   ⚠ O tamanho final do Passe-partout ultrapassa a chapa padrão de 100 × 80 cm.
                 </p>
               )}
             </div>
 
-            {/* Produção da moldura */}
+            {/* Produção da moldura (recolhível) */}
             {result.molduras.length > 0 && (
-              <div className="rounded-lg border p-4 space-y-3">
-                <h4 className="text-sm font-semibold">Produção da moldura</h4>
-                {result.molduras.map((m, i) => (
-                  <div key={i} className="space-y-1.5 text-xs">
-                    <div className="font-medium text-sm">
-                      {m.codigo && <span className="font-mono">[{m.codigo}] </span>}
-                      {m.descricao}
+              <Collapsible open={producaoOpen} onOpenChange={setProducaoOpen} className="rounded-lg border">
+                <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 p-4 text-left">
+                  <h4 className="text-sm font-semibold">Produção da moldura</h4>
+                  <ChevronRight className={`h-4 w-4 transition-transform ${producaoOpen ? "rotate-90" : ""}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="px-4 pb-4 space-y-3">
+                  {result.molduras.map((m, i) => (
+                    <div key={i} className="space-y-1.5 text-xs">
+                      <div className="font-medium text-sm">
+                        {m.codigo && <span className="font-mono">[{m.codigo}] </span>}
+                        {m.descricao}
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                        <span className="text-muted-foreground">Peça horizontal</span>
+                        <span className="text-right">{m.peca_horizontal_cm} cm × 2</span>
+                        <span className="text-muted-foreground">Peça vertical</span>
+                        <span className="text-right">{m.peca_vertical_cm} cm × 2</span>
+                        <span className="text-muted-foreground">Consumo comercial</span>
+                        <span className="text-right">
+                          {m.perimetro_comercial_m.toFixed(3)} m
+                          {m.perimetro_cobrado_m > m.perimetro_comercial_m && (
+                            <span className="text-amber-600 dark:text-amber-400"> (cobrado: {m.perimetro_cobrado_m.toFixed(2)} m)</span>
+                          )}
+                        </span>
+                        <span className="text-muted-foreground">Barras necessárias</span>
+                        <span className="text-right font-medium">{m.total_barras}</span>
+                      </div>
+                      <div className="rounded-md bg-muted/40 p-2 space-y-1">
+                        {m.barras.map((b, bi) => (
+                          <div key={bi} className="flex justify-between">
+                            <span className="text-muted-foreground">Barra {bi + 1}</span>
+                            <span>
+                              {b.pecas.join(" + ")} cm
+                              <span className="text-muted-foreground"> · retalho {b.retalho_cm} cm</span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      {m.peca_excede_barra && (
+                        <p className="text-xs text-destructive">
+                          ⚠ Alguma peça excede o comprimento da barra ({barraCm} cm).
+                        </p>
+                      )}
                     </div>
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                      <span className="text-muted-foreground">Peça horizontal</span>
-                      <span className="text-right">{m.peca_horizontal_cm} cm × 2</span>
-                      <span className="text-muted-foreground">Peça vertical</span>
-                      <span className="text-right">{m.peca_vertical_cm} cm × 2</span>
-                      <span className="text-muted-foreground">Consumo comercial</span>
-                      <span className="text-right">
-                        {m.perimetro_comercial_m.toFixed(3)} m
-                        {m.perimetro_cobrado_m > m.perimetro_comercial_m && (
-                          <span className="text-amber-600 dark:text-amber-400"> (cobrado: {m.perimetro_cobrado_m.toFixed(2)} m)</span>
-                        )}
-                      </span>
-                      <span className="text-muted-foreground">Barras necessárias</span>
-                      <span className="text-right font-medium">{m.total_barras}</span>
-                    </div>
-                    <div className="rounded-md bg-muted/40 p-2 space-y-1">
-                      {m.barras.map((b, bi) => (
-                        <div key={bi} className="flex justify-between">
-                          <span className="text-muted-foreground">Barra {bi + 1}</span>
-                          <span>
-                            {b.pecas.join(" + ")} cm
-                            <span className="text-muted-foreground"> · retalho {b.retalho_cm} cm</span>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    {m.peca_excede_barra && (
-                      <p className="text-xs text-destructive">
-                        ⚠ Alguma peça excede o comprimento da barra ({barraCm} cm).
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
             )}
 
             {/* Materiais */}
@@ -617,7 +679,7 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: Calcu
               </Button>
               <Button onClick={handleAdicionar} disabled={!canSave || saving}>
                 <Plus className="h-4 w-4 mr-1" />
-                Adicionar
+                {submitLabel}
               </Button>
             </div>
           </div>
