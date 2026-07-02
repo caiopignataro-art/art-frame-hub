@@ -64,6 +64,7 @@ function NovoPedidoPage() {
   const [itens, setItens] = React.useState<PedidoItemDraft[]>([]);
   const [calcOpen, setCalcOpen] = React.useState(false);
   const [cadCliOpen, setCadCliOpen] = React.useState(false);
+  const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     try {
