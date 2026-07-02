@@ -577,50 +577,55 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel, initial
               )}
             </div>
 
-            {/* Produção da moldura */}
+            {/* Produção da moldura (recolhível) */}
             {result.molduras.length > 0 && (
-              <div className="rounded-lg border p-4 space-y-3">
-                <h4 className="text-sm font-semibold">Produção da moldura</h4>
-                {result.molduras.map((m, i) => (
-                  <div key={i} className="space-y-1.5 text-xs">
-                    <div className="font-medium text-sm">
-                      {m.codigo && <span className="font-mono">[{m.codigo}] </span>}
-                      {m.descricao}
+              <Collapsible open={producaoOpen} onOpenChange={setProducaoOpen} className="rounded-lg border">
+                <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 p-4 text-left">
+                  <h4 className="text-sm font-semibold">Produção da moldura</h4>
+                  <ChevronRight className={`h-4 w-4 transition-transform ${producaoOpen ? "rotate-90" : ""}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="px-4 pb-4 space-y-3">
+                  {result.molduras.map((m, i) => (
+                    <div key={i} className="space-y-1.5 text-xs">
+                      <div className="font-medium text-sm">
+                        {m.codigo && <span className="font-mono">[{m.codigo}] </span>}
+                        {m.descricao}
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                        <span className="text-muted-foreground">Peça horizontal</span>
+                        <span className="text-right">{m.peca_horizontal_cm} cm × 2</span>
+                        <span className="text-muted-foreground">Peça vertical</span>
+                        <span className="text-right">{m.peca_vertical_cm} cm × 2</span>
+                        <span className="text-muted-foreground">Consumo comercial</span>
+                        <span className="text-right">
+                          {m.perimetro_comercial_m.toFixed(3)} m
+                          {m.perimetro_cobrado_m > m.perimetro_comercial_m && (
+                            <span className="text-amber-600 dark:text-amber-400"> (cobrado: {m.perimetro_cobrado_m.toFixed(2)} m)</span>
+                          )}
+                        </span>
+                        <span className="text-muted-foreground">Barras necessárias</span>
+                        <span className="text-right font-medium">{m.total_barras}</span>
+                      </div>
+                      <div className="rounded-md bg-muted/40 p-2 space-y-1">
+                        {m.barras.map((b, bi) => (
+                          <div key={bi} className="flex justify-between">
+                            <span className="text-muted-foreground">Barra {bi + 1}</span>
+                            <span>
+                              {b.pecas.join(" + ")} cm
+                              <span className="text-muted-foreground"> · retalho {b.retalho_cm} cm</span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      {m.peca_excede_barra && (
+                        <p className="text-xs text-destructive">
+                          ⚠ Alguma peça excede o comprimento da barra ({barraCm} cm).
+                        </p>
+                      )}
                     </div>
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                      <span className="text-muted-foreground">Peça horizontal</span>
-                      <span className="text-right">{m.peca_horizontal_cm} cm × 2</span>
-                      <span className="text-muted-foreground">Peça vertical</span>
-                      <span className="text-right">{m.peca_vertical_cm} cm × 2</span>
-                      <span className="text-muted-foreground">Consumo comercial</span>
-                      <span className="text-right">
-                        {m.perimetro_comercial_m.toFixed(3)} m
-                        {m.perimetro_cobrado_m > m.perimetro_comercial_m && (
-                          <span className="text-amber-600 dark:text-amber-400"> (cobrado: {m.perimetro_cobrado_m.toFixed(2)} m)</span>
-                        )}
-                      </span>
-                      <span className="text-muted-foreground">Barras necessárias</span>
-                      <span className="text-right font-medium">{m.total_barras}</span>
-                    </div>
-                    <div className="rounded-md bg-muted/40 p-2 space-y-1">
-                      {m.barras.map((b, bi) => (
-                        <div key={bi} className="flex justify-between">
-                          <span className="text-muted-foreground">Barra {bi + 1}</span>
-                          <span>
-                            {b.pecas.join(" + ")} cm
-                            <span className="text-muted-foreground"> · retalho {b.retalho_cm} cm</span>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    {m.peca_excede_barra && (
-                      <p className="text-xs text-destructive">
-                        ⚠ Alguma peça excede o comprimento da barra ({barraCm} cm).
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
             )}
 
             {/* Materiais */}
