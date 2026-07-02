@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, Save, Search, UserPlus, X, Check } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, Search, UserPlus, X, Check, Copy, Pencil } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/erp/PageHeader";
