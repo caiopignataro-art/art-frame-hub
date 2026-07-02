@@ -229,9 +229,9 @@ function NovoPedidoPage() {
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div>
         {/* Cliente */}
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Cliente</CardTitle>
             <Button size="sm" variant="ghost" onClick={() => setCadCliOpen(true)}>
