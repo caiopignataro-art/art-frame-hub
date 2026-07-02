@@ -570,7 +570,7 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel, initial
                   {result.largura_final_cm} × {result.altura_final_cm} cm
                 </span>
               </div>
-              {result.passe_partout_excede_chapa && (
+              {result.passe_partouts.length > 0 && result.passe_partout_excede_chapa && (
                 <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
                   ⚠ O tamanho final do Passe-partout ultrapassa a chapa padrão de 100 × 80 cm.
                 </p>
