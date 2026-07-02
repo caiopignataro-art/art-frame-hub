@@ -340,12 +340,12 @@ function NovoPedidoPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">#</TableHead>
-                <TableHead>Descrição</TableHead>
+                <TableHead>Códigos</TableHead>
                 <TableHead>Medidas</TableHead>
                 <TableHead className="text-right">Qtd</TableHead>
                 <TableHead className="text-right">Unit.</TableHead>
                 <TableHead className="text-right">Total</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-[132px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -358,6 +358,7 @@ function NovoPedidoPage() {
               )}
               {itens.map((i, idx) => {
                 const imgs = ((i.metadados as any)?.entrada?.imagens ?? []) as string[];
+                const grupos = codigosPorCategoria(i);
                 return (
                   <TableRow key={idx}>
                     <TableCell>{idx + 1}</TableCell>
@@ -375,7 +376,18 @@ function NovoPedidoPage() {
                             )}
                           </div>
                         )}
-                        <span>{i.descricao}</span>
+                        <div className="space-y-0.5 text-xs">
+                          {grupos.length === 0 ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            grupos.map((g) => (
+                              <div key={g.label}>
+                                <span className="text-muted-foreground">{g.label}:</span>{" "}
+                                <span className="font-mono">{g.codigos}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>{i.largura_cm}×{i.altura_cm} cm</TableCell>
@@ -383,9 +395,17 @@ function NovoPedidoPage() {
                     <TableCell className="text-right">{formatBRL(i.valor_unitario)}</TableCell>
                     <TableCell className="text-right">{formatBRL(i.valor_total)}</TableCell>
                     <TableCell>
-                      <Button size="icon" variant="ghost" onClick={() => removeItem(idx)} aria-label="Remover">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1 justify-end">
+                        <Button size="icon" variant="ghost" onClick={() => startEditItem(idx)} aria-label="Editar" title="Editar">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => cloneItem(idx)} aria-label="Clonar" title="Clonar">
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => removeItem(idx)} aria-label="Remover" title="Remover">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -394,6 +414,41 @@ function NovoPedidoPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Resumo financeiro (logo abaixo dos itens) */}
+      <Card className="mt-4">
+        <CardHeader><CardTitle className="text-base">Resumo financeiro</CardTitle></CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <Row label="Itens" value={String(itens.length)} />
+          <Row label="Subtotal" value={formatBRL(snapshot.subtotal)} />
+          {snapshot.desconto_valor > 0 && (
+            <Row
+              label={`Desconto (${snapshot.desconto_percentual}%)`}
+              value={`- ${formatBRL(snapshot.desconto_valor)}`}
+              muted
+            />
+          )}
+          <div className="border-t pt-2">
+            <Row label="Total final" value={formatBRL(snapshot.total_final)} strong />
+          </div>
+          {snapshot.valor_sinal > 0 && (
+            <Row label="Sinal" value={`- ${formatBRL(snapshot.valor_sinal)}`} muted />
+          )}
+          <Row label="Saldo devedor" value={formatBRL(snapshot.saldo_devedor)} strong />
+          <div className="pt-1 text-xs text-muted-foreground">
+            Situação:{" "}
+            <strong>
+              {snapshot.situacao === "pago"
+                ? "Pago"
+                : snapshot.situacao === "sinal"
+                ? "Pagamento Parcial"
+                : "Em Aberto"}
+            </strong>
+            {modalidade === "credito_parcelado" && ` · ${snapshot.parcelas}x`}
+          </div>
+        </CardContent>
+      </Card>
+
 
       {/* Pagamento */}
       <Card className="mt-4">
