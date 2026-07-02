@@ -571,15 +571,18 @@ function NovoPedidoPage() {
       </div>
 
       {/* Dialog Calculadora */}
-      <Dialog open={calcOpen} onOpenChange={setCalcOpen}>
+      <Dialog open={calcOpen} onOpenChange={handleDialogChange}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Adicionar item ao pedido</DialogTitle>
+            <DialogTitle>{editingIndex != null ? "Editar item" : "Adicionar item ao pedido"}</DialogTitle>
           </DialogHeader>
           <Calculadora
+            key={editingIndex ?? "novo"}
             onAdd={handleAddItem}
             cancelLabel="Fechar"
-            onCancel={() => setCalcOpen(false)}
+            onCancel={() => handleDialogChange(false)}
+            initialItem={editingIndex != null ? itens[editingIndex] : undefined}
+            submitLabel={editingIndex != null ? "Salvar alterações" : "Adicionar"}
           />
         </DialogContent>
       </Dialog>
@@ -597,3 +600,30 @@ function Row({ label, value, strong, muted }: { label: string; value: string; st
     </div>
   );
 }
+
+const CATEGORIA_LABEL: Record<string, string> = {
+  perfil_moldura: "Moldura",
+  passe_partout: "Passe-partout",
+  protecao_frontal: "Vidro",
+  fundo: "Fundo",
+  impressao: "Impressão",
+  chassi: "Chassi",
+  servico: "Serviço",
+};
+
+function codigosPorCategoria(item: PedidoItemDraft): { label: string; codigos: string }[] {
+  const materiais = ((item.metadados as any)?.calculo?.materiais ?? []) as Array<{ origem: string; codigo: string | null; descricao: string }>;
+  const grouped = new Map<string, string[]>();
+  for (const m of materiais) {
+    const code = m.codigo || m.descricao;
+    if (!code) continue;
+    const arr = grouped.get(m.origem) ?? [];
+    if (!arr.includes(code)) arr.push(code);
+    grouped.set(m.origem, arr);
+  }
+  return Array.from(grouped.entries()).map(([origem, codes]) => ({
+    label: CATEGORIA_LABEL[origem] ?? origem,
+    codigos: codes.join(", "),
+  }));
+}
+
