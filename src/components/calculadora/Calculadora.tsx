@@ -67,9 +67,13 @@ export interface CalculadoraProps {
   cancelLabel?: string;
   /** Callback do botão Cancelar. Default: navegar para "/". */
   onCancel?: () => void;
+  /** Item existente para edição — pré-preenche o formulário. */
+  initialItem?: PedidoItemDraft;
+  /** Rótulo do botão principal (default: "Adicionar"). */
+  submitLabel?: string;
 }
 
-export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel }: CalculadoraProps) {
+export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel, initialItem, submitLabel = "Adicionar" }: CalculadoraProps) {
   const navigate = useNavigate();
 
   const perfilQ = useQuery({
