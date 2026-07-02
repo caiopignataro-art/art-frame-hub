@@ -679,7 +679,7 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel, initial
               </Button>
               <Button onClick={handleAdicionar} disabled={!canSave || saving}>
                 <Plus className="h-4 w-4 mr-1" />
-                Adicionar
+                {submitLabel}
               </Button>
             </div>
           </div>
