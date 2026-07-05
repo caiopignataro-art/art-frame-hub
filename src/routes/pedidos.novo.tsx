@@ -185,9 +185,19 @@ function NovoPedidoPage() {
     }
   };
 
-  const handleSalvar = async (statusFinal: "orcamento" | "aguardando_aprovacao" = "orcamento") => {
+  const handleSalvar = async (statusFinal: "orcamento" | "aprovado" = "orcamento") => {
     if (!canSalvar) {
       toast.error("Adicione pelo menos um item e informe a data prevista de entrega.");
+      return;
+    }
+    if (statusFinal === "aprovado" && situacao !== "pago" && !(situacao === "sinal" && snapshot.valor_sinal > 0)) {
+      toast.error(
+        "Para aprovar um pedido é necessário registrar a forma de pagamento. Todos os pedidos devem ser feitos mediante sinal ou pagamento.",
+      );
+      return;
+    }
+    if (statusFinal === "orcamento" && (situacao === "pago" || (situacao === "sinal" && snapshot.valor_sinal > 0))) {
+      toast.error("Pedidos com Sinal ou Pago não podem ser salvos como Orçamento.");
       return;
     }
     if (situacao === "sinal" && (snapshot.valor_sinal <= 0 || snapshot.valor_sinal > snapshot.total_final)) {
