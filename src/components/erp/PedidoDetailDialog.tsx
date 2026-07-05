@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, MessageCircle, XCircle } from "lucide-react";
+import { CheckCircle2, MessageCircle } from "lucide-react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -103,23 +103,23 @@ export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: strin
                 {p.whatsapp_enviado ? "Reenviar via WhatsApp" : "Enviar pedido via WhatsApp"}
               </Button>
               {p.status === "orcamento" && (
-                <Button size="sm" variant="outline" onClick={() => setStatus.mutate("aguardando_aprovacao")} disabled={setStatus.isPending}>
-                  Enviar para aprovação
+                <Button size="sm" onClick={() => setStatus.mutate("aprovado")} disabled={setStatus.isPending}>
+                  <CheckCircle2 className="mr-1 h-4 w-4" /> Aprovar pedido
                 </Button>
               )}
-              {p.status === "aguardando_aprovacao" && (
-                <>
-                  <Button size="sm" onClick={() => setStatus.mutate("aprovado")} disabled={setStatus.isPending}>
-                    <CheckCircle2 className="mr-1 h-4 w-4" /> Aprovar
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => setStatus.mutate("cancelado")} disabled={setStatus.isPending}>
-                    <XCircle className="mr-1 h-4 w-4" /> Cancelar
-                  </Button>
-                </>
-              )}
               {p.status === "aprovado" && (
-                <Button size="sm" onClick={() => setStatus.mutate("aguardando_producao")} disabled={setStatus.isPending}>
-                  Liberar para produção
+                <Button size="sm" onClick={() => setStatus.mutate("em_producao")} disabled={setStatus.isPending}>
+                  Iniciar produção
+                </Button>
+              )}
+              {p.status === "em_producao" && (
+                <Button size="sm" onClick={() => setStatus.mutate("pronto")} disabled={setStatus.isPending}>
+                  Marcar como pronto
+                </Button>
+              )}
+              {p.status === "pronto" && (
+                <Button size="sm" onClick={() => setStatus.mutate("entregue")} disabled={setStatus.isPending}>
+                  Marcar como entregue
                 </Button>
               )}
             </div>

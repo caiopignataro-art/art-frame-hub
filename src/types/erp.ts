@@ -63,37 +63,23 @@ export const ORCAMENTO_STATUS_LABEL: Record<OrcamentoStatus, string> = {
 
 export const PEDIDO_STATUS_LABEL: Record<PedidoStatus, string> = {
   orcamento: "Orçamento",
-  aguardando_aprovacao: "Aguardando aprovação",
   aprovado: "Aprovado",
-  aguardando_producao: "Aguardando produção",
   em_producao: "Em produção",
-  montagem: "Montagem",
-  controle_qualidade: "Controle de qualidade",
   pronto: "Pronto",
   entregue: "Entregue",
-  cancelado: "Cancelado",
 };
 
-/** Fluxo completo de status (sem cancelado). */
+/** Fluxo completo de status. */
 export const PEDIDO_FLUXO: PedidoStatus[] = [
   "orcamento",
-  "aguardando_aprovacao",
   "aprovado",
-  "aguardando_producao",
   "em_producao",
-  "montagem",
-  "controle_qualidade",
   "pronto",
   "entregue",
 ];
 
 /** Status iniciais (antes de entrar em produção). */
-export const PEDIDO_STATUS_INICIAIS: PedidoStatus[] = [
-  "orcamento",
-  "aguardando_aprovacao",
-  "aprovado",
-  "cancelado",
-];
+export const PEDIDO_STATUS_INICIAIS: PedidoStatus[] = ["orcamento", "aprovado"];
 
 // ---------- WhatsApp ----------
 export type NotificacaoWhatsapp = Tables<"notificacoes_whatsapp">;
