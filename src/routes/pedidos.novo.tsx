@@ -575,7 +575,7 @@ function NovoPedidoPage() {
         <Button variant="outline" onClick={() => handleSalvar("orcamento")} disabled={!canSalvar || saving}>
           <Save className="mr-2 h-4 w-4" /> Salvar como orçamento
         </Button>
-        <Button onClick={() => handleSalvar("aguardando_aprovacao")} disabled={!canSalvar || saving}>
+        <Button onClick={() => handleSalvar("aprovado")} disabled={!canSalvar || saving}>
           Salvar e enviar para aprovação
         </Button>
       </div>
