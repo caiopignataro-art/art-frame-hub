@@ -18,15 +18,10 @@ const ORC_VARIANT: Record<OrcamentoStatus, "default" | "secondary" | "outline" |
 };
 const PED_VARIANT: Record<PedidoStatus, "default" | "secondary" | "outline" | "destructive"> = {
   orcamento: "secondary",
-  aguardando_aprovacao: "outline",
   aprovado: "default",
-  aguardando_producao: "secondary",
   em_producao: "outline",
-  montagem: "outline",
-  controle_qualidade: "outline",
   pronto: "default",
   entregue: "default",
-  cancelado: "destructive",
 };
 const PAG_VARIANT: Record<PagamentoStatus, "default" | "secondary" | "outline" | "destructive"> = {
   pendente: "secondary",
