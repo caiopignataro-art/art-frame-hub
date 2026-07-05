@@ -19,10 +19,7 @@ export const Route = createFileRoute("/producao")({
 
 const COLUMNS: { status: PedidoStatus; label: string }[] = [
   { status: "aprovado", label: "Aprovado" },
-  { status: "aguardando_producao", label: "Aguardando" },
   { status: "em_producao", label: "Em produção" },
-  { status: "montagem", label: "Montagem" },
-  { status: "controle_qualidade", label: "Controle de qualidade" },
   { status: "pronto", label: "Pronto" },
 ];
 
