@@ -1033,15 +1033,10 @@ export type Database = {
         | "cancelado"
       pedido_status:
         | "orcamento"
-        | "aguardando_aprovacao"
         | "aprovado"
-        | "aguardando_producao"
         | "em_producao"
         | "pronto"
         | "entregue"
-        | "cancelado"
-        | "montagem"
-        | "controle_qualidade"
       produto_tipo:
         | "moldura"
         | "vidro"
@@ -1228,15 +1223,10 @@ export const Constants = {
       ],
       pedido_status: [
         "orcamento",
-        "aguardando_aprovacao",
         "aprovado",
-        "aguardando_producao",
         "em_producao",
         "pronto",
         "entregue",
-        "cancelado",
-        "montagem",
-        "controle_qualidade",
       ],
       produto_tipo: [
         "moldura",
