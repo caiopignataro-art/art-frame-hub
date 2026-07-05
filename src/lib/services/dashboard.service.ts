@@ -85,7 +85,7 @@ export const dashboardService = {
       const ini = new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
       const fim = new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString();
       const valor = pedidos
-        .filter((p) => p.created_at >= ini && p.created_at < fim && p.status !== "cancelado")
+        .filter((p) => p.created_at >= ini && p.created_at < fim)
         .reduce((s, p) => s + Number(p.valor_total), 0);
       serieFaturamento.push({
         mes: d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
