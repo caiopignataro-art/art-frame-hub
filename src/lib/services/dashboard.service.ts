@@ -39,7 +39,7 @@ export const dashboardService = {
     const itens = (itensRes.data ?? []) as Pick<PedidoItem, "descricao" | "quantidade" | "valor_total">[];
     const pagamentos = (pagamentosRes.data ?? []) as Pagamento[];
 
-    const pedidosMes = pedidos.filter((p) => p.created_at >= inicioMes && p.status !== "cancelado");
+    const pedidosMes = pedidos.filter((p) => p.created_at >= inicioMes);
     const faturamentoMes = pedidosMes.reduce((s, p) => s + Number(p.valor_total), 0);
     const qtdPedidosMes = pedidosMes.length;
     const ticketMedio = qtdPedidosMes ? faturamentoMes / qtdPedidosMes : 0;
@@ -47,9 +47,7 @@ export const dashboardService = {
     // Lucro estimado: usa margem média de 45% quando não há custo direto disponível.
     const lucroEstimado = faturamentoMes * 0.45;
 
-    const emProducao = pedidos.filter((p) =>
-      ["aguardando_producao", "em_producao", "montagem", "controle_qualidade"].includes(p.status),
-    ).length;
+    const emProducao = pedidos.filter((p) => p.status === "em_producao").length;
 
     // Produtos mais utilizados
     const mapaProd = new Map<string, { quantidade: number; total: number }>();
