@@ -232,22 +232,29 @@ function NovoPedidoPage() {
     }
   };
 
-  const handleSalvar = async (statusFinal: "orcamento" | "aprovado" = "orcamento") => {
+  const handleSalvar = async (
+    statusFinal: import("@/types/erp").PedidoStatus = "orcamento",
+  ) => {
     if (!canSalvar) {
       toast.error("Adicione pelo menos um item e informe a data prevista de entrega.");
       return;
     }
     const formaPagamento = modalidadeToFormaPagamento(modalidade);
-    if (statusFinal === "aprovado") {
+    const requerPagamento =
+      statusFinal === "aprovado" ||
+      statusFinal === "em_producao" ||
+      statusFinal === "pronto" ||
+      statusFinal === "entregue";
+    if (requerPagamento) {
       if (!formaPagamento) {
-        toast.error("Para aprovar um pedido é necessário selecionar a forma de pagamento.");
+        toast.error("Este status exige forma de pagamento selecionada.");
         return;
       }
       const temSinal = situacao === "sinal" && snapshot.valor_sinal > 0;
       const temPago = situacao === "pago";
       if (!temSinal && !temPago) {
         toast.error(
-          "Para aprovar um pedido é necessário informar o Sinal (maior que zero) ou marcar como Pago.",
+          "Este status exige informar o Sinal (maior que zero) ou marcar como Pago.",
         );
         return;
       }
@@ -264,19 +271,34 @@ function NovoPedidoPage() {
     }
     setSaving(true);
     try {
-      const pedido = await pedidosService.criarPedidoCompleto({
-        cliente_id: cliente?.id ?? null,
-        itens,
-        forma_pagamento: formaPagamento,
-        data_pedido: new Date(dataPedido).toISOString(),
-        data_entrega_prevista: dataEntrega,
-        observacoes: observacoes || null,
-        status: statusFinal,
-        pagamento: snapshot,
-      });
-      toast.success(`Pedido #${pedido.numero_pedido} criado`);
+      if (isEdit && editId) {
+        await pedidosService.atualizarPedidoCompleto(editId, {
+          cliente_id: cliente?.id ?? null,
+          itens,
+          forma_pagamento: formaPagamento,
+          data_pedido: new Date(dataPedido).toISOString(),
+          data_entrega_prevista: dataEntrega,
+          observacoes: observacoes || null,
+          status: statusFinal,
+          pagamento: snapshot,
+        });
+        toast.success(`Pedido #${numeroPedido ?? ""} atualizado`);
+      } else {
+        const pedido = await pedidosService.criarPedidoCompleto({
+          cliente_id: cliente?.id ?? null,
+          itens,
+          forma_pagamento: formaPagamento,
+          data_pedido: new Date(dataPedido).toISOString(),
+          data_entrega_prevista: dataEntrega,
+          observacoes: observacoes || null,
+          status: statusFinal,
+          pagamento: snapshot,
+        });
+        toast.success(`Pedido #${pedido.numero_pedido} criado`);
+      }
       qc.invalidateQueries({ queryKey: ["pedidos"] });
       qc.invalidateQueries({ queryKey: ["pagamentos"] });
+      if (isEdit && editId) qc.invalidateQueries({ queryKey: ["pedido", editId] });
       navigate({ to: "/pedidos" });
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao salvar pedido");
