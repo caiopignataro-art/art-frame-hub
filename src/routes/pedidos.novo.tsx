@@ -39,6 +39,7 @@ import {
   MODALIDADE_LABEL,
   MODALIDADES_COM_DESCONTO,
   modalidadeToFormaPagamento,
+  inferModalidade,
   calcularSnapshot,
   CONFIG_KEY_MAX_PARCELAS,
   DEFAULT_MAX_PARCELAS,
