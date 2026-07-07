@@ -654,12 +654,23 @@ function NovoPedidoPage() {
         <Button variant="ghost" onClick={() => navigate({ to: "/pedidos" })} disabled={saving}>
           Cancelar
         </Button>
-        <Button variant="outline" onClick={() => handleSalvar("orcamento")} disabled={!canSalvar || saving}>
-          <Save className="mr-2 h-4 w-4" /> Salvar como orçamento
-        </Button>
-        <Button onClick={() => handleSalvar("aprovado")} disabled={!canSalvar || saving}>
-          Salvar e enviar para aprovação
-        </Button>
+        {isEdit ? (
+          <Button
+            onClick={() => handleSalvar(pedidoStatus ?? "orcamento")}
+            disabled={!canSalvar || saving || !pedidoStatus}
+          >
+            <Save className="mr-2 h-4 w-4" /> Salvar alterações
+          </Button>
+        ) : (
+          <>
+            <Button variant="outline" onClick={() => handleSalvar("orcamento")} disabled={!canSalvar || saving}>
+              <Save className="mr-2 h-4 w-4" /> Salvar como orçamento
+            </Button>
+            <Button onClick={() => handleSalvar("aprovado")} disabled={!canSalvar || saving}>
+              Salvar e enviar para aprovação
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Dialog Calculadora */}
