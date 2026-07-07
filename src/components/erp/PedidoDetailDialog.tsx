@@ -36,11 +36,38 @@ export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: strin
   const statusAtualIdx = p ? PEDIDO_FLUXO.indexOf(p.status as PedidoStatus) : -1;
 
   const setStatus = useMutation({
-    mutationFn: (s: PedidoStatus) => pedidosService.setStatus(pedidoId!, s),
+    mutationFn: async (s: PedidoStatus) => {
+      if (!p) throw new Error("Pedido não carregado");
+      const pagamentos = p.pagamentos ?? [];
+      const temPagamento = pagamentos.some(
+        (pg) => Number(pg.valor) > 0 && pg.status !== "estornado" && pg.status !== "cancelado",
+      );
+      if (s === "aprovado") {
+        if (!p.forma_pagamento) {
+          throw new Error("Selecione a forma de pagamento antes de aprovar o pedido.");
+        }
+        if (!temPagamento) {
+          throw new Error(
+            "Para aprovar um pedido é necessário informar o Sinal (maior que zero) ou marcar como Pago.",
+          );
+        }
+      }
+      if (s === "orcamento" && temPagamento) {
+        const ok = window.confirm(
+          "Pedidos em Orçamento não podem possuir pagamento registrado. Deseja remover os pagamentos e voltar para Orçamento?",
+        );
+        if (!ok) throw new Error("Alteração cancelada.");
+        for (const pg of pagamentos) {
+          await (await import("@/lib/services/pagamentos.service")).pagamentosService.remove(pg.id);
+        }
+      }
+      return pedidosService.setStatus(pedidoId!, s);
+    },
     onSuccess: () => {
       toast.success("Status atualizado");
       qc.invalidateQueries({ queryKey: ["pedido", pedidoId] });
       qc.invalidateQueries({ queryKey: ["pedidos"] });
+      qc.invalidateQueries({ queryKey: ["pagamentos"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
