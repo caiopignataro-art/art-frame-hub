@@ -307,11 +307,13 @@ function NovoPedidoPage() {
     }
   };
 
+  const pageTitle = isEdit ? `Editar pedido${numeroPedido ? ` #${numeroPedido}` : ""}` : "Novo pedido";
+
   return (
-    <AppShell title="Novo pedido">
+    <AppShell title={pageTitle}>
       <PageHeader
-        title="Novo pedido"
-        description="Defina o cliente, itens, pagamento e prazo. Os itens vêm da calculadora."
+        title={pageTitle}
+        description={isEdit ? "Ajuste os dados do pedido. As alterações ficam registradas no histórico." : "Defina o cliente, itens, pagamento e prazo. Os itens vêm da calculadora."}
         actions={
           <Button asChild variant="outline">
             <Link to="/pedidos"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Link>
