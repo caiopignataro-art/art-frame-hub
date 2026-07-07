@@ -190,14 +190,25 @@ function NovoPedidoPage() {
       toast.error("Adicione pelo menos um item e informe a data prevista de entrega.");
       return;
     }
-    if (statusFinal === "aprovado" && situacao !== "pago" && !(situacao === "sinal" && snapshot.valor_sinal > 0)) {
-      toast.error(
-        "Para aprovar um pedido é necessário registrar a forma de pagamento. Todos os pedidos devem ser feitos mediante sinal ou pagamento.",
-      );
-      return;
+    const formaPagamento = modalidadeToFormaPagamento(modalidade);
+    if (statusFinal === "aprovado") {
+      if (!formaPagamento) {
+        toast.error("Para aprovar um pedido é necessário selecionar a forma de pagamento.");
+        return;
+      }
+      const temSinal = situacao === "sinal" && snapshot.valor_sinal > 0;
+      const temPago = situacao === "pago";
+      if (!temSinal && !temPago) {
+        toast.error(
+          "Para aprovar um pedido é necessário informar o Sinal (maior que zero) ou marcar como Pago.",
+        );
+        return;
+      }
     }
     if (statusFinal === "orcamento" && (situacao === "pago" || (situacao === "sinal" && snapshot.valor_sinal > 0))) {
-      toast.error("Pedidos com Sinal ou Pago não podem ser salvos como Orçamento.");
+      toast.error(
+        "Pedidos em Orçamento não podem possuir pagamento registrado. Remova o sinal/pagamento ou utilize 'Salvar e enviar para aprovação'.",
+      );
       return;
     }
     if (situacao === "sinal" && (snapshot.valor_sinal <= 0 || snapshot.valor_sinal > snapshot.total_final)) {
@@ -209,7 +220,7 @@ function NovoPedidoPage() {
       const pedido = await pedidosService.criarPedidoCompleto({
         cliente_id: cliente?.id ?? null,
         itens,
-        forma_pagamento: modalidadeToFormaPagamento(modalidade),
+        forma_pagamento: formaPagamento,
         data_pedido: new Date(dataPedido).toISOString(),
         data_entrega_prevista: dataEntrega,
         observacoes: observacoes || null,
