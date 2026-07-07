@@ -47,6 +47,9 @@ import {
 
 export const Route = createFileRoute("/pedidos/novo")({
   head: () => ({ meta: [{ title: "Novo pedido — Molduraria ERP" }] }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    id: typeof s.id === "string" ? s.id : undefined,
+  }),
   component: NovoPedidoPage,
 });
 
