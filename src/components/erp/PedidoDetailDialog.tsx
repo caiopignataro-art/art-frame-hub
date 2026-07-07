@@ -127,6 +127,16 @@ export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: strin
             </div>
 
             <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  onOpenChange(false);
+                  navigate({ to: "/pedidos/novo", search: { id: p.id } });
+                }}
+              >
+                <Pencil className="mr-1 h-4 w-4" /> Editar
+              </Button>
               <Button size="sm" onClick={handleEnviarWhats} variant="default">
                 <MessageCircle className="mr-1 h-4 w-4" />
                 {p.whatsapp_enviado ? "Reenviar via WhatsApp" : "Enviar pedido via WhatsApp"}
