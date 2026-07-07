@@ -141,10 +141,7 @@ function NovoPedidoPage() {
       | null;
     const mod = snap?.modalidade
       ? snap.modalidade
-      : (require("@/lib/pagamento/modalidade") as typeof import("@/lib/pagamento/modalidade")).inferModalidade(
-          p.forma_pagamento,
-          snap,
-        );
+      : inferModalidade(p.forma_pagamento, snap);
     setModalidade(mod);
     setParcelas(snap?.parcelas ?? 1);
     setDescontoPct(snap?.desconto_percentual ?? 0);
