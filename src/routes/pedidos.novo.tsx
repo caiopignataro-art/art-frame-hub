@@ -117,6 +117,49 @@ function NovoPedidoPage() {
   const [dataPedido, setDataPedido] = React.useState<string>(todayIso());
   const [dataEntrega, setDataEntrega] = React.useState<string>("");
   const [observacoes, setObservacoes] = React.useState("");
+  const [pedidoStatus, setPedidoStatus] = React.useState<import("@/types/erp").PedidoStatus | null>(null);
+  const [numeroPedido, setNumeroPedido] = React.useState<number | null>(null);
+
+  // ---------- Carrega pedido em edição ----------
+  const pedidoEditQ = useQuery({
+    queryKey: ["pedido", editId, "edit"],
+    queryFn: () => pedidosService.get(editId!),
+    enabled: isEdit,
+  });
+  React.useEffect(() => {
+    const p = pedidoEditQ.data;
+    if (!p) return;
+    setCliente(p.cliente ?? null);
+    setPedidoStatus(p.status);
+    setNumeroPedido(p.numero_pedido);
+    setDataPedido((p.data_pedido ?? new Date().toISOString()).slice(0, 10));
+    setDataEntrega((p.data_entrega_prevista ?? "").slice(0, 10));
+    setObservacoes(p.observacoes ?? "");
+    const snap = ((p.metadados as any)?.pagamento ?? null) as
+      | import("@/lib/pagamento/modalidade").PagamentoSnapshot
+      | null;
+    const mod = snap?.modalidade
+      ? snap.modalidade
+      : (require("@/lib/pagamento/modalidade") as typeof import("@/lib/pagamento/modalidade")).inferModalidade(
+          p.forma_pagamento,
+          snap,
+        );
+    setModalidade(mod);
+    setParcelas(snap?.parcelas ?? 1);
+    setDescontoPct(snap?.desconto_percentual ?? 0);
+    setSituacao((snap?.situacao as any) ?? "aberto");
+    setValorSinal(Number(snap?.valor_sinal ?? 0));
+    const itensDraft: PedidoItemDraft[] = (p.itens ?? []).map((i: any) => ({
+      descricao: i.descricao,
+      quantidade: Number(i.quantidade),
+      largura_cm: Number(i.largura_cm),
+      altura_cm: Number(i.altura_cm),
+      valor_unitario: Number(i.valor_unitario),
+      valor_total: Number(i.valor_total),
+      metadados: i.metadados ?? {},
+    }));
+    setItens(itensDraft);
+  }, [pedidoEditQ.data]);
 
   // ---------- Cálculo em tempo real ----------
   const subtotal = React.useMemo(
