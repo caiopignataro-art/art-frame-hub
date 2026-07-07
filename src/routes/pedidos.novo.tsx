@@ -39,6 +39,7 @@ import {
   MODALIDADE_LABEL,
   MODALIDADES_COM_DESCONTO,
   modalidadeToFormaPagamento,
+  inferModalidade,
   calcularSnapshot,
   CONFIG_KEY_MAX_PARCELAS,
   DEFAULT_MAX_PARCELAS,
@@ -47,6 +48,9 @@ import {
 
 export const Route = createFileRoute("/pedidos/novo")({
   head: () => ({ meta: [{ title: "Novo pedido — Molduraria ERP" }] }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    id: typeof s.id === "string" ? s.id : undefined,
+  }),
   component: NovoPedidoPage,
 });
 
@@ -59,14 +63,17 @@ function todayIso() {
 function NovoPedidoPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { id: editId } = Route.useSearch();
+  const isEdit = !!editId;
 
-  // Itens (vindos da calculadora via sessionStorage)
+  // Itens (vindos da calculadora via sessionStorage OU do pedido em edição)
   const [itens, setItens] = React.useState<PedidoItemDraft[]>([]);
   const [calcOpen, setCalcOpen] = React.useState(false);
   const [cadCliOpen, setCadCliOpen] = React.useState(false);
   const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
 
   React.useEffect(() => {
+    if (isEdit) return; // em modo edição, ignora sessionStorage
     try {
       const inicial = novoPedidoStore.read();
       if (inicial.length > 0) {
@@ -76,7 +83,7 @@ function NovoPedidoPage() {
     } catch (err) {
       console.error("[NovoPedido] erro lendo sessionStorage", err);
     }
-  }, []);
+  }, [isEdit]);
 
   // ---------- Cliente (autocomplete único) ----------
   const [cliente, setCliente] = React.useState<Cliente | null>(null);
@@ -111,6 +118,46 @@ function NovoPedidoPage() {
   const [dataPedido, setDataPedido] = React.useState<string>(todayIso());
   const [dataEntrega, setDataEntrega] = React.useState<string>("");
   const [observacoes, setObservacoes] = React.useState("");
+  const [pedidoStatus, setPedidoStatus] = React.useState<import("@/types/erp").PedidoStatus | null>(null);
+  const [numeroPedido, setNumeroPedido] = React.useState<number | null>(null);
+
+  // ---------- Carrega pedido em edição ----------
+  const pedidoEditQ = useQuery({
+    queryKey: ["pedido", editId, "edit"],
+    queryFn: () => pedidosService.get(editId!),
+    enabled: isEdit,
+  });
+  React.useEffect(() => {
+    const p = pedidoEditQ.data;
+    if (!p) return;
+    setCliente(p.cliente ?? null);
+    setPedidoStatus(p.status);
+    setNumeroPedido(p.numero_pedido);
+    setDataPedido((p.data_pedido ?? new Date().toISOString()).slice(0, 10));
+    setDataEntrega((p.data_entrega_prevista ?? "").slice(0, 10));
+    setObservacoes(p.observacoes ?? "");
+    const snap = ((p.metadados as any)?.pagamento ?? null) as
+      | import("@/lib/pagamento/modalidade").PagamentoSnapshot
+      | null;
+    const mod = snap?.modalidade
+      ? snap.modalidade
+      : inferModalidade(p.forma_pagamento, snap);
+    setModalidade(mod);
+    setParcelas(snap?.parcelas ?? 1);
+    setDescontoPct(snap?.desconto_percentual ?? 0);
+    setSituacao((snap?.situacao as any) ?? "aberto");
+    setValorSinal(Number(snap?.valor_sinal ?? 0));
+    const itensDraft: PedidoItemDraft[] = (p.itens ?? []).map((i: any) => ({
+      descricao: i.descricao,
+      quantidade: Number(i.quantidade),
+      largura_cm: Number(i.largura_cm),
+      altura_cm: Number(i.altura_cm),
+      valor_unitario: Number(i.valor_unitario),
+      valor_total: Number(i.valor_total),
+      metadados: i.metadados ?? {},
+    }));
+    setItens(itensDraft);
+  }, [pedidoEditQ.data]);
 
   // ---------- Cálculo em tempo real ----------
   const subtotal = React.useMemo(
@@ -185,22 +232,29 @@ function NovoPedidoPage() {
     }
   };
 
-  const handleSalvar = async (statusFinal: "orcamento" | "aprovado" = "orcamento") => {
+  const handleSalvar = async (
+    statusFinal: import("@/types/erp").PedidoStatus = "orcamento",
+  ) => {
     if (!canSalvar) {
       toast.error("Adicione pelo menos um item e informe a data prevista de entrega.");
       return;
     }
     const formaPagamento = modalidadeToFormaPagamento(modalidade);
-    if (statusFinal === "aprovado") {
+    const requerPagamento =
+      statusFinal === "aprovado" ||
+      statusFinal === "em_producao" ||
+      statusFinal === "pronto" ||
+      statusFinal === "entregue";
+    if (requerPagamento) {
       if (!formaPagamento) {
-        toast.error("Para aprovar um pedido é necessário selecionar a forma de pagamento.");
+        toast.error("Este status exige forma de pagamento selecionada.");
         return;
       }
       const temSinal = situacao === "sinal" && snapshot.valor_sinal > 0;
       const temPago = situacao === "pago";
       if (!temSinal && !temPago) {
         toast.error(
-          "Para aprovar um pedido é necessário informar o Sinal (maior que zero) ou marcar como Pago.",
+          "Este status exige informar o Sinal (maior que zero) ou marcar como Pago.",
         );
         return;
       }
@@ -217,19 +271,34 @@ function NovoPedidoPage() {
     }
     setSaving(true);
     try {
-      const pedido = await pedidosService.criarPedidoCompleto({
-        cliente_id: cliente?.id ?? null,
-        itens,
-        forma_pagamento: formaPagamento,
-        data_pedido: new Date(dataPedido).toISOString(),
-        data_entrega_prevista: dataEntrega,
-        observacoes: observacoes || null,
-        status: statusFinal,
-        pagamento: snapshot,
-      });
-      toast.success(`Pedido #${pedido.numero_pedido} criado`);
+      if (isEdit && editId) {
+        await pedidosService.atualizarPedidoCompleto(editId, {
+          cliente_id: cliente?.id ?? null,
+          itens,
+          forma_pagamento: formaPagamento,
+          data_pedido: new Date(dataPedido).toISOString(),
+          data_entrega_prevista: dataEntrega,
+          observacoes: observacoes || null,
+          status: statusFinal,
+          pagamento: snapshot,
+        });
+        toast.success(`Pedido #${numeroPedido ?? ""} atualizado`);
+      } else {
+        const pedido = await pedidosService.criarPedidoCompleto({
+          cliente_id: cliente?.id ?? null,
+          itens,
+          forma_pagamento: formaPagamento,
+          data_pedido: new Date(dataPedido).toISOString(),
+          data_entrega_prevista: dataEntrega,
+          observacoes: observacoes || null,
+          status: statusFinal,
+          pagamento: snapshot,
+        });
+        toast.success(`Pedido #${pedido.numero_pedido} criado`);
+      }
       qc.invalidateQueries({ queryKey: ["pedidos"] });
       qc.invalidateQueries({ queryKey: ["pagamentos"] });
+      if (isEdit && editId) qc.invalidateQueries({ queryKey: ["pedido", editId] });
       navigate({ to: "/pedidos" });
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao salvar pedido");
@@ -238,11 +307,13 @@ function NovoPedidoPage() {
     }
   };
 
+  const pageTitle = isEdit ? `Editar pedido${numeroPedido ? ` #${numeroPedido}` : ""}` : "Novo pedido";
+
   return (
-    <AppShell title="Novo pedido">
+    <AppShell title={pageTitle}>
       <PageHeader
-        title="Novo pedido"
-        description="Defina o cliente, itens, pagamento e prazo. Os itens vêm da calculadora."
+        title={pageTitle}
+        description={isEdit ? "Ajuste os dados do pedido. As alterações ficam registradas no histórico." : "Defina o cliente, itens, pagamento e prazo. Os itens vêm da calculadora."}
         actions={
           <Button asChild variant="outline">
             <Link to="/pedidos"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Link>
@@ -583,12 +654,23 @@ function NovoPedidoPage() {
         <Button variant="ghost" onClick={() => navigate({ to: "/pedidos" })} disabled={saving}>
           Cancelar
         </Button>
-        <Button variant="outline" onClick={() => handleSalvar("orcamento")} disabled={!canSalvar || saving}>
-          <Save className="mr-2 h-4 w-4" /> Salvar como orçamento
-        </Button>
-        <Button onClick={() => handleSalvar("aprovado")} disabled={!canSalvar || saving}>
-          Salvar e enviar para aprovação
-        </Button>
+        {isEdit ? (
+          <Button
+            onClick={() => handleSalvar(pedidoStatus ?? "orcamento")}
+            disabled={!canSalvar || saving || !pedidoStatus}
+          >
+            <Save className="mr-2 h-4 w-4" /> Salvar alterações
+          </Button>
+        ) : (
+          <>
+            <Button variant="outline" onClick={() => handleSalvar("orcamento")} disabled={!canSalvar || saving}>
+              <Save className="mr-2 h-4 w-4" /> Salvar como orçamento
+            </Button>
+            <Button onClick={() => handleSalvar("aprovado")} disabled={!canSalvar || saving}>
+              Salvar e enviar para aprovação
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Dialog Calculadora */}

@@ -165,6 +165,113 @@ export const pedidosService = {
     return pedido as Pedido;
   },
 
+  /**
+   * Atualiza um pedido existente substituindo itens e pagamentos. Preserva
+   * numero_pedido e histórico (via trigger de auditoria). Não altera o status
+   * automaticamente — use setStatus separadamente se necessário.
+   */
+  async atualizarPedidoCompleto(
+    id: string,
+    opts: {
+      cliente_id: string | null;
+      itens: PedidoItemDraft[];
+      forma_pagamento: PedidoInsert["forma_pagamento"];
+      data_pedido: string;
+      data_entrega_prevista: string;
+      observacoes?: string | null;
+      status?: PedidoStatus;
+      pagamento?: import("@/lib/pagamento/modalidade").PagamentoSnapshot;
+    },
+  ): Promise<Pedido> {
+    const total =
+      opts.pagamento?.total_final ??
+      opts.itens.reduce((s, i) => s + Number(i.valor_total), 0);
+
+    // Recupera metadados atuais para preservar chaves fora de "pagamento"
+    const { data: atual, error: eGet } = await supabase
+      .from("pedidos")
+      .select("metadados")
+      .eq("id", id)
+      .maybeSingle();
+    if (eGet) throw eGet;
+    const metadados: Record<string, unknown> = { ...((atual?.metadados as any) ?? {}) };
+    if (opts.pagamento) metadados.pagamento = opts.pagamento;
+    else delete metadados.pagamento;
+
+    const patch: PedidoUpdate = {
+      cliente_id: opts.cliente_id,
+      valor_total: total,
+      observacoes: opts.observacoes ?? null,
+      forma_pagamento: opts.forma_pagamento,
+      data_pedido: opts.data_pedido,
+      data_entrega_prevista: opts.data_entrega_prevista,
+      metadados: metadados as any,
+    };
+    if (opts.status) patch.status = opts.status;
+
+    const { data: pedido, error } = await supabase
+      .from("pedidos")
+      .update(patch)
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error) throw error;
+
+    // Substitui itens
+    const { error: dErr } = await supabase.from("pedido_itens").delete().eq("pedido_id", id);
+    if (dErr) throw dErr;
+    if (opts.itens.length > 0) {
+      const rows = opts.itens.map((i) => ({
+        pedido_id: id,
+        descricao: i.descricao,
+        quantidade: i.quantidade,
+        largura_cm: i.largura_cm,
+        altura_cm: i.altura_cm,
+        valor_unitario: i.valor_unitario,
+        valor_total: i.valor_total,
+        metadados: i.metadados,
+      }));
+      const { error: iErr } = await supabase.from("pedido_itens").insert(rows as any);
+      if (iErr) throw iErr;
+    }
+
+    // Substitui pagamentos
+    const { error: pDelErr } = await supabase.from("pagamentos").delete().eq("pedido_id", id);
+    if (pDelErr) console.error("[atualizarPedidoCompleto] falha ao remover pagamentos", pDelErr);
+    if (opts.pagamento && opts.forma_pagamento) {
+      const snap = opts.pagamento;
+      const status =
+        snap.situacao === "pago" ? "pago" : snap.situacao === "sinal" ? "parcial" : "pendente";
+      const valorPago =
+        snap.situacao === "pago"
+          ? snap.total_final
+          : snap.situacao === "sinal"
+          ? snap.valor_sinal
+          : 0;
+      const obs = JSON.stringify({
+        modalidade: snap.modalidade,
+        parcelas: snap.parcelas,
+        subtotal: snap.subtotal,
+        desconto_percentual: snap.desconto_percentual,
+        desconto_valor: snap.desconto_valor,
+        total_final: snap.total_final,
+        valor_pago: valorPago,
+        saldo_devedor: snap.saldo_devedor,
+      });
+      const { error: pErr } = await supabase.from("pagamentos").insert({
+        pedido_id: id,
+        forma_pagamento: opts.forma_pagamento,
+        status,
+        valor: snap.total_final,
+        data_pagamento: snap.situacao === "aberto" ? null : new Date().toISOString(),
+        observacoes: obs,
+      } as any);
+      if (pErr) console.error("[atualizarPedidoCompleto] falha ao criar pagamento", pErr);
+    }
+
+    return pedido as Pedido;
+  },
+
   /** Marca pedido como WhatsApp enviado e salva pdf_url opcional. */
   async marcarWhatsappEnviado(id: string, pdf_url?: string | null) {
     return this.update(id, { whatsapp_enviado: true, ...(pdf_url ? { pdf_url } : {}) } as PedidoUpdate);

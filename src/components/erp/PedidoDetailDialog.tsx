@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { CheckCircle2, MessageCircle } from "lucide-react";
+import { CheckCircle2, MessageCircle, Pencil } from "lucide-react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,7 @@ import { gerarPedidoPDF, gerarMensagemWhatsapp, whatsappUrl } from "@/lib/pdf/pe
 
 export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: string | null; onOpenChange: (open: boolean) => void }) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const open = !!pedidoId;
   const pedido = useQuery({
     queryKey: ["pedido", pedidoId],
@@ -125,6 +127,16 @@ export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: strin
             </div>
 
             <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  onOpenChange(false);
+                  navigate({ to: "/pedidos/novo", search: { id: p.id } });
+                }}
+              >
+                <Pencil className="mr-1 h-4 w-4" /> Editar
+              </Button>
               <Button size="sm" onClick={handleEnviarWhats} variant="default">
                 <MessageCircle className="mr-1 h-4 w-4" />
                 {p.whatsapp_enviado ? "Reenviar via WhatsApp" : "Enviar pedido via WhatsApp"}
