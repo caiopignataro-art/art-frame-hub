@@ -62,14 +62,17 @@ function todayIso() {
 function NovoPedidoPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { id: editId } = Route.useSearch();
+  const isEdit = !!editId;
 
-  // Itens (vindos da calculadora via sessionStorage)
+  // Itens (vindos da calculadora via sessionStorage OU do pedido em edição)
   const [itens, setItens] = React.useState<PedidoItemDraft[]>([]);
   const [calcOpen, setCalcOpen] = React.useState(false);
   const [cadCliOpen, setCadCliOpen] = React.useState(false);
   const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
 
   React.useEffect(() => {
+    if (isEdit) return; // em modo edição, ignora sessionStorage
     try {
       const inicial = novoPedidoStore.read();
       if (inicial.length > 0) {
@@ -79,7 +82,7 @@ function NovoPedidoPage() {
     } catch (err) {
       console.error("[NovoPedido] erro lendo sessionStorage", err);
     }
-  }, []);
+  }, [isEdit]);
 
   // ---------- Cliente (autocomplete único) ----------
   const [cliente, setCliente] = React.useState<Cliente | null>(null);
