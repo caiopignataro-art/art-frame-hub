@@ -16,6 +16,7 @@ import { gerarPedidoPDF, gerarMensagemWhatsapp, whatsappUrl } from "@/lib/pdf/pe
 
 export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: string | null; onOpenChange: (open: boolean) => void }) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const open = !!pedidoId;
   const pedido = useQuery({
     queryKey: ["pedido", pedidoId],
