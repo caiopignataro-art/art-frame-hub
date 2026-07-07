@@ -220,7 +220,7 @@ function NovoPedidoPage() {
       const pedido = await pedidosService.criarPedidoCompleto({
         cliente_id: cliente?.id ?? null,
         itens,
-        forma_pagamento: modalidadeToFormaPagamento(modalidade),
+        forma_pagamento: formaPagamento,
         data_pedido: new Date(dataPedido).toISOString(),
         data_entrega_prevista: dataEntrega,
         observacoes: observacoes || null,
