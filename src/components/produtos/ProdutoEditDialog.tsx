@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -93,60 +93,63 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
   const tipo: ProdutoTipo = produto?.tipo ?? criandoTipo ?? "outro";
 
   useEffect(() => {
-    if (produto) {
-      setForm({
-        nome: produto.nome ?? "",
-        descricao: produto.descricao ?? "",
-        ativo: produto.ativo,
-        preco_custo: String(produto.preco_custo ?? 0),
-        preco_venda: String(produto.preco_venda ?? 0),
-        preco_venda_acima_m2: produto.preco_venda_acima_m2 != null ? String(produto.preco_venda_acima_m2) : "",
-        preco_venda_limite_m2: produto.preco_venda_limite_m2 != null ? String(produto.preco_venda_limite_m2) : "",
-        unidade: produto.unidade ?? "un",
-        unidade_venda: produto.unidade_venda ?? "m2",
-        unidade_estoque: produto.unidade_estoque ?? "m2",
-        estoque: String(produto.estoque ?? 0),
-        estoque_ideal: String(produto.estoque_ideal ?? 0),
-        estoque_minimo: String(produto.estoque_minimo ?? 0),
-        fornecedor: produto.fornecedor ?? "",
-        chapa_largura_cm: produto.chapa_largura_cm != null ? String(produto.chapa_largura_cm) : "",
-        chapa_altura_cm: produto.chapa_altura_cm != null ? String(produto.chapa_altura_cm) : "",
-        observacoes: produto.observacoes ?? "",
-        perfil: produto.perfil ?? "",
-        acabamento: produto.acabamento ?? "",
-        altura_cm: produto.altura_cm != null ? String(produto.altura_cm) : "",
-        largura_cm: produto.largura_cm != null ? String(produto.largura_cm) : "",
-        forma_estoque: produto.forma_estoque ?? "unidade",
-      });
-    } else {
-      // Defaults sensatos por categoria em modo criação
-      const t = criandoTipo ?? "outro";
-      setForm({
-        ...empty,
-        unidade_venda: t === "chassi" ? "metro_linear" : "m2",
-        unidade_estoque:
-          t === "chassi" ? "metro_linear" : t === "protecao_frontal" || t === "fundo" ? "chapas" : "m2",
-        unidade: t === "chassi" ? "metro_linear" : "m2",
-        forma_estoque:
-          t === "perfil_moldura"
-            ? "barras"
-            : t === "protecao_frontal" || t === "fundo"
-              ? "chapas"
-              : t === "passe_partout"
-                ? "chapas"
-                : "unidade",
-      });
+    if (open) {
+      if (produto) {
+        setForm({
+          nome: produto.nome ?? "",
+          descricao: produto.descricao ?? "",
+          ativo: produto.ativo,
+          preco_custo: String(produto.preco_custo ?? 0),
+          preco_venda: String(produto.preco_venda ?? 0),
+          preco_venda_acima_m2: produto.preco_venda_acima_m2 != null ? String(produto.preco_venda_acima_m2) : "",
+          preco_venda_limite_m2: produto.preco_venda_limite_m2 != null ? String(produto.preco_venda_limite_m2) : "",
+          unidade: produto.unidade ?? "un",
+          unidade_venda: produto.unidade_venda ?? "m2",
+          unidade_estoque: produto.unidade_estoque ?? "m2",
+          estoque: String(produto.estoque ?? 0),
+          estoque_ideal: String(produto.estoque_ideal ?? 0),
+          estoque_minimo: String(produto.estoque_minimo ?? 0),
+          fornecedor: produto.fornecedor ?? "",
+          chapa_largura_cm: produto.chapa_largura_cm != null ? String(produto.chapa_largura_cm) : "",
+          chapa_altura_cm: produto.chapa_altura_cm != null ? String(produto.chapa_altura_cm) : "",
+          observacoes: produto.observacoes ?? "",
+          perfil: produto.perfil ?? "",
+          acabamento: produto.acabamento ?? "",
+          altura_cm: produto.altura_cm != null ? String(produto.altura_cm) : "",
+          largura_cm: produto.largura_cm != null ? String(produto.largura_cm) : "",
+          forma_estoque: produto.forma_estoque ?? "unidade",
+        });
+      } else {
+        // Defaults sensatos por categoria em modo criação
+        const t = criandoTipo ?? "outro";
+        let formaPadrao = "unidade";
+        if (t === "moldura" || t === "perfil_moldura") {
+          formaPadrao = "barras";
+        } else if (t === "vidro" || t === "protecao_frontal" || t === "fundo" || t === "passe_partout" || t === "paspatur") {
+          formaPadrao = "chapas";
+        } else if (t === "impressao") {
+          formaPadrao = "bobinas";
+        }
+
+        setForm({
+          ...empty,
+          unidade_venda: t === "chassi" ? "metro_linear" : "m2",
+          unidade_estoque:
+            t === "chassi" ? "metro_linear" : t === "protecao_frontal" || t === "fundo" ? "chapas" : "m2",
+          unidade: t === "chassi" ? "metro_linear" : "m2",
+          forma_estoque: formaPadrao,
+        });
+      }
     }
   }, [produto, criandoTipo, open]);
 
-  const isPerfil = tipo === "perfil_moldura";
+  const isPerfil = tipo === "moldura" || tipo === "perfil_moldura";
   const isChassi = tipo === "chassi";
-  const isChapa = tipo === "protecao_frontal" || tipo === "fundo";
-
-  const num = (s: string): number | null => (s === "" ? null : Number(s));
+  const isChapa = tipo === "vidro" || tipo === "fundo" || tipo === "protecao_frontal" || tipo === "passe_partout" || tipo === "paspatur";
 
   const mutation = useMutation({
     mutationFn: async () => {
+      const num = (s: string): number | null => (s === "" ? null : Number(s));
       const base = {
         nome: form.nome || "(sem nome)",
         descricao: form.descricao || null,
@@ -170,6 +173,12 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
 
       if (criando) {
         const insert: ProdutoInsert = { ...base, tipo };
+        if (isPerfil) {
+          insert.perfil = form.perfil || null;
+          insert.acabamento = form.acabamento || null;
+          insert.altura_cm = num(form.altura_cm);
+          insert.largura_cm = num(form.largura_cm);
+        }
         return produtosService.create(insert);
       }
       const patch: ProdutoUpdate = { ...base };
@@ -207,16 +216,16 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2 space-y-1">
             <Label>Nome</Label>
-            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+            <Input value={form.nome} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, nome: e.target.value })} />
           </div>
           <div className="col-span-2 space-y-1">
             <Label>Descrição</Label>
-            <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
+            <Input value={form.descricao} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, descricao: e.target.value })} />
           </div>
 
           <div className="col-span-2 space-y-1">
             <Label>Forma de Estoque</Label>
-            <Select value={form.forma_estoque} onValueChange={(v) => setForm({ ...form, forma_estoque: v })}>
+            <Select value={form.forma_estoque} onValueChange={(v: string) => setForm({ ...form, forma_estoque: v })}>
               <SelectTrigger><SelectValue placeholder="Selecione a forma de estoque" /></SelectTrigger>
               <SelectContent>
                 {Object.entries(FORMA_ESTOQUE_LABEL).map(([key, label]) => (
@@ -228,7 +237,7 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
 
           <div className="space-y-1">
             <Label>Unidade de venda</Label>
-            <Select value={form.unidade_venda} onValueChange={(v) => setForm({ ...form, unidade_venda: v, unidade: v })}>
+            <Select value={form.unidade_venda} onValueChange={(v: string) => setForm({ ...form, unidade_venda: v, unidade: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {UNIDADES_VENDA.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
@@ -237,7 +246,7 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
           </div>
           <div className="space-y-1">
             <Label>Unidade de estoque</Label>
-            <Select value={form.unidade_estoque} onValueChange={(v) => setForm({ ...form, unidade_estoque: v })}>
+            <Select value={form.unidade_estoque} onValueChange={(v: string) => setForm({ ...form, unidade_estoque: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {UNIDADES_ESTOQUE.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
@@ -248,12 +257,12 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
           <div className="space-y-1">
             <Label>Preço de compra</Label>
             <Input type="number" step="0.01" min="0" value={form.preco_custo}
-              onChange={(e) => setForm({ ...form, preco_custo: e.target.value })} />
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, preco_custo: e.target.value })} />
           </div>
           <div className="space-y-1">
             <Label>Preço de venda {isChassi && "(até limite)"}</Label>
             <Input type="number" step="0.01" min="0" value={form.preco_venda}
-              onChange={(e) => setForm({ ...form, preco_venda: e.target.value })} />
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, preco_venda: e.target.value })} />
           </div>
 
           {isChassi && (
@@ -261,12 +270,12 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
               <div className="space-y-1">
                 <Label>Preço de venda acima do limite (por m²)</Label>
                 <Input type="number" step="0.01" value={form.preco_venda_acima_m2}
-                  onChange={(e) => setForm({ ...form, preco_venda_acima_m2: e.target.value })} />
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, preco_venda_acima_m2: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <Label>Limite (m²)</Label>
                 <Input type="number" step="0.01" value={form.preco_venda_limite_m2}
-                  onChange={(e) => setForm({ ...form, preco_venda_limite_m2: e.target.value })} />
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, preco_venda_limite_m2: e.target.value })} />
               </div>
             </>
           )}
@@ -276,12 +285,12 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
               <div className="space-y-1">
                 <Label>Chapa — largura (cm)</Label>
                 <Input type="number" step="0.1" value={form.chapa_largura_cm}
-                  onChange={(e) => setForm({ ...form, chapa_largura_cm: e.target.value })} />
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, chapa_largura_cm: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <Label>Chapa — altura (cm)</Label>
                 <Input type="number" step="0.1" value={form.chapa_altura_cm}
-                  onChange={(e) => setForm({ ...form, chapa_altura_cm: e.target.value })} />
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, chapa_altura_cm: e.target.value })} />
               </div>
             </>
           )}
@@ -289,47 +298,47 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
           <div className="space-y-1">
             <Label>Estoque real</Label>
             <Input type="number" step="0.001" value={form.estoque}
-              onChange={(e) => setForm({ ...form, estoque: e.target.value })} />
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, estoque: e.target.value })} />
           </div>
           <div className="space-y-1">
             <Label>Estoque ideal</Label>
             <Input type="number" step="0.001" value={form.estoque_ideal}
-              onChange={(e) => setForm({ ...form, estoque_ideal: e.target.value })} />
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, estoque_ideal: e.target.value })} />
           </div>
           <div className="space-y-1">
             <Label>Estoque mínimo</Label>
             <Input type="number" step="0.001" value={form.estoque_minimo}
-              onChange={(e) => setForm({ ...form, estoque_minimo: e.target.value })} />
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, estoque_minimo: e.target.value })} />
           </div>
           <div className="space-y-1">
             <Label>Fornecedor</Label>
-            <Input value={form.fornecedor} onChange={(e) => setForm({ ...form, fornecedor: e.target.value })} />
+            <Input value={form.fornecedor} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, fornecedor: e.target.value })} />
           </div>
 
           <div className="flex items-center gap-3 pt-6 col-span-2">
-            <Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} />
+            <Switch checked={form.ativo} onCheckedChange={(v: boolean) => setForm({ ...form, ativo: v })} />
             <Label>Ativo</Label>
           </div>
 
-          {isPerfil && !criando && (
+          {isPerfil && (
             <>
               <div className="space-y-1">
                 <Label>Perfil</Label>
-                <Input value={form.perfil} onChange={(e) => setForm({ ...form, perfil: e.target.value })} />
+                <Input value={form.perfil} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, perfil: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <Label>Acabamento</Label>
-                <Input value={form.acabamento} onChange={(e) => setForm({ ...form, acabamento: e.target.value })} />
+                <Input value={form.acabamento} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, acabamento: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <Label>Altura (cm)</Label>
                 <Input type="number" step="0.01" value={form.altura_cm}
-                  onChange={(e) => setForm({ ...form, altura_cm: e.target.value })} />
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, altura_cm: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <Label>Largura (cm)</Label>
                 <Input type="number" step="0.01" value={form.largura_cm}
-                  onChange={(e) => setForm({ ...form, largura_cm: e.target.value })} />
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, largura_cm: e.target.value })} />
               </div>
             </>
           )}
@@ -337,7 +346,7 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
           <div className="col-span-2 space-y-1">
             <Label>Observações</Label>
             <Textarea rows={3} value={form.observacoes}
-              onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setForm({ ...form, observacoes: e.target.value })} />
           </div>
         </div>
 
