@@ -28,7 +28,7 @@ function ClientesPage() {
     <AppShell title="Clientes">
       <PageHeader
         title="Clientes"
-        description="Cadastro de clientes da molduraria."
+        description="Cadastro de clientes."
         actions={
           <Button onClick={openNovo}>
             <Plus className="mr-2 h-4 w-4" /> Novo cliente
