@@ -180,6 +180,9 @@ export const pedidosService = {
 
     return pedido as Pedido;
   },
+
+  /**
+   * Atualiza um pedido existente substituindo itens e pagamentos. Preserva
    * numero_pedido e histórico (via trigger de auditoria). Não altera o status
    * automaticamente — use setStatus separadamente se necessário.
    */
