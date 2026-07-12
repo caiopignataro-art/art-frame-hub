@@ -8,6 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { configuracoesService } from "@/lib/services/configuracoes.service";
 import { CONFIG_KEYS } from "@/types/estoque";
 import { CONFIG_KEY_MAX_PARCELAS, DEFAULT_MAX_PARCELAS } from "@/lib/pagamento/modalidade";
@@ -29,6 +36,14 @@ function ConfiguracoesPage() {
   const [perda, setPerda] = useState("15");
   const [minDefault, setMinDefault] = useState("2");
   const [maxParcelas, setMaxParcelas] = useState(String(DEFAULT_MAX_PARCELAS));
+  const [algoritmos, setAlgoritmos] = useState<Record<string, string>>({
+    barras: "barras_default",
+    chapas: "guillotine",
+    bobinas: "bobinas_default",
+    metro_linear: "padrao",
+    area: "padrao",
+    unidade: "padrao"
+  });
 
 
   useEffect(() => {
@@ -38,6 +53,16 @@ function ConfiguracoesPage() {
       if (c.chave === CONFIG_KEYS.perda_corte_percentual) setPerda(v);
       if (c.chave === CONFIG_KEYS.estoque_minimo_default) setMinDefault(v);
       if (c.chave === CONFIG_KEY_MAX_PARCELAS) setMaxParcelas(v);
+      if (c.chave === "estoque.algoritmos_corte") {
+        try {
+          const parsed = typeof c.valor === "string" ? JSON.parse(c.valor) : c.valor;
+          if (parsed && typeof parsed === "object") {
+            setAlgoritmos(parsed as Record<string, string>);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
     }
   }, [configs]);
 
@@ -64,6 +89,11 @@ function ConfiguracoesPage() {
         CONFIG_KEY_MAX_PARCELAS,
         mp,
         "Quantidade máxima de parcelas no crédito parcelado (1 a 12)",
+      );
+      await configuracoesService.setJson(
+        "estoque.algoritmos_corte",
+        algoritmos,
+        "Mapeamento dos algoritmos de corte por Forma de Estoque",
       );
     },
 
@@ -128,6 +158,56 @@ function ConfiguracoesPage() {
             <Button onClick={() => salvar.mutate()} disabled={salvar.isPending} variant="outline">
               {salvar.isPending ? "Salvando..." : "Salvar configurações"}
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base">Algoritmos de Corte (Stock Engine)</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label>Algoritmo para Barras</Label>
+              <Select value={algoritmos.barras} onValueChange={(v) => setAlgoritmos({ ...algoritmos, barras: v })}>
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="barras_default">Algoritmo de Barras (Padrão)</SelectItem>
+                  <SelectItem value="nesting_irregular" disabled>Nesting Irregular (Futuro)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Otimiza perfis lineares de moldura.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Algoritmo para Chapas</Label>
+              <Select value={algoritmos.chapas} onValueChange={(v) => setAlgoritmos({ ...algoritmos, chapas: v })}>
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="guillotine">Algoritmo Guillotine (Cortes Retos)</SelectItem>
+                  <SelectItem value="maxrects" disabled>MaxRects (Futuro)</SelectItem>
+                  <SelectItem value="skyline" disabled>Skyline (Futuro)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Otimiza placas (Vidro, MDF, Passe-partout).</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Algoritmo para Bobinas</Label>
+              <Select value={algoritmos.bobinas} onValueChange={(v) => setAlgoritmos({ ...algoritmos, bobinas: v })}>
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bobinas_default">Algoritmo de Bobinas (Menor Comprimento)</SelectItem>
+                  <SelectItem value="otimizacao_multipla" disabled>Otimização Múltipla (Futuro)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Otimiza canvas, vinil e papéis fotográficos.</p>
+            </div>
+
+            <div className="col-span-full pt-4">
+              <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
+                {salvar.isPending ? "Salvando..." : "Salvar algoritmos"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

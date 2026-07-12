@@ -122,3 +122,68 @@ Encapsula a lógica de consumo linear para materiais em rolo (Canvas, Fine Art, 
   - Vincula o ID da bobina reservada na coluna `impressao_bobina_id` da tabela `ordens_producao`.
 - **Registro de Métricas:**
   - Registra nos logs de movimentação de estoque a área útil consumida e o desperdício gerado pela largura não utilizada da faixa de bobina cortada (`desperdicio = (largura_bobina * comprimento_consumido) - area_util_peca`).
+
+---
+
+## 4. Otimização de Corte e Strategy Pattern
+
+Para desacoplar a orquestração do estoque dos algoritmos físicos de aproveitamento de material, o **Stock Engine** adota o padrão de projeto **Strategy (Strategy Pattern)**.
+
+```mermaid
+classDiagram
+    class StockEngine {
+        +interpretConsumption(input)
+        -getDefaultStrategyKeyForForm(form)
+    }
+    class CuttingStrategy {
+        <<interface>>
+        +calculate(input)
+    }
+    class BarrasStrategy {
+        +calculate(input)
+    }
+    class GuillotineStrategy {
+        +calculate(input)
+    }
+    class BobinasStrategy {
+        +calculate(input)
+    }
+    class PadraoStrategy {
+        +calculate(input)
+    }
+
+    StockEngine --> CuttingStrategy : delega para
+    CuttingStrategy <|.. BarrasStrategy
+    CuttingStrategy <|.. GuillotineStrategy
+    CuttingStrategy <|.. BobinasStrategy
+    CuttingStrategy <|.. PadraoStrategy
+```
+
+### 4.1 Interface Comum: `CuttingStrategy`
+Todas as estratégias de corte no frontend e procedimentos equivalentes no backend compartilham uma interface comum de entrada e saída baseada unicamente no `consumo_estoque`:
+- **Entrada:** `StockConsumptionInput` (produto, largura, altura, comprimento requerido, quantidade, forma de estoque).
+- **Saída:** `StockConsumptionResult` (sucesso, quantidade consumida, desperdício calculado, alertas).
+
+### 4.2 Estratégias Disponíveis
+- **Barras (`barras_default`):** Distribui peças linearmente sem permitir emendas, priorizando o consumo de retalhos de perfis existentes antes de fracionar novas barras.
+- **Chapas Guillotine (`guillotine`):** Efetua o layout de cortes ortogonais retos de ponta a ponta (corte guilhotina) em chapas de MDF, Vidro e Passe-partout. Prioriza retalhos e armazena as sobras retangulares resultantes.
+- **Bobinas (`bobinas_default`):** Analisa a orientação da peça sob o rolo físico. Compara a dimensão original e a rotacionada em 90°, escolhendo a que demandar a menor metragem linear de bobina.
+
+### 4.3 Painel de Configurações
+O sistema armazena a vinculação entre a **Forma de Estoque** e a **Estratégia** em `public.configuracoes_sistema` sob a chave `"estoque.algoritmos_corte"`. O painel em `/configuracoes` permite alterar dinamicamente o mapeamento de algoritmos a serem aplicados pela engine de estoque.
+
+---
+
+## 5. Guia para Novos Algoritmos (Evoluções Futuras)
+
+A modularidade do Strategy Pattern permite introduzir novos algoritmos de nesting e empacotamento com impacto zero nos demais módulos:
+
+1. **Definir no Banco:**
+   - Crie a nova função/procedure no Postgres seguindo o padrão de nomenclatura `public.stock_strategy_<nome_algoritmo>`.
+2. **Definir no Frontend:**
+   - Crie uma classe no diretório `src/lib/stock-engine/strategies/` implementando a interface `CuttingStrategy`.
+3. **Registrar no StockEngine:**
+   - Importe a nova classe e adicione-a no dicionário estático `strategies` da classe `StockEngine` (`engine.ts`).
+4. **Cadastrar nas Opções:**
+   - Adicione o novo algoritmo na tela de configurações (`src/routes/configuracoes.tsx`) para permitir que o administrador selecione a nova estratégia.
+

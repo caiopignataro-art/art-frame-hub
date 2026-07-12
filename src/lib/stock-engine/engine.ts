@@ -1,88 +1,57 @@
-import { BarProcessor } from "./processors/bar-processor";
-import { CoilProcessor } from "./processors/coil-processor";
-import { PlateProcessor } from "./processors/plate-processor";
+import { BarrasStrategy } from "./strategies/barras-strategy";
+import { GuillotineStrategy } from "./strategies/guillotine-strategy";
+import { BobinasStrategy } from "./strategies/bobinas-strategy";
+import { PadraoStrategy } from "./strategies/padrao-strategy";
+import type { CuttingStrategy } from "./strategies/strategy-interface";
 import type { StockConsumptionInput, StockConsumptionResult } from "./types";
 
 /**
  * StockEngine é a camada de domínio responsável por interpretar o consumo
- * de estoque baseado em diferentes formas de armazenamento (Barras, Chapas, etc.).
- * 
- * No momento, a classe implementa apenas a estrutura e as assinaturas de método,
- * sem executar lógica ativa de cálculo de corte/desperdício/aproveitamento.
+ * de estoque baseado em diferentes formas de armazenamento.
+ * Utiliza o Strategy Pattern para delegar o cálculo de aproveitamento para o algoritmo correto.
  */
 export class StockEngine {
+  private static strategies: Record<string, CuttingStrategy> = {
+    barras_default: new BarrasStrategy(),
+    guillotine: new GuillotineStrategy(),
+    bobinas_default: new BobinasStrategy(),
+    padrao: new PadraoStrategy(),
+  };
+
+  /**
+   * Resolve qual estratégia de corte executar baseando-se no mapeamento configurado.
+   * Por padrão, mapeia dinamicamente de acordo com a forma de estoque do item.
+   */
+  public static getStrategy(strategyKey: string): CuttingStrategy {
+    return this.strategies[strategyKey] || this.strategies.padrao;
+  }
+
   /**
    * Interpreta o consumo geral de um produto baseado nos parâmetros informados.
    */
-  public static interpretConsumption(input: StockConsumptionInput): StockConsumptionResult {
-    switch (input.formaEstoque) {
+  public static interpretConsumption(
+    input: StockConsumptionInput,
+    algorithmKey?: string
+  ): StockConsumptionResult {
+    // Escolhe a chave da estratégia configurada ou cai no mapeamento padrão da forma de estoque
+    const key = algorithmKey || this.getDefaultStrategyKeyForForm(input.formaEstoque);
+    const strategy = this.getStrategy(key);
+    return strategy.calculate(input);
+  }
+
+  /**
+   * Retorna a estratégia padrão para cada forma de estoque caso nenhuma específica esteja definida.
+   */
+  private static getDefaultStrategyKeyForForm(formaEstoque: string): string {
+    switch (formaEstoque) {
       case "barras":
-        return this.calculateBarras(input);
+        return "barras_default";
       case "chapas":
-        return this.calculateChapas(input);
+        return "guillotine";
       case "bobinas":
-        return this.calculateBobinas(input);
-      case "metro_linear":
-        return this.calculateMetroLinear(input);
-      case "area":
-        return this.calculateArea(input);
-      case "unidade":
+        return "bobinas_default";
       default:
-        return this.calculateUnidade(input);
+        return "padrao";
     }
-  }
-
-  /**
-   * Cálculo específico para produtos estocados em Barras (ex: Perfil de Moldura).
-   * Delega para o BarProcessor.
-   */
-  private static calculateBarras(input: StockConsumptionInput): StockConsumptionResult {
-    return BarProcessor.reservar(input);
-  }
-
-  /**
-   * Cálculo específico para produtos estocados em Chapas (ex: Vidro, Fundo).
-   * Delega para o PlateProcessor.
-   */
-  private static calculateChapas(input: StockConsumptionInput): StockConsumptionResult {
-    return PlateProcessor.reservar(input);
-  }
-
-  /**
-   * Cálculo específico para produtos estocados em Bobinas (ex: Papel de Impressão).
-   * Delega para o CoilProcessor.
-   */
-  private static calculateBobinas(input: StockConsumptionInput): StockConsumptionResult {
-    return CoilProcessor.reservar(input);
-  }
-
-  /**
-   * Cálculo específico para Metro Linear.
-   */
-  private static calculateMetroLinear(input: StockConsumptionInput): StockConsumptionResult {
-    return {
-      sucesso: true,
-      quantidadeConsumida: input.quantidade,
-    };
-  }
-
-  /**
-   * Cálculo específico para Área (m²).
-   */
-  private static calculateArea(input: StockConsumptionInput): StockConsumptionResult {
-    return {
-      sucesso: true,
-      quantidadeConsumida: input.quantidade,
-    };
-  }
-
-  /**
-   * Cálculo específico para Unidades.
-   */
-  private static calculateUnidade(input: StockConsumptionInput): StockConsumptionResult {
-    return {
-      sucesso: true,
-      quantidadeConsumida: input.quantidade,
-    };
   }
 }
