@@ -164,11 +164,22 @@ export const pedidosService = {
       if (pErr) console.error("[criarPedidoCompleto] falha ao criar pagamento", pErr);
     }
 
+    // Aplica o status final somente após pagamentos existirem, para o
+    // trigger `tg_validar_status_pedido` conseguir enxergar a linha de pagamento.
+    const statusFinal = opts.status ?? "orcamento";
+    if (statusFinal !== "orcamento") {
+      const { data: atualizado, error: sErr } = await supabase
+        .from("pedidos")
+        .update({ status: statusFinal } as PedidoUpdate)
+        .eq("id", pedido.id)
+        .select("*")
+        .single();
+      if (sErr) throw sErr;
+      return atualizado as Pedido;
+    }
+
     return pedido as Pedido;
   },
-
-  /**
-   * Atualiza um pedido existente substituindo itens e pagamentos. Preserva
    * numero_pedido e histórico (via trigger de auditoria). Não altera o status
    * automaticamente — use setStatus separadamente se necessário.
    */
