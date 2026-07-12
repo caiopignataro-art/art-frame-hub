@@ -80,6 +80,59 @@ export type Database = {
         }
         Relationships: []
       }
+      consumo_estoque: {
+        Row: {
+          id: string
+          produto_id: string
+          codigo: string | null
+          forma_estoque: Database["public"]["Enums"]["forma_estoque"]
+          unidade: string
+          quantidade: number
+          largura: number | null
+          altura: number | null
+          comprimento: number | null
+          area: number | null
+          observacoes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          produto_id: string
+          codigo?: string | null
+          forma_estoque: Database["public"]["Enums"]["forma_estoque"]
+          unidade: string
+          quantidade: number
+          largura?: number | null
+          altura?: number | null
+          comprimento?: number | null
+          area?: number | null
+          observacoes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          produto_id?: string
+          codigo?: string | null
+          forma_estoque?: Database["public"]["Enums"]["forma_estoque"]
+          unidade?: string
+          quantidade?: number
+          largura?: number | null
+          altura?: number | null
+          comprimento?: number | null
+          area?: number | null
+          observacoes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consumo_estoque_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       estoque_movimentacoes: {
         Row: {
           created_at: string
@@ -769,6 +822,7 @@ export type Database = {
           unidade_estoque: string | null
           unidade_venda: string | null
           updated_at: string
+          forma_estoque: Database["public"]["Enums"]["forma_estoque"]
         }
         Insert: {
           acabamento?: string | null
@@ -799,6 +853,7 @@ export type Database = {
           unidade_estoque?: string | null
           unidade_venda?: string | null
           updated_at?: string
+          forma_estoque?: Database["public"]["Enums"]["forma_estoque"]
         }
         Update: {
           acabamento?: string | null
@@ -829,6 +884,7 @@ export type Database = {
           unidade_estoque?: string | null
           unidade_venda?: string | null
           updated_at?: string
+          forma_estoque?: Database["public"]["Enums"]["forma_estoque"]
         }
         Relationships: []
       }
@@ -1004,6 +1060,13 @@ export type Database = {
         | "uso_retalho"
         | "geracao_retalho"
         | "descarte_retalho"
+      forma_estoque:
+        | "barras"
+        | "chapas"
+        | "bobinas"
+        | "metro_linear"
+        | "area"
+        | "unidade"
       forma_pagamento:
         | "dinheiro"
         | "pix"
@@ -1189,6 +1252,14 @@ export const Constants = {
         "uso_retalho",
         "geracao_retalho",
         "descarte_retalho",
+      ],
+      forma_estoque: [
+        "barras",
+        "chapas",
+        "bobinas",
+        "metro_linear",
+        "area",
+        "unidade",
       ],
       forma_pagamento: [
         "dinheiro",

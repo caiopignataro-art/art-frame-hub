@@ -15,6 +15,17 @@ export type ReservaStatus = Enums<"reserva_status">;
 export type RetalhoStatus = Enums<"retalho_status">;
 export type OrdemProducaoStatus = Enums<"ordem_producao_status">;
 
+export type FormaEstoque = "barras" | "chapas" | "bobinas" | "metro_linear" | "area" | "unidade";
+
+export const FORMA_ESTOQUE_LABEL: Record<FormaEstoque, string> = {
+  barras: "Barras",
+  chapas: "Chapas",
+  bobinas: "Bobinas",
+  metro_linear: "Metro Linear",
+  area: "Área (m²)",
+  unidade: "Unidade",
+};
+
 export type ConfiguracaoSistemaInsert = TablesInsert<"configuracoes_sistema">;
 export type OrdemProducaoInsert = TablesInsert<"ordens_producao">;
 

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { produtosService } from "@/lib/services/produtos.service";
 import { PRODUTO_TIPO_LABEL, type Produto, type ProdutoTipo, type ProdutoInsert, type ProdutoUpdate } from "@/types/erp";
+import { FORMA_ESTOQUE_LABEL, type FormaEstoque } from "@/types/estoque";
 
 interface Props {
   produto: Produto | null;
@@ -54,6 +55,7 @@ type FormState = {
   acabamento: string;
   altura_cm: string;
   largura_cm: string;
+  forma_estoque: string;
 };
 
 const empty: FormState = {
@@ -78,6 +80,7 @@ const empty: FormState = {
   acabamento: "",
   altura_cm: "",
   largura_cm: "",
+  forma_estoque: "unidade",
 };
 
 const UNIDADES_VENDA = ["m2", "metro_linear", "un"];
@@ -113,6 +116,7 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
         acabamento: produto.acabamento ?? "",
         altura_cm: produto.altura_cm != null ? String(produto.altura_cm) : "",
         largura_cm: produto.largura_cm != null ? String(produto.largura_cm) : "",
+        forma_estoque: produto.forma_estoque ?? "unidade",
       });
     } else {
       // Defaults sensatos por categoria em modo criação
@@ -123,6 +127,14 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
         unidade_estoque:
           t === "chassi" ? "metro_linear" : t === "protecao_frontal" || t === "fundo" ? "chapas" : "m2",
         unidade: t === "chassi" ? "metro_linear" : "m2",
+        forma_estoque:
+          t === "perfil_moldura"
+            ? "barras"
+            : t === "protecao_frontal" || t === "fundo"
+              ? "chapas"
+              : t === "passe_partout"
+                ? "chapas"
+                : "unidade",
       });
     }
   }, [produto, criandoTipo, open]);
@@ -144,9 +156,10 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
         preco_venda_acima_m2: num(form.preco_venda_acima_m2),
         preco_venda_limite_m2: num(form.preco_venda_limite_m2),
         unidade: form.unidade || "un",
-        unidade_venda: form.unidade_venda || null,
         unidade_estoque: form.unidade_estoque || null,
+        unidade_venda: form.unidade_venda || null,
         estoque: Number(form.estoque) || 0,
+        forma_estoque: form.forma_estoque as FormaEstoque,
         estoque_ideal: Number(form.estoque_ideal) || 0,
         estoque_minimo: Number(form.estoque_minimo) || 0,
         fornecedor: form.fornecedor || null,
@@ -199,6 +212,18 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
           <div className="col-span-2 space-y-1">
             <Label>Descrição</Label>
             <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
+          </div>
+
+          <div className="col-span-2 space-y-1">
+            <Label>Forma de Estoque</Label>
+            <Select value={form.forma_estoque} onValueChange={(v) => setForm({ ...form, forma_estoque: v })}>
+              <SelectTrigger><SelectValue placeholder="Selecione a forma de estoque" /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(FORMA_ESTOQUE_LABEL).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1">
