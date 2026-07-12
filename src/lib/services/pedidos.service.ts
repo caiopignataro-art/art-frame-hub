@@ -287,6 +287,18 @@ export const pedidosService = {
       if (pErr) console.error("[atualizarPedidoCompleto] falha ao criar pagamento", pErr);
     }
 
+    // Aplica status final após pagamentos existirem.
+    if (opts.status) {
+      const { data: atualizado, error: sErr } = await supabase
+        .from("pedidos")
+        .update({ status: opts.status } as PedidoUpdate)
+        .eq("id", id)
+        .select("*")
+        .single();
+      if (sErr) throw sErr;
+      return atualizado as Pedido;
+    }
+
     return pedido as Pedido;
   },
 
