@@ -14,6 +14,8 @@ export interface StockConsumptionInput {
   comprimento?: number;
   area?: number;
   observacoes?: string;
+  pedidoId?: string;
+  pedidoItemId?: string;
 }
 
 /**

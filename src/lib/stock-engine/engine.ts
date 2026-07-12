@@ -1,3 +1,6 @@
+import { BarProcessor } from "./processors/bar-processor";
+import { CoilProcessor } from "./processors/coil-processor";
+import { PlateProcessor } from "./processors/plate-processor";
 import type { StockConsumptionInput, StockConsumptionResult } from "./types";
 
 /**
@@ -31,38 +34,26 @@ export class StockEngine {
 
   /**
    * Cálculo específico para produtos estocados em Barras (ex: Perfil de Moldura).
-   * Futuramente interpretará barras inteiras, sobras e otimização de cortes.
+   * Delega para o BarProcessor.
    */
   private static calculateBarras(input: StockConsumptionInput): StockConsumptionResult {
-    return {
-      sucesso: true,
-      quantidadeConsumida: input.quantidade,
-      alertas: ["Lógica de otimização de barras (Stock Engine) não ativa."],
-    };
+    return BarProcessor.reservar(input);
   }
 
   /**
    * Cálculo específico para produtos estocados em Chapas (ex: Vidro, Fundo).
-   * Futuramente interpretará layouts de corte bidimensional.
+   * Delega para o PlateProcessor.
    */
   private static calculateChapas(input: StockConsumptionInput): StockConsumptionResult {
-    return {
-      sucesso: true,
-      quantidadeConsumida: input.quantidade,
-      alertas: ["Lógica de corte bidimensional de chapas (Stock Engine) não ativa."],
-    };
+    return PlateProcessor.reservar(input);
   }
 
   /**
    * Cálculo específico para produtos estocados em Bobinas (ex: Papel de Impressão).
-   * Futuramente interpretará o consumo linear em largura fixa de bobina.
+   * Delega para o CoilProcessor.
    */
   private static calculateBobinas(input: StockConsumptionInput): StockConsumptionResult {
-    return {
-      sucesso: true,
-      quantidadeConsumida: input.quantidade,
-      alertas: ["Lógica de aproveitamento de bobinas (Stock Engine) não ativa."],
-    };
+    return CoilProcessor.reservar(input);
   }
 
   /**
