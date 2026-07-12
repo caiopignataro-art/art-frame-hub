@@ -95,11 +95,13 @@ export const pedidosService = {
     const metadados: Record<string, unknown> = {};
     if (opts.pagamento) metadados.pagamento = opts.pagamento;
 
+    // Insere sempre como 'orcamento' para não disparar o trigger de validação
+    // antes do registro em pagamentos existir. Ajustamos o status ao final.
     const { data: pedido, error } = await supabase
       .from("pedidos")
       .insert({
         cliente_id: opts.cliente_id,
-        status: opts.status ?? "orcamento",
+        status: "orcamento",
         valor_total: total,
         observacoes: opts.observacoes ?? null,
         forma_pagamento: opts.forma_pagamento,
