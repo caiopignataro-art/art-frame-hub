@@ -95,11 +95,13 @@ export const pedidosService = {
     const metadados: Record<string, unknown> = {};
     if (opts.pagamento) metadados.pagamento = opts.pagamento;
 
+    // Insere sempre como 'orcamento' para não disparar o trigger de validação
+    // antes do registro em pagamentos existir. Ajustamos o status ao final.
     const { data: pedido, error } = await supabase
       .from("pedidos")
       .insert({
         cliente_id: opts.cliente_id,
-        status: opts.status ?? "orcamento",
+        status: "orcamento",
         valor_total: total,
         observacoes: opts.observacoes ?? null,
         forma_pagamento: opts.forma_pagamento,
@@ -162,6 +164,20 @@ export const pedidosService = {
       if (pErr) console.error("[criarPedidoCompleto] falha ao criar pagamento", pErr);
     }
 
+    // Aplica o status final somente após pagamentos existirem, para o
+    // trigger `tg_validar_status_pedido` conseguir enxergar a linha de pagamento.
+    const statusFinal = opts.status ?? "orcamento";
+    if (statusFinal !== "orcamento") {
+      const { data: atualizado, error: sErr } = await supabase
+        .from("pedidos")
+        .update({ status: statusFinal } as PedidoUpdate)
+        .eq("id", pedido.id)
+        .select("*")
+        .single();
+      if (sErr) throw sErr;
+      return atualizado as Pedido;
+    }
+
     return pedido as Pedido;
   },
 
@@ -207,7 +223,9 @@ export const pedidosService = {
       data_entrega_prevista: opts.data_entrega_prevista,
       metadados: metadados as any,
     };
-    if (opts.status) patch.status = opts.status;
+    // Não altera o status neste passo: aplicaremos ao final, após substituir
+    // os pagamentos, para o trigger `tg_validar_status_pedido` conseguir
+    // validar o pedido já com as linhas de pagamento corretas.
 
     const { data: pedido, error } = await supabase
       .from("pedidos")
@@ -267,6 +285,18 @@ export const pedidosService = {
         observacoes: obs,
       } as any);
       if (pErr) console.error("[atualizarPedidoCompleto] falha ao criar pagamento", pErr);
+    }
+
+    // Aplica status final após pagamentos existirem.
+    if (opts.status) {
+      const { data: atualizado, error: sErr } = await supabase
+        .from("pedidos")
+        .update({ status: opts.status } as PedidoUpdate)
+        .eq("id", id)
+        .select("*")
+        .single();
+      if (sErr) throw sErr;
+      return atualizado as Pedido;
     }
 
     return pedido as Pedido;
