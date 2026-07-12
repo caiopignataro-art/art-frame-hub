@@ -223,7 +223,9 @@ export const pedidosService = {
       data_entrega_prevista: opts.data_entrega_prevista,
       metadados: metadados as any,
     };
-    if (opts.status) patch.status = opts.status;
+    // Não altera o status neste passo: aplicaremos ao final, após substituir
+    // os pagamentos, para o trigger `tg_validar_status_pedido` conseguir
+    // validar o pedido já com as linhas de pagamento corretas.
 
     const { data: pedido, error } = await supabase
       .from("pedidos")
