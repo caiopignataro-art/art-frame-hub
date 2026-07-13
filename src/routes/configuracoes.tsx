@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/erp/PageHeader";
@@ -18,6 +18,7 @@ import {
 import { configuracoesService } from "@/lib/services/configuracoes.service";
 import { CONFIG_KEYS } from "@/types/estoque";
 import { CONFIG_KEY_MAX_PARCELAS, DEFAULT_MAX_PARCELAS } from "@/lib/pagamento/modalidade";
+import { Settings2 } from "lucide-react";
 
 
 export const Route = createFileRoute("/configuracoes")({
@@ -112,6 +113,22 @@ function ConfiguracoesPage() {
         description="Parâmetros usados pela engine de estoque e calculadora."
       />
       <div className="grid gap-4 md:grid-cols-2">
+        <Card className="col-span-2 border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-base text-primary flex items-center gap-2">
+              <Settings2 className="h-5 w-5" /> Engenharia e Testes
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              Acesse o painel restrito para administradores com simuladores de corte (barras, chapas, bobinas), visualizadores de motores de cálculo e logs de auditoria.
+            </p>
+            <Button asChild>
+              <Link to={"/configuracoes/engenharia" as any}>Acessar Painel</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Estoque de molduras</CardTitle>
@@ -168,7 +185,7 @@ function ConfiguracoesPage() {
           <CardContent className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label>Algoritmo para Barras</Label>
-              <Select value={algoritmos.barras} onValueChange={(v) => setAlgoritmos({ ...algoritmos, barras: v })}>
+              <Select value={algoritmos.barras} onValueChange={(v: string) => setAlgoritmos({ ...algoritmos, barras: v })}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="barras_default">Algoritmo de Barras (Padrão)</SelectItem>
@@ -180,7 +197,7 @@ function ConfiguracoesPage() {
 
             <div className="space-y-2">
               <Label>Algoritmo para Chapas</Label>
-              <Select value={algoritmos.chapas} onValueChange={(v) => setAlgoritmos({ ...algoritmos, chapas: v })}>
+              <Select value={algoritmos.chapas} onValueChange={(v: string) => setAlgoritmos({ ...algoritmos, chapas: v })}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="guillotine">Algoritmo Guillotine (Cortes Retos)</SelectItem>
@@ -193,7 +210,7 @@ function ConfiguracoesPage() {
 
             <div className="space-y-2">
               <Label>Algoritmo para Bobinas</Label>
-              <Select value={algoritmos.bobinas} onValueChange={(v) => setAlgoritmos({ ...algoritmos, bobinas: v })}>
+              <Select value={algoritmos.bobinas} onValueChange={(v: string) => setAlgoritmos({ ...algoritmos, bobinas: v })}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="bobinas_default">Algoritmo de Bobinas (Menor Comprimento)</SelectItem>
@@ -222,7 +239,7 @@ function Field({
   return (
     <div className="space-y-1">
       <Label>{label}</Label>
-      <Input type="number" value={value} onChange={(e) => onChange(e.target.value)} />
+      <Input type="number" value={value} onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)} />
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );

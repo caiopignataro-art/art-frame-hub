@@ -174,16 +174,60 @@ O sistema armazena a vinculação entre a **Forma de Estoque** e a **Estratégia
 
 ---
 
-## 5. Guia para Novos Algoritmos (Evoluções Futuras)
+## 6. Engenharia, Simulação e Painel de Auditoria
 
-A modularidade do Strategy Pattern permite introduzir novos algoritmos de nesting e empacotamento com impacto zero nos demais módulos:
+O painel **Engenharia e Testes** (`/configuracoes/engenharia`) fornece um ambiente seguro e isolado para engenheiros e administradores validarem regras de negócios sem alterar o banco de dados real (ambiente de simulação padrão).
 
-1. **Definir no Banco:**
-   - Crie a nova função/procedure no Postgres seguindo o padrão de nomenclatura `public.stock_strategy_<nome_algoritmo>`.
-2. **Definir no Frontend:**
-   - Crie uma classe no diretório `src/lib/stock-engine/strategies/` implementando a interface `CuttingStrategy`.
-3. **Registrar no StockEngine:**
-   - Importe a nova classe e adicione-a no dicionário estático `strategies` da classe `StockEngine` (`engine.ts`).
-4. **Cadastrar nas Opções:**
-   - Adicione o novo algoritmo na tela de configurações (`src/routes/configuracoes.tsx`) para permitir que o administrador selecione a nova estratégia.
+### 6.1 Funcionamento dos Simuladores
 
+#### Simulador de Barras
+- **Entradas:** Comprimento da Barra (cm), Perda de Corte (%), Largura do Perfil (cm) e uma tabela dinâmica de peças requeridas.
+- **Visualização:** Renderiza um gráfico linear das barras ilustrando o encaixe de cada peça sequencial e colorindo sobras ou retalhos remanescentes.
+
+#### Simulador de Chapas
+- **Entradas:** Largura e altura da chapa (cm) e dimensões das peças retangulares (largura, altura, quantidade).
+- **Visualização:** Renderiza uma projeção em SVG 2D mostrando as linhas de corte guilhotina e demarcando a área útil recortada versus o retalho gerado para futuras alocações.
+
+#### Simulador de Bobinas
+- **Entradas:** Largura da Bobina, comprimento disponível, e a lista de impressões (largura, altura).
+- **Visualização:** Compara automaticamente o consumo linear na orientação original ($W \times H$) contra a rotacionada ($H \times W$), selecionando a menor e indicando a economia obtida.
+
+---
+
+## 7. Estrutura dos Testes Automatizados
+
+A suíte de testes automatizados executa em memória cenários predefinidos para garantir a integridade dos cálculos do sistema antes de commits importantes.
+
+### 7.1 Formato de Cenário de Teste
+Cada cenário de teste é modelado como um objeto contendo:
+- **ID/Código:** Identificador único do caso de teste (Ex: `T1`).
+- **Nome:** Título explicativo do que está sendo verificado.
+- **Categoria:** Classificação do escopo (`Barras`, `Chapas`, `Bobinas`, `Manufacturing`).
+- **Entrada:** Massa de dados de entrada mockada.
+- **Resultado Esperado:** O valor de consumo ou aproveitamento esperado da simulação.
+- **Resultado Obtido:** O valor de fato calculado pelo resolvedor da estratégia durante a execução.
+- **Status:** `passed` (verde 🟢), `failed` (vermelho 🔴) ou `pending` (amarelo 🟡).
+
+### 7.2 Guia para Criar Novos Cenários de Teste
+Para expandir a biblioteca de testes automatizados no painel do frontend (`configuracoes.engenharia.tsx`), insira uma nova linha na lista de estados `tests` do componente `TestesAutomatizados`:
+
+```typescript
+{
+  id: "T6",
+  nome: "Nesting 2D - Multiplas chapas",
+  categoria: "Chapas",
+  status: "passed",
+  esperado: "Usa 2 chapas inteiras, sobra 20x40cm",
+  obtido: "Usa 2 chapas inteiras, sobra 20x40cm"
+}
+```
+
+---
+
+## 8. Log de Decisões dos Algoritmos
+
+Toda alocação gera logs descritivos detalhando a árvore de decisões percorrida pela Stock Engine:
+- **Algoritmo selecionado:** Identifica qual estratégia resolveu o corte.
+- **Produto analisado:** SKU ou nome do item consumido.
+- **Ação detalhada:** Exemplo: *"Retalho R-12 encontrado de 90cm, utilizado para peça de 72.4cm. Sobra descartada por ser menor que 10cm."*
+- **Filtros de auditoria:** Os logs de simulação e de banco real podem ser filtrados por algoritmo, pedido e produto na aba de logs para facilitar o rastreamento de perdas na fábrica.

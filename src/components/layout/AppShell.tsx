@@ -12,6 +12,7 @@ import {
   Boxes,
   Settings,
   Menu,
+  Terminal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ const NAV = [
   { to: "/produtos",      label: "Produtos",    icon: Package },
   { to: "/historico",     label: "Histórico",   icon: History },
   { to: "/configuracoes", label: "Configurações", icon: Settings },
+  { to: "/configuracoes/engenharia", label: "Engenharia", icon: Terminal },
 ] as const;
 
 function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
