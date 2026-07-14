@@ -28,6 +28,7 @@ import { Route as PedidosNovoRouteImport } from './routes/pedidos.novo'
 import { Route as EstoqueRetalhosRouteImport } from './routes/estoque.retalhos'
 import { Route as EstoqueOrdensRouteImport } from './routes/estoque.ordens'
 import { Route as EstoqueMovimentacoesRouteImport } from './routes/estoque.movimentacoes'
+import { Route as ConfiguracoesEngenhariaRouteImport } from './routes/configuracoes.engenharia'
 
 const ProdutosRoute = ProdutosRouteImport.update({
   id: '/produtos',
@@ -124,11 +125,16 @@ const EstoqueMovimentacoesRoute = EstoqueMovimentacoesRouteImport.update({
   path: '/movimentacoes',
   getParentRoute: () => EstoqueRoute,
 } as any)
+const ConfiguracoesEngenhariaRoute = ConfiguracoesEngenhariaRouteImport.update({
+  id: '/engenharia',
+  path: '/engenharia',
+  getParentRoute: () => ConfiguracoesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/clientes': typeof ClientesRoute
-  '/configuracoes': typeof ConfiguracoesRoute
+  '/configuracoes': typeof ConfiguracoesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRouteWithChildren
   '/historico': typeof HistoricoRoute
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/pedidos': typeof PedidosRouteWithChildren
   '/producao': typeof ProducaoRoute
   '/produtos': typeof ProdutosRouteWithChildren
+  '/configuracoes/engenharia': typeof ConfiguracoesEngenhariaRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/ordens': typeof EstoqueOrdensRoute
   '/estoque/retalhos': typeof EstoqueRetalhosRoute
@@ -149,11 +156,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/clientes': typeof ClientesRoute
-  '/configuracoes': typeof ConfiguracoesRoute
+  '/configuracoes': typeof ConfiguracoesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/historico': typeof HistoricoRoute
   '/pagamentos': typeof PagamentosRoute
   '/producao': typeof ProducaoRoute
+  '/configuracoes/engenharia': typeof ConfiguracoesEngenhariaRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/ordens': typeof EstoqueOrdensRoute
   '/estoque/retalhos': typeof EstoqueRetalhosRoute
@@ -168,7 +176,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/clientes': typeof ClientesRoute
-  '/configuracoes': typeof ConfiguracoesRoute
+  '/configuracoes': typeof ConfiguracoesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRouteWithChildren
   '/historico': typeof HistoricoRoute
@@ -176,6 +184,7 @@ export interface FileRoutesById {
   '/pedidos': typeof PedidosRouteWithChildren
   '/producao': typeof ProducaoRoute
   '/produtos': typeof ProdutosRouteWithChildren
+  '/configuracoes/engenharia': typeof ConfiguracoesEngenhariaRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/ordens': typeof EstoqueOrdensRoute
   '/estoque/retalhos': typeof EstoqueRetalhosRoute
@@ -199,6 +208,7 @@ export interface FileRouteTypes {
     | '/pedidos'
     | '/producao'
     | '/produtos'
+    | '/configuracoes/engenharia'
     | '/estoque/movimentacoes'
     | '/estoque/ordens'
     | '/estoque/retalhos'
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/historico'
     | '/pagamentos'
     | '/producao'
+    | '/configuracoes/engenharia'
     | '/estoque/movimentacoes'
     | '/estoque/ordens'
     | '/estoque/retalhos'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/pedidos'
     | '/producao'
     | '/produtos'
+    | '/configuracoes/engenharia'
     | '/estoque/movimentacoes'
     | '/estoque/ordens'
     | '/estoque/retalhos'
@@ -252,7 +264,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ClientesRoute: typeof ClientesRoute
-  ConfiguracoesRoute: typeof ConfiguracoesRoute
+  ConfiguracoesRoute: typeof ConfiguracoesRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   EstoqueRoute: typeof EstoqueRouteWithChildren
   HistoricoRoute: typeof HistoricoRoute
@@ -397,8 +409,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstoqueMovimentacoesRouteImport
       parentRoute: typeof EstoqueRoute
     }
+    '/configuracoes/engenharia': {
+      id: '/configuracoes/engenharia'
+      path: '/engenharia'
+      fullPath: '/configuracoes/engenharia'
+      preLoaderRoute: typeof ConfiguracoesEngenhariaRouteImport
+      parentRoute: typeof ConfiguracoesRoute
+    }
   }
 }
+
+interface ConfiguracoesRouteChildren {
+  ConfiguracoesEngenhariaRoute: typeof ConfiguracoesEngenhariaRoute
+}
+
+const ConfiguracoesRouteChildren: ConfiguracoesRouteChildren = {
+  ConfiguracoesEngenhariaRoute: ConfiguracoesEngenhariaRoute,
+}
+
+const ConfiguracoesRouteWithChildren = ConfiguracoesRoute._addFileChildren(
+  ConfiguracoesRouteChildren,
+)
 
 interface EstoqueRouteChildren {
   EstoqueMovimentacoesRoute: typeof EstoqueMovimentacoesRoute
@@ -449,7 +480,7 @@ const ProdutosRouteWithChildren = ProdutosRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ClientesRoute: ClientesRoute,
-  ConfiguracoesRoute: ConfiguracoesRoute,
+  ConfiguracoesRoute: ConfiguracoesRouteWithChildren,
   DashboardRoute: DashboardRoute,
   EstoqueRoute: EstoqueRouteWithChildren,
   HistoricoRoute: HistoricoRoute,
