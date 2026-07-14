@@ -53,144 +53,6 @@ export type Database = {
         }
         Relationships: []
       }
-      bobinas: {
-        Row: {
-          id: string
-          produto_id: string
-          largura: number
-          comprimento_original: number
-          comprimento_restante: number
-          area_restante: number
-          fabricante: string | null
-          lote: string | null
-          status: "ativa" | "esgotada" | "descartada"
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          produto_id: string
-          largura: number
-          comprimento_original: number
-          comprimento_restante: number
-          area_restante: number
-          fabricante?: string | null
-          lote?: string | null
-          status?: "ativa" | "esgotada" | "descartada"
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          produto_id?: string
-          largura?: number
-          comprimento_original?: number
-          comprimento_restante?: number
-          area_restante?: number
-          fabricante?: string | null
-          lote?: string | null
-          status?: "ativa" | "esgotada" | "descartada"
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bobinas_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      chapas: {
-        Row: {
-          id: string
-          produto_id: string
-          largura: number
-          altura: number
-          area: number
-          status: "disponivel" | "usada" | "descartada"
-          localizacao: string | null
-          observacoes: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          produto_id: string
-          largura: number
-          altura: number
-          area: number
-          status?: "disponivel" | "usada" | "descartada"
-          localizacao?: string | null
-          observacoes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          produto_id?: string
-          largura?: number
-          altura?: number
-          area?: number
-          status?: "disponivel" | "usada" | "descartada"
-          localizacao?: string | null
-          observacoes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chapas_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      retalhos_chapas: {
-        Row: {
-          id: string
-          chapa_origem_id: string
-          largura: number
-          altura: number
-          area: number
-          status: "disponivel" | "usado" | "descartado"
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          chapa_origem_id: string
-          largura: number
-          altura: number
-          area: number
-          status?: "disponivel" | "usado" | "descartado"
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          chapa_origem_id?: string
-          largura?: number
-          altura?: number
-          area?: number
-          status?: "disponivel" | "usado" | "descartado"
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "retalhos_chapas_chapa_origem_id_fkey"
-            columns: ["chapa_origem_id"]
-            isOneToOne: false
-            referencedRelation: "chapas"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
       configuracoes_sistema: {
         Row: {
           chave: string
@@ -217,79 +79,6 @@ export type Database = {
           valor?: Json
         }
         Relationships: []
-      }
-      consumo_estoque: {
-        Row: {
-          id: string
-          produto_id: string
-          codigo: string | null
-          forma_estoque: Database["public"]["Enums"]["forma_estoque"]
-          unidade: string
-          quantidade: number
-          largura: number | null
-          altura: number | null
-          comprimento: number | null
-          area: number | null
-          observacoes: string | null
-          created_at: string
-          pedido_id: string | null
-          pedido_item_id: string | null
-        }
-        Insert: {
-          id?: string
-          produto_id: string
-          codigo?: string | null
-          forma_estoque: Database["public"]["Enums"]["forma_estoque"]
-          unidade: string
-          quantidade: number
-          largura?: number | null
-          altura?: number | null
-          comprimento?: number | null
-          area?: number | null
-          observacoes?: string | null
-          created_at?: string
-          pedido_id?: string | null
-          pedido_item_id?: string | null
-        }
-        Update: {
-          id?: string
-          produto_id?: string
-          codigo?: string | null
-          forma_estoque?: Database["public"]["Enums"]["forma_estoque"]
-          unidade?: string
-          quantidade?: number
-          largura?: number | null
-          altura?: number | null
-          comprimento?: number | null
-          area?: number | null
-          observacoes?: string | null
-          created_at?: string
-          pedido_id?: string | null
-          pedido_item_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "consumo_estoque_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "consumo_estoque_pedido_id_fkey"
-            columns: ["pedido_id"]
-            isOneToOne: false
-            referencedRelation: "pedidos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "consumo_estoque_pedido_item_id_fkey"
-            columns: ["pedido_item_id"]
-            isOneToOne: false
-            referencedRelation: "pedido_itens"
-            referencedColumns: ["id"]
-          }
-        ]
       }
       estoque_movimentacoes: {
         Row: {
@@ -673,13 +462,6 @@ export type Database = {
           protecao_produto_id: string | null
           status: Database["public"]["Enums"]["ordem_producao_status"]
           updated_at: string
-          passe_partout_chapa_id: string | null
-          passe_partout_retalho_chapa_id: string | null
-          protecao_chapa_id: string | null
-          protecao_retalho_chapa_id: string | null
-          fundo_chapa_id: string | null
-          fundo_retalho_chapa_id: string | null
-          impressao_bobina_id: string | null
         }
         Insert: {
           altura_arte_cm?: number | null
@@ -704,13 +486,6 @@ export type Database = {
           protecao_produto_id?: string | null
           status?: Database["public"]["Enums"]["ordem_producao_status"]
           updated_at?: string
-          passe_partout_chapa_id?: string | null
-          passe_partout_retalho_chapa_id?: string | null
-          protecao_chapa_id?: string | null
-          protecao_retalho_chapa_id?: string | null
-          fundo_chapa_id?: string | null
-          fundo_retalho_chapa_id?: string | null
-          impressao_bobina_id?: string | null
         }
         Update: {
           altura_arte_cm?: number | null
@@ -735,13 +510,6 @@ export type Database = {
           protecao_produto_id?: string | null
           status?: Database["public"]["Enums"]["ordem_producao_status"]
           updated_at?: string
-          passe_partout_chapa_id?: string | null
-          passe_partout_retalho_chapa_id?: string | null
-          protecao_chapa_id?: string | null
-          protecao_retalho_chapa_id?: string | null
-          fundo_chapa_id?: string | null
-          fundo_retalho_chapa_id?: string | null
-          impressao_bobina_id?: string | null
         }
         Relationships: [
           {
@@ -1001,7 +769,6 @@ export type Database = {
           unidade_estoque: string | null
           unidade_venda: string | null
           updated_at: string
-          forma_estoque: Database["public"]["Enums"]["forma_estoque"]
         }
         Insert: {
           acabamento?: string | null
@@ -1032,7 +799,6 @@ export type Database = {
           unidade_estoque?: string | null
           unidade_venda?: string | null
           updated_at?: string
-          forma_estoque?: Database["public"]["Enums"]["forma_estoque"]
         }
         Update: {
           acabamento?: string | null
@@ -1063,7 +829,6 @@ export type Database = {
           unidade_estoque?: string | null
           unidade_venda?: string | null
           updated_at?: string
-          forma_estoque?: Database["public"]["Enums"]["forma_estoque"]
         }
         Relationships: []
       }
@@ -1079,9 +844,6 @@ export type Database = {
           retalho_id: string | null
           status: Database["public"]["Enums"]["reserva_status"]
           updated_at: string
-          chapa_id: string | null
-          retalho_chapa_id: string | null
-          bobina_id: string | null
         }
         Insert: {
           comprimento_cm: number
@@ -1094,9 +856,6 @@ export type Database = {
           retalho_id?: string | null
           status?: Database["public"]["Enums"]["reserva_status"]
           updated_at?: string
-          chapa_id?: string | null
-          retalho_chapa_id?: string | null
-          bobina_id?: string | null
         }
         Update: {
           comprimento_cm?: number
@@ -1109,9 +868,6 @@ export type Database = {
           retalho_id?: string | null
           status?: Database["public"]["Enums"]["reserva_status"]
           updated_at?: string
-          chapa_id?: string | null
-          retalho_chapa_id?: string | null
-          bobina_id?: string | null
         }
         Relationships: [
           {
@@ -1248,13 +1004,6 @@ export type Database = {
         | "uso_retalho"
         | "geracao_retalho"
         | "descarte_retalho"
-      forma_estoque:
-        | "barras"
-        | "chapas"
-        | "bobinas"
-        | "metro_linear"
-        | "area"
-        | "unidade"
       forma_pagamento:
         | "dinheiro"
         | "pix"
@@ -1440,14 +1189,6 @@ export const Constants = {
         "uso_retalho",
         "geracao_retalho",
         "descarte_retalho",
-      ],
-      forma_estoque: [
-        "barras",
-        "chapas",
-        "bobinas",
-        "metro_linear",
-        "area",
-        "unidade",
       ],
       forma_pagamento: [
         "dinheiro",
