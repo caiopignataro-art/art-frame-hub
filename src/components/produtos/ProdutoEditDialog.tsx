@@ -117,7 +117,7 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
           acabamento: produto.acabamento ?? "",
           altura_cm: produto.altura_cm != null ? String(produto.altura_cm) : "",
           largura_cm: produto.largura_cm != null ? String(produto.largura_cm) : "",
-          forma_estoque: produto.forma_estoque ?? "unidade",
+          forma_estoque: (produto as any).forma_estoque ?? "unidade",
         });
       } else {
         // Defaults sensatos por categoria em modo criação
