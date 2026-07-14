@@ -29,6 +29,7 @@ import { Route as EstoqueRetalhosRouteImport } from './routes/estoque.retalhos'
 import { Route as EstoqueOrdensRouteImport } from './routes/estoque.ordens'
 import { Route as EstoqueMovimentacoesRouteImport } from './routes/estoque.movimentacoes'
 import { Route as ConfiguracoesEngenhariaRouteImport } from './routes/configuracoes.engenharia'
+import { Route as ConfiguracoesEngenhariaIndexRouteImport } from './routes/configuracoes.engenharia.index'
 
 const ProdutosRoute = ProdutosRouteImport.update({
   id: '/produtos',
@@ -130,6 +131,12 @@ const ConfiguracoesEngenhariaRoute = ConfiguracoesEngenhariaRouteImport.update({
   path: '/engenharia',
   getParentRoute: () => ConfiguracoesRoute,
 } as any)
+const ConfiguracoesEngenhariaIndexRoute =
+  ConfiguracoesEngenhariaIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ConfiguracoesEngenhariaRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -142,7 +149,7 @@ export interface FileRoutesByFullPath {
   '/pedidos': typeof PedidosRouteWithChildren
   '/producao': typeof ProducaoRoute
   '/produtos': typeof ProdutosRouteWithChildren
-  '/configuracoes/engenharia': typeof ConfiguracoesEngenhariaRoute
+  '/configuracoes/engenharia': typeof ConfiguracoesEngenhariaRouteWithChildren
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/ordens': typeof EstoqueOrdensRoute
   '/estoque/retalhos': typeof EstoqueRetalhosRoute
@@ -152,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/estoque/': typeof EstoqueIndexRoute
   '/pedidos/': typeof PedidosIndexRoute
   '/produtos/': typeof ProdutosIndexRoute
+  '/configuracoes/engenharia/': typeof ConfiguracoesEngenhariaIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -161,7 +169,6 @@ export interface FileRoutesByTo {
   '/historico': typeof HistoricoRoute
   '/pagamentos': typeof PagamentosRoute
   '/producao': typeof ProducaoRoute
-  '/configuracoes/engenharia': typeof ConfiguracoesEngenhariaRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/ordens': typeof EstoqueOrdensRoute
   '/estoque/retalhos': typeof EstoqueRetalhosRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/estoque': typeof EstoqueIndexRoute
   '/pedidos': typeof PedidosIndexRoute
   '/produtos': typeof ProdutosIndexRoute
+  '/configuracoes/engenharia': typeof ConfiguracoesEngenhariaIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -184,7 +192,7 @@ export interface FileRoutesById {
   '/pedidos': typeof PedidosRouteWithChildren
   '/producao': typeof ProducaoRoute
   '/produtos': typeof ProdutosRouteWithChildren
-  '/configuracoes/engenharia': typeof ConfiguracoesEngenhariaRoute
+  '/configuracoes/engenharia': typeof ConfiguracoesEngenhariaRouteWithChildren
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/ordens': typeof EstoqueOrdensRoute
   '/estoque/retalhos': typeof EstoqueRetalhosRoute
@@ -194,6 +202,7 @@ export interface FileRoutesById {
   '/estoque/': typeof EstoqueIndexRoute
   '/pedidos/': typeof PedidosIndexRoute
   '/produtos/': typeof ProdutosIndexRoute
+  '/configuracoes/engenharia/': typeof ConfiguracoesEngenhariaIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -218,6 +227,7 @@ export interface FileRouteTypes {
     | '/estoque/'
     | '/pedidos/'
     | '/produtos/'
+    | '/configuracoes/engenharia/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -227,7 +237,6 @@ export interface FileRouteTypes {
     | '/historico'
     | '/pagamentos'
     | '/producao'
-    | '/configuracoes/engenharia'
     | '/estoque/movimentacoes'
     | '/estoque/ordens'
     | '/estoque/retalhos'
@@ -237,6 +246,7 @@ export interface FileRouteTypes {
     | '/estoque'
     | '/pedidos'
     | '/produtos'
+    | '/configuracoes/engenharia'
   id:
     | '__root__'
     | '/'
@@ -259,6 +269,7 @@ export interface FileRouteTypes {
     | '/estoque/'
     | '/pedidos/'
     | '/produtos/'
+    | '/configuracoes/engenharia/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -416,15 +427,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConfiguracoesEngenhariaRouteImport
       parentRoute: typeof ConfiguracoesRoute
     }
+    '/configuracoes/engenharia/': {
+      id: '/configuracoes/engenharia/'
+      path: '/'
+      fullPath: '/configuracoes/engenharia/'
+      preLoaderRoute: typeof ConfiguracoesEngenhariaIndexRouteImport
+      parentRoute: typeof ConfiguracoesEngenhariaRoute
+    }
   }
 }
 
+interface ConfiguracoesEngenhariaRouteChildren {
+  ConfiguracoesEngenhariaIndexRoute: typeof ConfiguracoesEngenhariaIndexRoute
+}
+
+const ConfiguracoesEngenhariaRouteChildren: ConfiguracoesEngenhariaRouteChildren =
+  {
+    ConfiguracoesEngenhariaIndexRoute: ConfiguracoesEngenhariaIndexRoute,
+  }
+
+const ConfiguracoesEngenhariaRouteWithChildren =
+  ConfiguracoesEngenhariaRoute._addFileChildren(
+    ConfiguracoesEngenhariaRouteChildren,
+  )
+
 interface ConfiguracoesRouteChildren {
-  ConfiguracoesEngenhariaRoute: typeof ConfiguracoesEngenhariaRoute
+  ConfiguracoesEngenhariaRoute: typeof ConfiguracoesEngenhariaRouteWithChildren
 }
 
 const ConfiguracoesRouteChildren: ConfiguracoesRouteChildren = {
-  ConfiguracoesEngenhariaRoute: ConfiguracoesEngenhariaRoute,
+  ConfiguracoesEngenhariaRoute: ConfiguracoesEngenhariaRouteWithChildren,
 }
 
 const ConfiguracoesRouteWithChildren = ConfiguracoesRoute._addFileChildren(
