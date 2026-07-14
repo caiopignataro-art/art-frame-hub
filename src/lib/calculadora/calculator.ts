@@ -111,13 +111,14 @@ export function calcular(input: CalcInput): CalcResult {
   let acL = la;
   let acA = aa;
   const passe_partouts: PassePartoutDetalhe[] = passesOrdenados.map((pp) => {
-    acL = round(acL + pp.medida_cm * 2, 2);
-    acA = round(acA + pp.medida_cm * 2, 2);
+    const medCm = Math.max(0, Number(pp.medida_cm) || 0);
+    acL = round(acL + medCm * 2, 2);
+    acA = round(acA + medCm * 2, 2);
     return {
       produto_id: pp.produto.id,
       codigo: pp.produto.codigo,
       descricao: pp.produto.nome,
-      medida_cm: pp.medida_cm,
+      medida_cm: medCm,
       ordem: pp.ordem ?? null,
       apos_largura_cm: acL,
       apos_altura_cm: acA,
@@ -167,8 +168,10 @@ export function calcular(input: CalcInput): CalcResult {
   const materiais: MaterialCalculado[] = [];
 
   for (const m of molduras) {
-    const produto = input.molduras.find((x) => x.produto.id === m.produto_id)!.produto;
-    materiais.push(materialDePreco(produto, "perfil_moldura", m.perimetro_cobrado_m, qtd));
+    const matched = input.molduras.find((x) => x.produto?.id === m.produto_id);
+    if (matched?.produto) {
+      materiais.push(materialDePreco(matched.produto, "perfil_moldura", m.perimetro_cobrado_m, qtd));
+    }
   }
   for (const pp of passesOrdenados) {
     materiais.push(materialDePreco(pp.produto, "passe_partout", areaM2, qtd));
