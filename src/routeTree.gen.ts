@@ -28,6 +28,16 @@ import { Route as PedidosNovoRouteImport } from './routes/pedidos.novo'
 import { Route as EstoqueRetalhosRouteImport } from './routes/estoque.retalhos'
 import { Route as EstoqueOrdensRouteImport } from './routes/estoque.ordens'
 import { Route as EstoqueMovimentacoesRouteImport } from './routes/estoque.movimentacoes'
+import { Route as ConfiguracoesEngenhariaRouteImport } from './routes/configuracoes.engenharia'
+import { Route as ConfiguracoesEngenhariaIndexRouteImport } from './routes/configuracoes.engenharia.index'
+import { Route as ConfiguracoesEngenhariaTestesRouteImport } from './routes/configuracoes.engenharia.testes'
+import { Route as ConfiguracoesEngenhariaStockRouteImport } from './routes/configuracoes.engenharia.stock'
+import { Route as ConfiguracoesEngenhariaManufacturingRouteImport } from './routes/configuracoes.engenharia.manufacturing'
+import { Route as ConfiguracoesEngenhariaLogsRouteImport } from './routes/configuracoes.engenharia.logs'
+import { Route as ConfiguracoesEngenhariaChapasRouteImport } from './routes/configuracoes.engenharia.chapas'
+import { Route as ConfiguracoesEngenhariaBobinasRouteImport } from './routes/configuracoes.engenharia.bobinas'
+import { Route as ConfiguracoesEngenhariaBarrasRouteImport } from './routes/configuracoes.engenharia.barras'
+import { Route as ConfiguracoesEngenhariaAlgoritmosRouteImport } from './routes/configuracoes.engenharia.algoritmos'
 
 const ProdutosRoute = ProdutosRouteImport.update({
   id: '/produtos',
@@ -124,11 +134,70 @@ const EstoqueMovimentacoesRoute = EstoqueMovimentacoesRouteImport.update({
   path: '/movimentacoes',
   getParentRoute: () => EstoqueRoute,
 } as any)
+const ConfiguracoesEngenhariaRoute = ConfiguracoesEngenhariaRouteImport.update({
+  id: '/engenharia',
+  path: '/engenharia',
+  getParentRoute: () => ConfiguracoesRoute,
+} as any)
+const ConfiguracoesEngenhariaIndexRoute =
+  ConfiguracoesEngenhariaIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ConfiguracoesEngenhariaRoute,
+  } as any)
+const ConfiguracoesEngenhariaTestesRoute =
+  ConfiguracoesEngenhariaTestesRouteImport.update({
+    id: '/testes',
+    path: '/testes',
+    getParentRoute: () => ConfiguracoesEngenhariaRoute,
+  } as any)
+const ConfiguracoesEngenhariaStockRoute =
+  ConfiguracoesEngenhariaStockRouteImport.update({
+    id: '/stock',
+    path: '/stock',
+    getParentRoute: () => ConfiguracoesEngenhariaRoute,
+  } as any)
+const ConfiguracoesEngenhariaManufacturingRoute =
+  ConfiguracoesEngenhariaManufacturingRouteImport.update({
+    id: '/manufacturing',
+    path: '/manufacturing',
+    getParentRoute: () => ConfiguracoesEngenhariaRoute,
+  } as any)
+const ConfiguracoesEngenhariaLogsRoute =
+  ConfiguracoesEngenhariaLogsRouteImport.update({
+    id: '/logs',
+    path: '/logs',
+    getParentRoute: () => ConfiguracoesEngenhariaRoute,
+  } as any)
+const ConfiguracoesEngenhariaChapasRoute =
+  ConfiguracoesEngenhariaChapasRouteImport.update({
+    id: '/chapas',
+    path: '/chapas',
+    getParentRoute: () => ConfiguracoesEngenhariaRoute,
+  } as any)
+const ConfiguracoesEngenhariaBobinasRoute =
+  ConfiguracoesEngenhariaBobinasRouteImport.update({
+    id: '/bobinas',
+    path: '/bobinas',
+    getParentRoute: () => ConfiguracoesEngenhariaRoute,
+  } as any)
+const ConfiguracoesEngenhariaBarrasRoute =
+  ConfiguracoesEngenhariaBarrasRouteImport.update({
+    id: '/barras',
+    path: '/barras',
+    getParentRoute: () => ConfiguracoesEngenhariaRoute,
+  } as any)
+const ConfiguracoesEngenhariaAlgoritmosRoute =
+  ConfiguracoesEngenhariaAlgoritmosRouteImport.update({
+    id: '/algoritmos',
+    path: '/algoritmos',
+    getParentRoute: () => ConfiguracoesEngenhariaRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/clientes': typeof ClientesRoute
-  '/configuracoes': typeof ConfiguracoesRoute
+  '/configuracoes': typeof ConfiguracoesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRouteWithChildren
   '/historico': typeof HistoricoRoute
@@ -136,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/pedidos': typeof PedidosRouteWithChildren
   '/producao': typeof ProducaoRoute
   '/produtos': typeof ProdutosRouteWithChildren
+  '/configuracoes/engenharia': typeof ConfiguracoesEngenhariaRouteWithChildren
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/ordens': typeof EstoqueOrdensRoute
   '/estoque/retalhos': typeof EstoqueRetalhosRoute
@@ -145,11 +215,20 @@ export interface FileRoutesByFullPath {
   '/estoque/': typeof EstoqueIndexRoute
   '/pedidos/': typeof PedidosIndexRoute
   '/produtos/': typeof ProdutosIndexRoute
+  '/configuracoes/engenharia/algoritmos': typeof ConfiguracoesEngenhariaAlgoritmosRoute
+  '/configuracoes/engenharia/barras': typeof ConfiguracoesEngenhariaBarrasRoute
+  '/configuracoes/engenharia/bobinas': typeof ConfiguracoesEngenhariaBobinasRoute
+  '/configuracoes/engenharia/chapas': typeof ConfiguracoesEngenhariaChapasRoute
+  '/configuracoes/engenharia/logs': typeof ConfiguracoesEngenhariaLogsRoute
+  '/configuracoes/engenharia/manufacturing': typeof ConfiguracoesEngenhariaManufacturingRoute
+  '/configuracoes/engenharia/stock': typeof ConfiguracoesEngenhariaStockRoute
+  '/configuracoes/engenharia/testes': typeof ConfiguracoesEngenhariaTestesRoute
+  '/configuracoes/engenharia/': typeof ConfiguracoesEngenhariaIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/clientes': typeof ClientesRoute
-  '/configuracoes': typeof ConfiguracoesRoute
+  '/configuracoes': typeof ConfiguracoesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/historico': typeof HistoricoRoute
   '/pagamentos': typeof PagamentosRoute
@@ -163,12 +242,21 @@ export interface FileRoutesByTo {
   '/estoque': typeof EstoqueIndexRoute
   '/pedidos': typeof PedidosIndexRoute
   '/produtos': typeof ProdutosIndexRoute
+  '/configuracoes/engenharia/algoritmos': typeof ConfiguracoesEngenhariaAlgoritmosRoute
+  '/configuracoes/engenharia/barras': typeof ConfiguracoesEngenhariaBarrasRoute
+  '/configuracoes/engenharia/bobinas': typeof ConfiguracoesEngenhariaBobinasRoute
+  '/configuracoes/engenharia/chapas': typeof ConfiguracoesEngenhariaChapasRoute
+  '/configuracoes/engenharia/logs': typeof ConfiguracoesEngenhariaLogsRoute
+  '/configuracoes/engenharia/manufacturing': typeof ConfiguracoesEngenhariaManufacturingRoute
+  '/configuracoes/engenharia/stock': typeof ConfiguracoesEngenhariaStockRoute
+  '/configuracoes/engenharia/testes': typeof ConfiguracoesEngenhariaTestesRoute
+  '/configuracoes/engenharia': typeof ConfiguracoesEngenhariaIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/clientes': typeof ClientesRoute
-  '/configuracoes': typeof ConfiguracoesRoute
+  '/configuracoes': typeof ConfiguracoesRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRouteWithChildren
   '/historico': typeof HistoricoRoute
@@ -176,6 +264,7 @@ export interface FileRoutesById {
   '/pedidos': typeof PedidosRouteWithChildren
   '/producao': typeof ProducaoRoute
   '/produtos': typeof ProdutosRouteWithChildren
+  '/configuracoes/engenharia': typeof ConfiguracoesEngenhariaRouteWithChildren
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/ordens': typeof EstoqueOrdensRoute
   '/estoque/retalhos': typeof EstoqueRetalhosRoute
@@ -185,6 +274,15 @@ export interface FileRoutesById {
   '/estoque/': typeof EstoqueIndexRoute
   '/pedidos/': typeof PedidosIndexRoute
   '/produtos/': typeof ProdutosIndexRoute
+  '/configuracoes/engenharia/algoritmos': typeof ConfiguracoesEngenhariaAlgoritmosRoute
+  '/configuracoes/engenharia/barras': typeof ConfiguracoesEngenhariaBarrasRoute
+  '/configuracoes/engenharia/bobinas': typeof ConfiguracoesEngenhariaBobinasRoute
+  '/configuracoes/engenharia/chapas': typeof ConfiguracoesEngenhariaChapasRoute
+  '/configuracoes/engenharia/logs': typeof ConfiguracoesEngenhariaLogsRoute
+  '/configuracoes/engenharia/manufacturing': typeof ConfiguracoesEngenhariaManufacturingRoute
+  '/configuracoes/engenharia/stock': typeof ConfiguracoesEngenhariaStockRoute
+  '/configuracoes/engenharia/testes': typeof ConfiguracoesEngenhariaTestesRoute
+  '/configuracoes/engenharia/': typeof ConfiguracoesEngenhariaIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -199,6 +297,7 @@ export interface FileRouteTypes {
     | '/pedidos'
     | '/producao'
     | '/produtos'
+    | '/configuracoes/engenharia'
     | '/estoque/movimentacoes'
     | '/estoque/ordens'
     | '/estoque/retalhos'
@@ -208,6 +307,15 @@ export interface FileRouteTypes {
     | '/estoque/'
     | '/pedidos/'
     | '/produtos/'
+    | '/configuracoes/engenharia/algoritmos'
+    | '/configuracoes/engenharia/barras'
+    | '/configuracoes/engenharia/bobinas'
+    | '/configuracoes/engenharia/chapas'
+    | '/configuracoes/engenharia/logs'
+    | '/configuracoes/engenharia/manufacturing'
+    | '/configuracoes/engenharia/stock'
+    | '/configuracoes/engenharia/testes'
+    | '/configuracoes/engenharia/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -226,6 +334,15 @@ export interface FileRouteTypes {
     | '/estoque'
     | '/pedidos'
     | '/produtos'
+    | '/configuracoes/engenharia/algoritmos'
+    | '/configuracoes/engenharia/barras'
+    | '/configuracoes/engenharia/bobinas'
+    | '/configuracoes/engenharia/chapas'
+    | '/configuracoes/engenharia/logs'
+    | '/configuracoes/engenharia/manufacturing'
+    | '/configuracoes/engenharia/stock'
+    | '/configuracoes/engenharia/testes'
+    | '/configuracoes/engenharia'
   id:
     | '__root__'
     | '/'
@@ -238,6 +355,7 @@ export interface FileRouteTypes {
     | '/pedidos'
     | '/producao'
     | '/produtos'
+    | '/configuracoes/engenharia'
     | '/estoque/movimentacoes'
     | '/estoque/ordens'
     | '/estoque/retalhos'
@@ -247,12 +365,21 @@ export interface FileRouteTypes {
     | '/estoque/'
     | '/pedidos/'
     | '/produtos/'
+    | '/configuracoes/engenharia/algoritmos'
+    | '/configuracoes/engenharia/barras'
+    | '/configuracoes/engenharia/bobinas'
+    | '/configuracoes/engenharia/chapas'
+    | '/configuracoes/engenharia/logs'
+    | '/configuracoes/engenharia/manufacturing'
+    | '/configuracoes/engenharia/stock'
+    | '/configuracoes/engenharia/testes'
+    | '/configuracoes/engenharia/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ClientesRoute: typeof ClientesRoute
-  ConfiguracoesRoute: typeof ConfiguracoesRoute
+  ConfiguracoesRoute: typeof ConfiguracoesRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   EstoqueRoute: typeof EstoqueRouteWithChildren
   HistoricoRoute: typeof HistoricoRoute
@@ -397,8 +524,122 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstoqueMovimentacoesRouteImport
       parentRoute: typeof EstoqueRoute
     }
+    '/configuracoes/engenharia': {
+      id: '/configuracoes/engenharia'
+      path: '/engenharia'
+      fullPath: '/configuracoes/engenharia'
+      preLoaderRoute: typeof ConfiguracoesEngenhariaRouteImport
+      parentRoute: typeof ConfiguracoesRoute
+    }
+    '/configuracoes/engenharia/': {
+      id: '/configuracoes/engenharia/'
+      path: '/'
+      fullPath: '/configuracoes/engenharia/'
+      preLoaderRoute: typeof ConfiguracoesEngenhariaIndexRouteImport
+      parentRoute: typeof ConfiguracoesEngenhariaRoute
+    }
+    '/configuracoes/engenharia/testes': {
+      id: '/configuracoes/engenharia/testes'
+      path: '/testes'
+      fullPath: '/configuracoes/engenharia/testes'
+      preLoaderRoute: typeof ConfiguracoesEngenhariaTestesRouteImport
+      parentRoute: typeof ConfiguracoesEngenhariaRoute
+    }
+    '/configuracoes/engenharia/stock': {
+      id: '/configuracoes/engenharia/stock'
+      path: '/stock'
+      fullPath: '/configuracoes/engenharia/stock'
+      preLoaderRoute: typeof ConfiguracoesEngenhariaStockRouteImport
+      parentRoute: typeof ConfiguracoesEngenhariaRoute
+    }
+    '/configuracoes/engenharia/manufacturing': {
+      id: '/configuracoes/engenharia/manufacturing'
+      path: '/manufacturing'
+      fullPath: '/configuracoes/engenharia/manufacturing'
+      preLoaderRoute: typeof ConfiguracoesEngenhariaManufacturingRouteImport
+      parentRoute: typeof ConfiguracoesEngenhariaRoute
+    }
+    '/configuracoes/engenharia/logs': {
+      id: '/configuracoes/engenharia/logs'
+      path: '/logs'
+      fullPath: '/configuracoes/engenharia/logs'
+      preLoaderRoute: typeof ConfiguracoesEngenhariaLogsRouteImport
+      parentRoute: typeof ConfiguracoesEngenhariaRoute
+    }
+    '/configuracoes/engenharia/chapas': {
+      id: '/configuracoes/engenharia/chapas'
+      path: '/chapas'
+      fullPath: '/configuracoes/engenharia/chapas'
+      preLoaderRoute: typeof ConfiguracoesEngenhariaChapasRouteImport
+      parentRoute: typeof ConfiguracoesEngenhariaRoute
+    }
+    '/configuracoes/engenharia/bobinas': {
+      id: '/configuracoes/engenharia/bobinas'
+      path: '/bobinas'
+      fullPath: '/configuracoes/engenharia/bobinas'
+      preLoaderRoute: typeof ConfiguracoesEngenhariaBobinasRouteImport
+      parentRoute: typeof ConfiguracoesEngenhariaRoute
+    }
+    '/configuracoes/engenharia/barras': {
+      id: '/configuracoes/engenharia/barras'
+      path: '/barras'
+      fullPath: '/configuracoes/engenharia/barras'
+      preLoaderRoute: typeof ConfiguracoesEngenhariaBarrasRouteImport
+      parentRoute: typeof ConfiguracoesEngenhariaRoute
+    }
+    '/configuracoes/engenharia/algoritmos': {
+      id: '/configuracoes/engenharia/algoritmos'
+      path: '/algoritmos'
+      fullPath: '/configuracoes/engenharia/algoritmos'
+      preLoaderRoute: typeof ConfiguracoesEngenhariaAlgoritmosRouteImport
+      parentRoute: typeof ConfiguracoesEngenhariaRoute
+    }
   }
 }
+
+interface ConfiguracoesEngenhariaRouteChildren {
+  ConfiguracoesEngenhariaAlgoritmosRoute: typeof ConfiguracoesEngenhariaAlgoritmosRoute
+  ConfiguracoesEngenhariaBarrasRoute: typeof ConfiguracoesEngenhariaBarrasRoute
+  ConfiguracoesEngenhariaBobinasRoute: typeof ConfiguracoesEngenhariaBobinasRoute
+  ConfiguracoesEngenhariaChapasRoute: typeof ConfiguracoesEngenhariaChapasRoute
+  ConfiguracoesEngenhariaLogsRoute: typeof ConfiguracoesEngenhariaLogsRoute
+  ConfiguracoesEngenhariaManufacturingRoute: typeof ConfiguracoesEngenhariaManufacturingRoute
+  ConfiguracoesEngenhariaStockRoute: typeof ConfiguracoesEngenhariaStockRoute
+  ConfiguracoesEngenhariaTestesRoute: typeof ConfiguracoesEngenhariaTestesRoute
+  ConfiguracoesEngenhariaIndexRoute: typeof ConfiguracoesEngenhariaIndexRoute
+}
+
+const ConfiguracoesEngenhariaRouteChildren: ConfiguracoesEngenhariaRouteChildren =
+  {
+    ConfiguracoesEngenhariaAlgoritmosRoute:
+      ConfiguracoesEngenhariaAlgoritmosRoute,
+    ConfiguracoesEngenhariaBarrasRoute: ConfiguracoesEngenhariaBarrasRoute,
+    ConfiguracoesEngenhariaBobinasRoute: ConfiguracoesEngenhariaBobinasRoute,
+    ConfiguracoesEngenhariaChapasRoute: ConfiguracoesEngenhariaChapasRoute,
+    ConfiguracoesEngenhariaLogsRoute: ConfiguracoesEngenhariaLogsRoute,
+    ConfiguracoesEngenhariaManufacturingRoute:
+      ConfiguracoesEngenhariaManufacturingRoute,
+    ConfiguracoesEngenhariaStockRoute: ConfiguracoesEngenhariaStockRoute,
+    ConfiguracoesEngenhariaTestesRoute: ConfiguracoesEngenhariaTestesRoute,
+    ConfiguracoesEngenhariaIndexRoute: ConfiguracoesEngenhariaIndexRoute,
+  }
+
+const ConfiguracoesEngenhariaRouteWithChildren =
+  ConfiguracoesEngenhariaRoute._addFileChildren(
+    ConfiguracoesEngenhariaRouteChildren,
+  )
+
+interface ConfiguracoesRouteChildren {
+  ConfiguracoesEngenhariaRoute: typeof ConfiguracoesEngenhariaRouteWithChildren
+}
+
+const ConfiguracoesRouteChildren: ConfiguracoesRouteChildren = {
+  ConfiguracoesEngenhariaRoute: ConfiguracoesEngenhariaRouteWithChildren,
+}
+
+const ConfiguracoesRouteWithChildren = ConfiguracoesRoute._addFileChildren(
+  ConfiguracoesRouteChildren,
+)
 
 interface EstoqueRouteChildren {
   EstoqueMovimentacoesRoute: typeof EstoqueMovimentacoesRoute
@@ -449,7 +690,7 @@ const ProdutosRouteWithChildren = ProdutosRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ClientesRoute: ClientesRoute,
-  ConfiguracoesRoute: ConfiguracoesRoute,
+  ConfiguracoesRoute: ConfiguracoesRouteWithChildren,
   DashboardRoute: DashboardRoute,
   EstoqueRoute: EstoqueRouteWithChildren,
   HistoricoRoute: HistoricoRoute,
@@ -461,13 +702,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -1,37 +1,34 @@
+/**
+ * Módulos internos da área de Engenharia e Testes.
+ * Cada função exportada corresponde a uma sub-rota em
+ * /configuracoes/engenharia/*.
+ */
 import React, { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import { AppShell } from "@/components/layout/AppShell";
-import { PageHeader } from "@/components/erp/PageHeader";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Play,
-  RotateCcw,
   Code,
   Database,
   Layers,
-  Terminal,
   Settings2,
   CheckCircle2,
   XCircle,
-  AlertTriangle,
   Download,
   Search,
-  Filter,
-  Eye,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
 } from "lucide-react";
-
-export const Route = createFileRoute("/configuracoes/engenharia")({
-  head: () => ({ meta: [{ title: "Engenharia e Testes — Molduraria ERP" }] }),
-  component: EngenhariaPage,
-});
 
 // --- REUSABLE COMPONENTS ---
 
@@ -42,7 +39,7 @@ interface PanelProps {
   actions?: React.ReactNode;
 }
 
-function AdminCard({ title, subtitle, children, actions }: PanelProps) {
+export function AdminCard({ title, subtitle, children, actions }: PanelProps) {
   return (
     <Card className="border-border/60 bg-card shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
@@ -57,7 +54,15 @@ function AdminCard({ title, subtitle, children, actions }: PanelProps) {
   );
 }
 
-function CollapsibleSection({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+function CollapsibleSection({
+  title,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="border border-border/80 rounded-lg overflow-hidden bg-background">
@@ -67,26 +72,45 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
         className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/80 transition-colors text-sm font-medium border-b border-border/40"
       >
         <span>{title}</span>
-        {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        {open ? (
+          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        )}
       </button>
       {open && <div className="p-4 bg-card">{children}</div>}
     </div>
   );
 }
 
-function StatusBadge({ status, text }: { status: "success" | "error" | "warning" | "info"; text: string }) {
+function StatusBadge({
+  status,
+  text,
+}: {
+  status: "success" | "error" | "warning" | "info";
+  text: string;
+}) {
   const styles = {
     success: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
     error: "bg-destructive/10 text-destructive border-destructive/20",
     warning: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-    info: "bg-blue-500/10 text-blue-600 border-blue-500/20"
+    info: "bg-blue-500/10 text-blue-600 border-blue-500/20",
   };
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold border ${styles[status]}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${status === "success" ? "bg-emerald-500" :
-          status === "error" ? "bg-destructive" :
-            status === "warning" ? "bg-amber-500" : "bg-blue-500"
-        }`} />
+    <span
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold border ${styles[status]}`}
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${
+          status === "success"
+            ? "bg-emerald-500"
+            : status === "error"
+              ? "bg-destructive"
+              : status === "warning"
+                ? "bg-amber-500"
+                : "bg-blue-500"
+        }`}
+      />
       {text}
     </span>
   );
@@ -95,7 +119,7 @@ function StatusBadge({ status, text }: { status: "success" | "error" | "warning"
 function JsonViewer({ data, filename = "data.json" }: { data: any; filename?: string }) {
   const handleExport = () => {
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
-      JSON.stringify(data, null, 2)
+      JSON.stringify(data, null, 2),
     )}`;
     const downloadAnchor = document.createElement("a");
     downloadAnchor.setAttribute("href", jsonString);
@@ -108,7 +132,12 @@ function JsonViewer({ data, filename = "data.json" }: { data: any; filename?: st
   return (
     <div className="relative group rounded-md border border-border bg-slate-950 p-4 font-mono text-xs text-slate-100 max-h-[350px] overflow-auto">
       <div className="absolute right-4 top-4 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-white" onClick={handleExport}>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7 text-slate-400 hover:text-white"
+          onClick={handleExport}
+        >
           <Download className="h-4 w-4" />
         </Button>
       </div>
@@ -119,7 +148,7 @@ function JsonViewer({ data, filename = "data.json" }: { data: any; filename?: st
 
 // --- MODULE 1: SIMULADOR DE BARRAS ---
 
-function SimuladorBarras() {
+export function SimuladorBarras() {
   const [perfil, setPerfil] = useState("M102-Preta");
   const [comprimentoBarra, setComprimentoBarra] = useState(270);
   const [larguraPerfil, setLarguraPerfil] = useState(3.5);
@@ -128,35 +157,29 @@ function SimuladorBarras() {
   const [pecas, setPecas] = useState([
     { id: 1, comprimento: 110, quantidade: 2 },
     { id: 2, comprimento: 45, quantidade: 4 },
-    { id: 3, comprimento: 95, quantidade: 1 }
+    { id: 3, comprimento: 95, quantidade: 1 },
   ]);
   const [simulatedResults, setSimulatedResults] = useState<any>(null);
 
   const addPeca = () => {
-    const newId = pecas.length > 0 ? Math.max(...pecas.map(p => p.id)) + 1 : 1;
+    const newId = pecas.length > 0 ? Math.max(...pecas.map((p) => p.id)) + 1 : 1;
     setPecas([...pecas, { id: newId, comprimento: 50, quantidade: 1 }]);
   };
-
-  const removePeca = (id: number) => {
-    setPecas(pecas.filter(p => p.id !== id));
-  };
-
-  const updatePeca = (id: number, field: string, value: number) => {
-    setPecas(pecas.map(p => p.id === id ? { ...p, [field]: value } : p));
-  };
+  const removePeca = (id: number) => setPecas(pecas.filter((p) => p.id !== id));
+  const updatePeca = (id: number, field: string, value: number) =>
+    setPecas(pecas.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
 
   const handleSimular = () => {
-    // Replicando lógica simples de barras simuladas (dados estáticos simulados para a etapa de arquitetura UI)
     setSimulatedResults({
       barrasUsadas: 3,
       aproveitamento: 81.5,
       desperdicio: 18.5,
-      retalhoTotal: 150, // cm
+      retalhoTotal: 150,
       distribuicao: [
         { barra: 1, pecas: [110, 110, 45], retalho: 5 },
         { barra: 2, pecas: [95, 45, 45, 45], retalho: 40 },
-        { barra: 3, pecas: [], retalho: 270 } // Barra limpa ou sobra
-      ]
+        { barra: 3, pecas: [], retalho: 270 },
+      ],
     });
   };
 
@@ -166,19 +189,32 @@ function SimuladorBarras() {
         <div className="grid gap-4 md:grid-cols-4">
           <div className="space-y-1">
             <Label>Perfil de Moldura</Label>
-            <Input value={perfil} onChange={e => setPerfil(e.target.value)} />
+            <Input value={perfil} onChange={(e) => setPerfil(e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label>Comprimento da Barra (cm)</Label>
-            <Input type="number" value={comprimentoBarra} onChange={e => setComprimentoBarra(Number(e.target.value))} />
+            <Input
+              type="number"
+              value={comprimentoBarra}
+              onChange={(e) => setComprimentoBarra(Number(e.target.value))}
+            />
           </div>
           <div className="space-y-1">
             <Label>Largura do Perfil (cm)</Label>
-            <Input type="number" step="0.1" value={larguraPerfil} onChange={e => setLarguraPerfil(Number(e.target.value))} />
+            <Input
+              type="number"
+              step="0.1"
+              value={larguraPerfil}
+              onChange={(e) => setLarguraPerfil(Number(e.target.value))}
+            />
           </div>
           <div className="space-y-1">
             <Label>Perda de Corte (%)</Label>
-            <Input type="number" value={perdaCorte} onChange={e => setPerdaCorte(Number(e.target.value))} />
+            <Input
+              type="number"
+              value={perdaCorte}
+              onChange={(e) => setPerdaCorte(Number(e.target.value))}
+            />
           </div>
         </div>
       </AdminCard>
@@ -186,7 +222,11 @@ function SimuladorBarras() {
       <AdminCard
         title="Lista de Peças Requeridas"
         subtitle="Medidas de corte a serem acomodadas nas barras"
-        actions={<Button size="sm" variant="outline" onClick={addPeca}>Adicionar Peça</Button>}
+        actions={
+          <Button size="sm" variant="outline" onClick={addPeca}>
+            Adicionar Peça
+          </Button>
+        }
       >
         <div className="border border-border/60 rounded-md overflow-hidden">
           <table className="w-full text-sm text-left">
@@ -198,14 +238,14 @@ function SimuladorBarras() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {pecas.map(p => (
+              {pecas.map((p) => (
                 <tr key={p.id}>
                   <td className="px-4 py-2">
                     <Input
                       type="number"
                       value={p.comprimento}
                       className="h-8 max-w-[150px]"
-                      onChange={e => updatePeca(p.id, "comprimento", Number(e.target.value))}
+                      onChange={(e) => updatePeca(p.id, "comprimento", Number(e.target.value))}
                     />
                   </td>
                   <td className="px-4 py-2">
@@ -213,11 +253,13 @@ function SimuladorBarras() {
                       type="number"
                       value={p.quantidade}
                       className="h-8 max-w-[150px]"
-                      onChange={e => updatePeca(p.id, "quantidade", Number(e.target.value))}
+                      onChange={(e) => updatePeca(p.id, "quantidade", Number(e.target.value))}
                     />
                   </td>
                   <td className="px-4 py-2">
-                    <Button size="xs" variant="destructive" onClick={() => removePeca(p.id)}>Remover</Button>
+                    <Button size="sm" variant="destructive" onClick={() => removePeca(p.id)}>
+                      Remover
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -232,23 +274,40 @@ function SimuladorBarras() {
       </AdminCard>
 
       {simulatedResults && (
-        <AdminCard title="Resultados da Simulação" subtitle="Aproveitamento e layout gráfico das barras">
+        <AdminCard
+          title="Resultados da Simulação"
+          subtitle="Aproveitamento e layout gráfico das barras"
+        >
           <div className="grid gap-4 md:grid-cols-4 mb-6">
             <div className="p-4 bg-muted/40 rounded-lg border border-border/40">
-              <span className="text-xs text-muted-foreground font-medium block">Barras Utilizadas</span>
-              <span className="text-2xl font-bold text-foreground">{simulatedResults.barrasUsadas}</span>
+              <span className="text-xs text-muted-foreground font-medium block">
+                Barras Utilizadas
+              </span>
+              <span className="text-2xl font-bold text-foreground">
+                {simulatedResults.barrasUsadas}
+              </span>
             </div>
             <div className="p-4 bg-muted/40 rounded-lg border border-border/40">
-              <span className="text-xs text-muted-foreground font-medium block">Aproveitamento</span>
-              <span className="text-2xl font-bold text-emerald-600">{simulatedResults.aproveitamento}%</span>
+              <span className="text-xs text-muted-foreground font-medium block">
+                Aproveitamento
+              </span>
+              <span className="text-2xl font-bold text-emerald-600">
+                {simulatedResults.aproveitamento}%
+              </span>
             </div>
             <div className="p-4 bg-muted/40 rounded-lg border border-border/40">
               <span className="text-xs text-muted-foreground font-medium block">Desperdício</span>
-              <span className="text-2xl font-bold text-destructive">{simulatedResults.desperdicio}%</span>
+              <span className="text-2xl font-bold text-destructive">
+                {simulatedResults.desperdicio}%
+              </span>
             </div>
             <div className="p-4 bg-muted/40 rounded-lg border border-border/40">
-              <span className="text-xs text-muted-foreground font-medium block">Retalho Total</span>
-              <span className="text-2xl font-bold text-foreground">{simulatedResults.retalhoTotal} cm</span>
+              <span className="text-xs text-muted-foreground font-medium block">
+                Retalho Total
+              </span>
+              <span className="text-2xl font-bold text-foreground">
+                {simulatedResults.retalhoTotal} cm
+              </span>
             </div>
           </div>
 
@@ -293,63 +352,65 @@ function SimuladorBarras() {
 
 // --- MODULE 2: SIMULADOR DE CHAPAS ---
 
-function SimuladorChapas() {
+export function SimuladorChapas() {
   const [produto, setProduto] = useState("Vidro Comum 2mm");
   const [larguraChapa, setLarguraChapa] = useState(120);
   const [alturaChapa, setAlturaChapa] = useState(180);
 
   const [pecas, setPecas] = useState([
     { id: 1, largura: 50, altura: 40, quantidade: 2 },
-    { id: 2, largura: 30, altura: 60, quantidade: 3 }
+    { id: 2, largura: 30, altura: 60, quantidade: 3 },
   ]);
   const [simulatedResults, setSimulatedResults] = useState<any>(null);
 
   const addPeca = () => {
-    const newId = pecas.length > 0 ? Math.max(...pecas.map(p => p.id)) + 1 : 1;
+    const newId = pecas.length > 0 ? Math.max(...pecas.map((p) => p.id)) + 1 : 1;
     setPecas([...pecas, { id: newId, largura: 40, altura: 30, quantidade: 1 }]);
   };
-
-  const removePeca = (id: number) => {
-    setPecas(pecas.filter(p => p.id !== id));
-  };
-
-  const updatePeca = (id: number, field: string, value: number) => {
-    setPecas(pecas.map(p => p.id === id ? { ...p, [field]: value } : p));
-  };
+  const removePeca = (id: number) => setPecas(pecas.filter((p) => p.id !== id));
+  const updatePeca = (id: number, field: string, value: number) =>
+    setPecas(pecas.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
 
   const handleSimular = () => {
     setSimulatedResults({
       chapasUsadas: 1,
-      areaUtilizada: 0.58, // m²
-      areaRestante: 1.58, // m²
+      areaUtilizada: 0.58,
+      areaRestante: 1.58,
       aproveitamento: 26.8,
       desperdicio: 73.2,
-      cortes: [
-        { x1: 0, y1: 40, x2: 120, y2: 40, tipo: "guillotine-x" },
-        { x1: 50, y1: 0, x2: 50, y2: 40, tipo: "guillotine-y" }
-      ],
       retalhos: [
         { largura: 70, altura: 40, area: 0.28 },
-        { largura: 120, altura: 140, area: 1.68 }
-      ]
+        { largura: 120, altura: 140, area: 1.68 },
+      ],
     });
   };
 
   return (
     <div className="space-y-6">
-      <AdminCard title="Configurações de Entrada (Chapas)" subtitle="Simulação do motor bidimensional (Guillotine)">
+      <AdminCard
+        title="Configurações de Entrada (Chapas)"
+        subtitle="Simulação do motor bidimensional (Guillotine)"
+      >
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-1">
             <Label>Produto Base</Label>
-            <Input value={produto} onChange={e => setProduto(e.target.value)} />
+            <Input value={produto} onChange={(e) => setProduto(e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label>Largura da Chapa (cm)</Label>
-            <Input type="number" value={larguraChapa} onChange={e => setLarguraChapa(Number(e.target.value))} />
+            <Input
+              type="number"
+              value={larguraChapa}
+              onChange={(e) => setLarguraChapa(Number(e.target.value))}
+            />
           </div>
           <div className="space-y-1">
             <Label>Altura da Chapa (cm)</Label>
-            <Input type="number" value={alturaChapa} onChange={e => setAlturaChapa(Number(e.target.value))} />
+            <Input
+              type="number"
+              value={alturaChapa}
+              onChange={(e) => setAlturaChapa(Number(e.target.value))}
+            />
           </div>
         </div>
       </AdminCard>
@@ -357,7 +418,11 @@ function SimuladorChapas() {
       <AdminCard
         title="Peças a Cortar"
         subtitle="Adicione dimensões de vidros ou fundos"
-        actions={<Button size="sm" variant="outline" onClick={addPeca}>Adicionar Peça</Button>}
+        actions={
+          <Button size="sm" variant="outline" onClick={addPeca}>
+            Adicionar Peça
+          </Button>
+        }
       >
         <div className="border border-border/60 rounded-md overflow-hidden">
           <table className="w-full text-sm text-left">
@@ -370,14 +435,14 @@ function SimuladorChapas() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {pecas.map(p => (
+              {pecas.map((p) => (
                 <tr key={p.id}>
                   <td className="px-4 py-2">
                     <Input
                       type="number"
                       value={p.largura}
                       className="h-8 max-w-[150px]"
-                      onChange={e => updatePeca(p.id, "largura", Number(e.target.value))}
+                      onChange={(e) => updatePeca(p.id, "largura", Number(e.target.value))}
                     />
                   </td>
                   <td className="px-4 py-2">
@@ -385,7 +450,7 @@ function SimuladorChapas() {
                       type="number"
                       value={p.altura}
                       className="h-8 max-w-[150px]"
-                      onChange={e => updatePeca(p.id, "altura", Number(e.target.value))}
+                      onChange={(e) => updatePeca(p.id, "altura", Number(e.target.value))}
                     />
                   </td>
                   <td className="px-4 py-2">
@@ -393,11 +458,13 @@ function SimuladorChapas() {
                       type="number"
                       value={p.quantidade}
                       className="h-8 max-w-[150px]"
-                      onChange={e => updatePeca(p.id, "quantidade", Number(e.target.value))}
+                      onChange={(e) => updatePeca(p.id, "quantidade", Number(e.target.value))}
                     />
                   </td>
                   <td className="px-4 py-2">
-                    <Button size="xs" variant="destructive" onClick={() => removePeca(p.id)}>Remover</Button>
+                    <Button size="sm" variant="destructive" onClick={() => removePeca(p.id)}>
+                      Remover
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -412,23 +479,40 @@ function SimuladorChapas() {
       </AdminCard>
 
       {simulatedResults && (
-        <AdminCard title="Resultados da Simulação" subtitle="Encaixes Guillotine e visualização de sobras 2D">
+        <AdminCard
+          title="Resultados da Simulação"
+          subtitle="Encaixes Guillotine e visualização de sobras 2D"
+        >
           <div className="grid gap-4 md:grid-cols-4 mb-6">
             <div className="p-4 bg-muted/40 rounded-lg border border-border/40">
               <span className="text-xs text-muted-foreground font-medium block">Chapas Usadas</span>
-              <span className="text-2xl font-bold text-foreground">{simulatedResults.chapasUsadas}</span>
+              <span className="text-2xl font-bold text-foreground">
+                {simulatedResults.chapasUsadas}
+              </span>
             </div>
             <div className="p-4 bg-muted/40 rounded-lg border border-border/40">
-              <span className="text-xs text-muted-foreground font-medium block">Aproveitamento</span>
-              <span className="text-2xl font-bold text-emerald-600">{simulatedResults.aproveitamento}%</span>
+              <span className="text-xs text-muted-foreground font-medium block">
+                Aproveitamento
+              </span>
+              <span className="text-2xl font-bold text-emerald-600">
+                {simulatedResults.aproveitamento}%
+              </span>
             </div>
             <div className="p-4 bg-muted/40 rounded-lg border border-border/40">
-              <span className="text-xs text-muted-foreground font-medium block">Área Utilizada</span>
-              <span className="text-2xl font-bold text-foreground">{simulatedResults.areaUtilizada} m²</span>
+              <span className="text-xs text-muted-foreground font-medium block">
+                Área Utilizada
+              </span>
+              <span className="text-2xl font-bold text-foreground">
+                {simulatedResults.areaUtilizada} m²
+              </span>
             </div>
             <div className="p-4 bg-muted/40 rounded-lg border border-border/40">
-              <span className="text-xs text-muted-foreground font-medium block">Sobras/Retalhos</span>
-              <span className="text-2xl font-bold text-amber-600">{simulatedResults.retalhos.length} gerados</span>
+              <span className="text-xs text-muted-foreground font-medium block">
+                Sobras/Retalhos
+              </span>
+              <span className="text-2xl font-bold text-amber-600">
+                {simulatedResults.retalhos.length} gerados
+              </span>
             </div>
           </div>
 
@@ -447,9 +531,13 @@ function SimuladorChapas() {
                   <tbody className="divide-y divide-border">
                     {simulatedResults.retalhos.map((r: any, idx: number) => (
                       <tr key={idx}>
-                        <td className="p-2">{r.largura} x {r.altura} cm</td>
+                        <td className="p-2">
+                          {r.largura} x {r.altura} cm
+                        </td>
                         <td className="p-2">{r.area} m²</td>
-                        <td className="p-2"><StatusBadge status="warning" text="Sobra Reutilizável" /></td>
+                        <td className="p-2">
+                          <StatusBadge status="warning" text="Sobra Reutilizável" />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -458,22 +546,81 @@ function SimuladorChapas() {
             </div>
 
             <div className="flex flex-col items-center justify-center p-4 border border-dashed border-border rounded-lg bg-muted/10 min-h-[300px]">
-              <span className="text-xs font-semibold text-muted-foreground mb-3">Encaixe Gráfico 2D (Guillotine Strategy)</span>
-              {/* Representação SVG simulando o corte de chapa */}
-              <svg width="220" height="300" className="border border-border bg-slate-100 dark:bg-slate-900 rounded">
-                {/* Chapa inteira */}
-                <rect x="10" y="10" width="200" height="280" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="3 3" />
-                {/* Peça 1 */}
-                <rect x="10" y="10" width="80" height="60" fill="var(--color-primary-200, #93c5fd)" className="fill-primary/20 stroke-primary" strokeWidth="2" />
-                <text x="50" y="45" textAnchor="middle" className="text-[10px] fill-primary-foreground font-bold">P1</text>
-                {/* Peça 2 */}
-                <rect x="90" y="10" width="80" height="60" fill="var(--color-primary-200, #93c5fd)" className="fill-primary/20 stroke-primary" strokeWidth="2" />
-                <text x="130" y="45" textAnchor="middle" className="text-[10px] fill-primary-foreground font-bold">P2</text>
-                {/* Linha de corte guilhotina */}
-                <line x1="10" y1="70" x2="210" y2="70" stroke="red" strokeWidth="2" strokeDasharray="4 2" />
-                {/* Retalho */}
-                <rect x="10" y="70" width="200" height="220" fill="rgba(245,158,11,0.05)" stroke="rgba(245,158,11,0.3)" />
-                <text x="110" y="180" textAnchor="middle" className="text-xs fill-amber-600 font-bold">Sobra Reutilizável</text>
+              <span className="text-xs font-semibold text-muted-foreground mb-3">
+                Encaixe Gráfico 2D (Guillotine Strategy)
+              </span>
+              <svg
+                width="220"
+                height="300"
+                className="border border-border bg-slate-100 dark:bg-slate-900 rounded"
+              >
+                <rect
+                  x="10"
+                  y="10"
+                  width="200"
+                  height="280"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeDasharray="3 3"
+                />
+                <rect
+                  x="10"
+                  y="10"
+                  width="80"
+                  height="60"
+                  className="fill-primary/20 stroke-primary"
+                  strokeWidth="2"
+                />
+                <text
+                  x="50"
+                  y="45"
+                  textAnchor="middle"
+                  className="text-[10px] fill-primary-foreground font-bold"
+                >
+                  P1
+                </text>
+                <rect
+                  x="90"
+                  y="10"
+                  width="80"
+                  height="60"
+                  className="fill-primary/20 stroke-primary"
+                  strokeWidth="2"
+                />
+                <text
+                  x="130"
+                  y="45"
+                  textAnchor="middle"
+                  className="text-[10px] fill-primary-foreground font-bold"
+                >
+                  P2
+                </text>
+                <line
+                  x1="10"
+                  y1="70"
+                  x2="210"
+                  y2="70"
+                  stroke="red"
+                  strokeWidth="2"
+                  strokeDasharray="4 2"
+                />
+                <rect
+                  x="10"
+                  y="70"
+                  width="200"
+                  height="220"
+                  fill="rgba(245,158,11,0.05)"
+                  stroke="rgba(245,158,11,0.3)"
+                />
+                <text
+                  x="110"
+                  y="180"
+                  textAnchor="middle"
+                  className="text-xs fill-amber-600 font-bold"
+                >
+                  Sobra Reutilizável
+                </text>
               </svg>
             </div>
           </div>
@@ -485,55 +632,59 @@ function SimuladorChapas() {
 
 // --- MODULE 3: SIMULADOR DE BOBINAS ---
 
-function SimuladorBobinas() {
+export function SimuladorBobinas() {
   const [produto, setProduto] = useState("Papel Fine Art Matte 180g");
   const [larguraBobina, setLarguraBobina] = useState(110);
-  const [comprimentoDisponivel, setComprimentoDisponivel] = useState(5000); // 50m
+  const [comprimentoDisponivel, setComprimentoDisponivel] = useState(5000);
 
-  const [pecas, setPecas] = useState([
-    { id: 1, largura: 60, altura: 80, quantidade: 3 }
-  ]);
+  const [pecas, setPecas] = useState([{ id: 1, largura: 60, altura: 80, quantidade: 3 }]);
   const [simulatedResults, setSimulatedResults] = useState<any>(null);
 
   const addPeca = () => {
-    const newId = pecas.length > 0 ? Math.max(...pecas.map(p => p.id)) + 1 : 1;
+    const newId = pecas.length > 0 ? Math.max(...pecas.map((p) => p.id)) + 1 : 1;
     setPecas([...pecas, { id: newId, largura: 50, altura: 70, quantidade: 1 }]);
   };
-
-  const removePeca = (id: number) => {
-    setPecas(pecas.filter(p => p.id !== id));
-  };
-
-  const updatePeca = (id: number, field: string, value: number) => {
-    setPecas(pecas.map(p => p.id === id ? { ...p, [field]: value } : p));
-  };
+  const removePeca = (id: number) => setPecas(pecas.filter((p) => p.id !== id));
+  const updatePeca = (id: number, field: string, value: number) =>
+    setPecas(pecas.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
 
   const handleSimular = () => {
     setSimulatedResults({
       orientacaoEscolhida: "Rotacionada (90°)",
       economiaComprimento: "20 cm",
-      comprimentoUtilizado: 180, // cm
-      comprimentoRestante: 4820, // cm
-      areaUtilizada: 1.44, // m²
-      desperdicioArea: 0.54 // m²
+      comprimentoUtilizado: 180,
+      comprimentoRestante: 4820,
+      areaUtilizada: 1.44,
+      desperdicioArea: 0.54,
     });
   };
 
   return (
     <div className="space-y-6">
-      <AdminCard title="Configurações de Entrada (Bobinas)" subtitle="Simulação do rolo e otimização de rotação">
+      <AdminCard
+        title="Configurações de Entrada (Bobinas)"
+        subtitle="Simulação do rolo e otimização de rotação"
+      >
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-1">
             <Label>Produto de Impressão</Label>
-            <Input value={produto} onChange={e => setProduto(e.target.value)} />
+            <Input value={produto} onChange={(e) => setProduto(e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label>Largura da Bobina (cm)</Label>
-            <Input type="number" value={larguraBobina} onChange={e => setLarguraBobina(Number(e.target.value))} />
+            <Input
+              type="number"
+              value={larguraBobina}
+              onChange={(e) => setLarguraBobina(Number(e.target.value))}
+            />
           </div>
           <div className="space-y-1">
             <Label>Comprimento do Rolo (cm)</Label>
-            <Input type="number" value={comprimentoDisponivel} onChange={e => setComprimentoDisponivel(Number(e.target.value))} />
+            <Input
+              type="number"
+              value={comprimentoDisponivel}
+              onChange={(e) => setComprimentoDisponivel(Number(e.target.value))}
+            />
           </div>
         </div>
       </AdminCard>
@@ -541,7 +692,11 @@ function SimuladorBobinas() {
       <AdminCard
         title="Artes / Canvas a Imprimir"
         subtitle="Medidas das impressões requeridas"
-        actions={<Button size="sm" variant="outline" onClick={addPeca}>Adicionar Arte</Button>}
+        actions={
+          <Button size="sm" variant="outline" onClick={addPeca}>
+            Adicionar Arte
+          </Button>
+        }
       >
         <div className="border border-border/60 rounded-md overflow-hidden">
           <table className="w-full text-sm text-left">
@@ -554,14 +709,14 @@ function SimuladorBobinas() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {pecas.map(p => (
+              {pecas.map((p) => (
                 <tr key={p.id}>
                   <td className="px-4 py-2">
                     <Input
                       type="number"
                       value={p.largura}
                       className="h-8 max-w-[150px]"
-                      onChange={e => updatePeca(p.id, "largura", Number(e.target.value))}
+                      onChange={(e) => updatePeca(p.id, "largura", Number(e.target.value))}
                     />
                   </td>
                   <td className="px-4 py-2">
@@ -569,7 +724,7 @@ function SimuladorBobinas() {
                       type="number"
                       value={p.altura}
                       className="h-8 max-w-[150px]"
-                      onChange={e => updatePeca(p.id, "altura", Number(e.target.value))}
+                      onChange={(e) => updatePeca(p.id, "altura", Number(e.target.value))}
                     />
                   </td>
                   <td className="px-4 py-2">
@@ -577,11 +732,13 @@ function SimuladorBobinas() {
                       type="number"
                       value={p.quantidade}
                       className="h-8 max-w-[150px]"
-                      onChange={e => updatePeca(p.id, "quantidade", Number(e.target.value))}
+                      onChange={(e) => updatePeca(p.id, "quantidade", Number(e.target.value))}
                     />
                   </td>
                   <td className="px-4 py-2">
-                    <Button size="xs" variant="destructive" onClick={() => removePeca(p.id)}>Remover</Button>
+                    <Button size="sm" variant="destructive" onClick={() => removePeca(p.id)}>
+                      Remover
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -596,39 +753,68 @@ function SimuladorBobinas() {
       </AdminCard>
 
       {simulatedResults && (
-        <AdminCard title="Resultados da Simulação" subtitle="Otimização linear da bobina e aproveitamento de largura">
+        <AdminCard
+          title="Resultados da Simulação"
+          subtitle="Otimização linear da bobina e aproveitamento de largura"
+        >
           <div className="grid gap-4 md:grid-cols-5 mb-6">
             <div className="p-4 bg-muted/40 rounded-lg border border-border/40">
-              <span className="text-xs text-muted-foreground font-medium block">Orientação Escolhida</span>
-              <span className="text-base font-bold text-foreground text-emerald-600">{simulatedResults.orientacaoEscolhida}</span>
+              <span className="text-xs text-muted-foreground font-medium block">
+                Orientação Escolhida
+              </span>
+              <span className="text-base font-bold text-emerald-600">
+                {simulatedResults.orientacaoEscolhida}
+              </span>
             </div>
             <div className="p-4 bg-muted/40 rounded-lg border border-border/40">
-              <span className="text-xs text-muted-foreground font-medium block">Comprimento Consumido</span>
-              <span className="text-2xl font-bold text-foreground">{simulatedResults.comprimentoUtilizado} cm</span>
+              <span className="text-xs text-muted-foreground font-medium block">
+                Comprimento Consumido
+              </span>
+              <span className="text-2xl font-bold text-foreground">
+                {simulatedResults.comprimentoUtilizado} cm
+              </span>
             </div>
             <div className="p-4 bg-muted/40 rounded-lg border border-border/40">
-              <span className="text-xs text-muted-foreground font-medium block">Comprimento Restante</span>
-              <span className="text-2xl font-bold text-foreground">{simulatedResults.comprimentoRestante} cm</span>
+              <span className="text-xs text-muted-foreground font-medium block">
+                Comprimento Restante
+              </span>
+              <span className="text-2xl font-bold text-foreground">
+                {simulatedResults.comprimentoRestante} cm
+              </span>
             </div>
             <div className="p-4 bg-muted/40 rounded-lg border border-border/40">
-              <span className="text-xs text-muted-foreground font-medium block">Área Impressa Útil</span>
-              <span className="text-2xl font-bold text-foreground">{simulatedResults.areaUtilizada} m²</span>
+              <span className="text-xs text-muted-foreground font-medium block">
+                Área Impressa Útil
+              </span>
+              <span className="text-2xl font-bold text-foreground">
+                {simulatedResults.areaUtilizada} m²
+              </span>
             </div>
             <div className="p-4 bg-muted/40 rounded-lg border border-border/40">
-              <span className="text-xs text-muted-foreground font-medium block">Economia por Rotação</span>
-              <span className="text-base font-bold text-foreground text-blue-600">{simulatedResults.economiaComprimento}</span>
+              <span className="text-xs text-muted-foreground font-medium block">
+                Economia por Rotação
+              </span>
+              <span className="text-base font-bold text-blue-600">
+                {simulatedResults.economiaComprimento}
+              </span>
             </div>
           </div>
 
           <div className="flex flex-col items-center justify-center p-6 border border-dashed border-border rounded-lg bg-muted/10">
-            <span className="text-xs font-semibold text-muted-foreground mb-4">Avanço Linear e Distribuição no Rolo</span>
-            {/* Bobina horizontal visual representation */}
+            <span className="text-xs font-semibold text-muted-foreground mb-4">
+              Avanço Linear e Distribuição no Rolo
+            </span>
             <div className="w-full h-24 border border-border bg-slate-900 rounded relative overflow-hidden flex items-center">
-              {/* Impressões rotacionadas a 90 graus para economizar papel */}
               <div className="h-full w-40 bg-primary/20 border-r border-primary flex flex-col justify-around p-1 text-[10px] font-mono text-white text-center font-bold">
-                <div className="h-6 w-full border border-primary/40 bg-primary/30 flex items-center justify-center">Arte 1 (80x60)</div>
-                <div className="h-6 w-full border border-primary/40 bg-primary/30 flex items-center justify-center">Arte 2 (80x60)</div>
-                <div className="h-6 w-full border border-primary/40 bg-primary/30 flex items-center justify-center">Arte 3 (80x60)</div>
+                <div className="h-6 w-full border border-primary/40 bg-primary/30 flex items-center justify-center">
+                  Arte 1 (80x60)
+                </div>
+                <div className="h-6 w-full border border-primary/40 bg-primary/30 flex items-center justify-center">
+                  Arte 2 (80x60)
+                </div>
+                <div className="h-6 w-full border border-primary/40 bg-primary/30 flex items-center justify-center">
+                  Arte 3 (80x60)
+                </div>
               </div>
               <div className="h-full flex-1 bg-amber-500/5 text-[10px] font-mono text-amber-500/60 flex items-center justify-center italic">
                 Restante do Rolo (Disponível: 48.2m)
@@ -641,9 +827,9 @@ function SimuladorBobinas() {
   );
 }
 
-// --- MODULE 4: VISUALIZADOR DA MANUFACTURING ENGINE ---
+// --- MODULE 4: MANUFACTURING ENGINE ---
 
-function ManufacturingEngineVisualizer() {
+export function ManufacturingEngineVisualizer() {
   const [pedidoId, setPedidoId] = useState("1024");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -663,26 +849,22 @@ function ManufacturingEngineVisualizer() {
           chassi: "Chassi Eucalipto 3cm",
           servicos: ["Montagem Completa", "Estiramento de Canvas"],
           observacoes: "Cuidado ao manusear chapa traseira",
-          fotos: 1
+          fotos: 1,
         },
         calculo: {
           abertura: "61 x 81 cm",
           tamanhoFinal: "72.4 x 92.4 cm",
           pecas: [
             { tipo: "moldura", peca: "superior/inferior", qtd: 2, medida: "72.4 cm" },
-            { tipo: "moldura", peca: "lateral", qtd: 2, medida: "92.4 cm" }
+            { tipo: "moldura", peca: "lateral", qtd: 2, medida: "92.4 cm" },
           ],
           barrasNecessarias: 1.25,
           retalhosPrevistos: "50 cm",
           materiais: [
             { item: "MDF 3mm", areaNecessaria: "0.67 m²" },
-            { item: "Acrílico 2mm", areaNecessaria: "0.67 m²" }
+            { item: "Acrílico 2mm", areaNecessaria: "0.67 m²" },
           ],
-          valores: {
-            custoTotal: 185.00,
-            vendaTotal: 390.00,
-            markup: 2.1
-          }
+          valores: { custoTotal: 185.0, vendaTotal: 390.0, markup: 2.1 },
         },
         consumoEstoque: [
           {
@@ -690,20 +872,20 @@ function ManufacturingEngineVisualizer() {
             codigo: "M102",
             forma_estoque: "barras",
             unidade: "m",
-            quantidade: 3.30,
+            quantidade: 3.3,
             largura: 3.5,
-            comprimento: 329.6
+            comprimento: 329.6,
           },
           {
             produto_id: "f8e7d6c5-b4a3-2109-8765-432109876543",
             codigo: "V2MM",
             forma_estoque: "chapas",
             unidade: "un",
-            quantidade: 1.00,
+            quantidade: 1.0,
             largura: 72.4,
-            altura: 92.4
-          }
-        ]
+            altura: 92.4,
+          },
+        ],
       });
       setLoading(false);
     }, 500);
@@ -711,11 +893,18 @@ function ManufacturingEngineVisualizer() {
 
   return (
     <div className="space-y-6">
-      <AdminCard title="Explorador da Manufacturing Engine" subtitle="Inspecione cálculos e desdobramentos de pedidos">
+      <AdminCard
+        title="Explorador da Manufacturing Engine"
+        subtitle="Inspecione cálculos e desdobramentos de pedidos"
+      >
         <div className="flex gap-4 items-end">
           <div className="space-y-1 flex-1 max-w-[300px]">
             <Label>Número do Pedido</Label>
-            <Input placeholder="Ex: 1024" value={pedidoId} onChange={e => setPedidoId(e.target.value)} />
+            <Input
+              placeholder="Ex: 1024"
+              value={pedidoId}
+              onChange={(e) => setPedidoId(e.target.value)}
+            />
           </div>
           <Button onClick={handleCarregar} disabled={loading} className="gap-2">
             <Search className="h-4 w-4" /> {loading ? "Carregando..." : "Analisar Pedido"}
@@ -725,18 +914,27 @@ function ManufacturingEngineVisualizer() {
 
       {data && (
         <div className="space-y-4">
-          <CollapsibleSection title="1. Entrada do Pedido (Parâmetros da Arte & Materiais)" defaultOpen={true}>
+          <CollapsibleSection
+            title="1. Entrada do Pedido (Parâmetros da Arte & Materiais)"
+            defaultOpen
+          >
             <div className="grid gap-4 md:grid-cols-3 text-sm">
               <div>
-                <span className="text-xs text-muted-foreground font-semibold">Dimensões da Arte</span>
+                <span className="text-xs text-muted-foreground font-semibold">
+                  Dimensões da Arte
+                </span>
                 <p className="font-mono mt-0.5">{data.entrada.medidasArte}</p>
               </div>
               <div>
-                <span className="text-xs text-muted-foreground font-semibold">Moldura Escolhida</span>
+                <span className="text-xs text-muted-foreground font-semibold">
+                  Moldura Escolhida
+                </span>
                 <p className="mt-0.5">{data.entrada.molduraId}</p>
               </div>
               <div>
-                <span className="text-xs text-muted-foreground font-semibold">Vidro / Proteção</span>
+                <span className="text-xs text-muted-foreground font-semibold">
+                  Vidro / Proteção
+                </span>
                 <p className="mt-0.5">{data.entrada.vidro}</p>
               </div>
               <div>
@@ -744,7 +942,9 @@ function ManufacturingEngineVisualizer() {
                 <p className="mt-0.5">{data.entrada.fundo}</p>
               </div>
               <div>
-                <span className="text-xs text-muted-foreground font-semibold">Serviços Adicionais</span>
+                <span className="text-xs text-muted-foreground font-semibold">
+                  Serviços Adicionais
+                </span>
                 <p className="mt-0.5">{data.entrada.servicos.join(", ")}</p>
               </div>
               <div>
@@ -754,29 +954,42 @@ function ManufacturingEngineVisualizer() {
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection title="2. Cálculos da Manufacturing Engine (Aberturas e Frações)" defaultOpen={true}>
+          <CollapsibleSection
+            title="2. Cálculos da Manufacturing Engine (Aberturas e Frações)"
+            defaultOpen
+          >
             <div className="space-y-4 text-sm">
               <div className="grid gap-4 md:grid-cols-4">
                 <div>
-                  <span className="text-xs text-muted-foreground font-semibold">Medida Interna (Abertura)</span>
+                  <span className="text-xs text-muted-foreground font-semibold">
+                    Medida Interna (Abertura)
+                  </span>
                   <p className="font-mono mt-0.5">{data.calculo.abertura}</p>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground font-semibold">Medida Externa Total</span>
+                  <span className="text-xs text-muted-foreground font-semibold">
+                    Medida Externa Total
+                  </span>
                   <p className="font-mono mt-0.5">{data.calculo.tamanhoFinal}</p>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground font-semibold">Fração de Barras Necessárias</span>
+                  <span className="text-xs text-muted-foreground font-semibold">
+                    Fração de Barras
+                  </span>
                   <p className="mt-0.5">{data.calculo.barrasNecessarias} barras</p>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground font-semibold">Desperdício Estimado</span>
+                  <span className="text-xs text-muted-foreground font-semibold">
+                    Desperdício Estimado
+                  </span>
                   <p className="mt-0.5 text-amber-600">{data.calculo.retalhosPrevistos}</p>
                 </div>
               </div>
 
               <div className="pt-2">
-                <span className="text-xs text-muted-foreground font-semibold block mb-2">Desdobramento de Peças de Corte</span>
+                <span className="text-xs text-muted-foreground font-semibold block mb-2">
+                  Desdobramento de Peças de Corte
+                </span>
                 <div className="border border-border/60 rounded-md overflow-hidden text-xs">
                   <table className="w-full text-left">
                     <thead className="bg-muted font-bold">
@@ -791,7 +1004,7 @@ function ManufacturingEngineVisualizer() {
                       {data.calculo.pecas.map((p: any, idx: number) => (
                         <tr key={idx}>
                           <td className="p-2 capitalize">{p.tipo}</td>
-                          <td className="p-2">{p.pec}</td>
+                          <td className="p-2">{p.peca}</td>
                           <td className="p-2">{p.qtd}</td>
                           <td className="p-2 font-mono">{p.medida}</td>
                         </tr>
@@ -803,10 +1016,13 @@ function ManufacturingEngineVisualizer() {
             </div>
           </CollapsibleSection>
 
-          <CollapsibleSection title="3. Consumo de Estoque (Estrutura JSON consumo_estoque)" defaultOpen={true}>
+          <CollapsibleSection
+            title="3. Consumo de Estoque (JSON consumo_estoque)"
+            defaultOpen
+          >
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                Esta é a estrutura exata enviada para a **Stock Engine** para que as reservas e baixas físicas sejam processadas.
+                Estrutura enviada para a <b>Stock Engine</b> para reservas e baixas físicas.
               </p>
               <JsonViewer data={data.consumoEstoque} filename={`pedido-${pedidoId}-consumo.json`} />
             </div>
@@ -817,9 +1033,9 @@ function ManufacturingEngineVisualizer() {
   );
 }
 
-// --- MODULE 5: VISUALIZADOR DA STOCK ENGINE ---
+// --- MODULE 5: STOCK ENGINE ---
 
-function StockEngineVisualizer() {
+export function StockEngineVisualizer() {
   const [pedidoId, setPedidoId] = useState("1024");
   const [loading, setLoading] = useState(false);
   const [log, setLog] = useState<any>(null);
@@ -831,26 +1047,21 @@ function StockEngineVisualizer() {
         status: "success",
         formaEstoque: "barras",
         algoritmo: "Algoritmo de Barras (Padrão)",
-        reserva: {
-          id: "res_9a8b7c6d",
-          produto: "Moldura Preta 3.5cm",
-          quantidadeReservada: 3.30 // m
-        },
         historicoPassos: [
-          "Verificando se há retalhos de 'Moldura Preta 3.5cm' disponíveis no estoque...",
-          "Retalho R-102 (50 cm) encontrado. Tentando acomodar peças superiores/inferiores (72.4 cm). Não cabe.",
-          "Nenhum retalho com comprimento suficiente para peças de 92.4 cm.",
+          "Verificando retalhos de 'Moldura Preta 3.5cm'...",
+          "Retalho R-102 (50 cm) encontrado. Não cabe 72.4 cm.",
+          "Nenhum retalho para peças de 92.4 cm.",
           "Consumindo barra inteira de 270 cm.",
-          "Realizados cortes de 92.4 cm e 92.4 cm na Barra 1. Resta retalho de 85.2 cm.",
+          "Cortes 92.4 + 92.4. Resta retalho de 85.2 cm.",
           "Consumindo segunda barra de 270 cm.",
-          "Realizados cortes de 72.4 cm e 72.4 cm na Barra 2. Resta retalho de 125.2 cm.",
-          "Atualizando estoque de 'Moldura Preta 3.5cm' no banco de dados.",
-          "Gerando movimentação de reserva física na tabela 'public.reservas_estoque'."
+          "Cortes 72.4 + 72.4. Resta retalho de 125.2 cm.",
+          "Atualizando estoque no banco.",
+          "Gerando movimentação em 'public.reservas_estoque'.",
         ],
         movimentacoes: [
-          { tipo: "Reserva", qtd: 3.30, produto: "M102", status: "Ativa" },
-          { tipo: "Retalho Criado", qtd: 1.25, produto: "M102 (Retalho)", status: "Disponível" }
-        ]
+          { tipo: "Reserva", qtd: 3.3, produto: "M102", status: "Ativa" },
+          { tipo: "Retalho Criado", qtd: 1.25, produto: "M102 (Retalho)", status: "Disponível" },
+        ],
       });
       setLoading(false);
     }, 600);
@@ -858,14 +1069,25 @@ function StockEngineVisualizer() {
 
   return (
     <div className="space-y-6">
-      <AdminCard title="Explorador da Stock Engine" subtitle="Verifique a orquestração e fluxo de transações no estoque">
+      <AdminCard
+        title="Explorador da Stock Engine"
+        subtitle="Fluxo de transações no estoque"
+      >
         <div className="flex gap-4 items-end">
           <div className="space-y-1 flex-1 max-w-[300px]">
             <Label>Número do Pedido Aprovado</Label>
-            <Input placeholder="Ex: 1024" value={pedidoId} onChange={e => setPedidoId(e.target.value)} />
+            <Input
+              placeholder="Ex: 1024"
+              value={pedidoId}
+              onChange={(e) => setPedidoId(e.target.value)}
+            />
           </div>
-          <Button onClick={handleSimular} disabled={loading} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
-            <Play className="h-4 w-4" /> {loading ? "Simulando..." : "Executar Simulação de Fluxo"}
+          <Button
+            onClick={handleSimular}
+            disabled={loading}
+            className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+          >
+            <Play className="h-4 w-4" /> {loading ? "Simulando..." : "Executar Fluxo"}
           </Button>
         </div>
       </AdminCard>
@@ -873,7 +1095,7 @@ function StockEngineVisualizer() {
       {log && (
         <div className="grid gap-6 md:grid-cols-3">
           <div className="md:col-span-2 space-y-4">
-            <AdminCard title="Passo a Passo da Alocação" subtitle="Decisões do Resolvedor de Reserva">
+            <AdminCard title="Passo a Passo" subtitle="Decisões do Resolvedor">
               <div className="space-y-3 font-mono text-xs text-muted-foreground p-4 bg-muted/20 rounded-md border border-border/40 max-h-[400px] overflow-auto">
                 {log.historicoPassos.map((passo: string, idx: number) => (
                   <div key={idx} className="flex gap-2">
@@ -886,22 +1108,31 @@ function StockEngineVisualizer() {
           </div>
 
           <div className="space-y-4">
-            <AdminCard title="Resumo das Entidades de Estoque" subtitle="Movimentações geradas">
+            <AdminCard title="Resumo das Entidades" subtitle="Movimentações geradas">
               <div className="space-y-4">
                 <div>
-                  <span className="text-xs text-muted-foreground font-semibold">Forma de Estoque</span>
+                  <span className="text-xs text-muted-foreground font-semibold">
+                    Forma de Estoque
+                  </span>
                   <p className="text-sm font-semibold capitalize mt-0.5">{log.formaEstoque}</p>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground font-semibold">Algoritmo Mapeado</span>
+                  <span className="text-xs text-muted-foreground font-semibold">
+                    Algoritmo Mapeado
+                  </span>
                   <p className="text-sm font-semibold mt-0.5">{log.algoritmo}</p>
                 </div>
 
                 <div className="border-t border-border pt-4">
-                  <span className="text-xs text-muted-foreground font-semibold block mb-2">Transações Geradas</span>
+                  <span className="text-xs text-muted-foreground font-semibold block mb-2">
+                    Transações Geradas
+                  </span>
                   <div className="space-y-2">
                     {log.movimentacoes.map((m: any, idx: number) => (
-                      <div key={idx} className="flex justify-between items-center text-xs p-2 bg-muted/40 rounded border border-border/40">
+                      <div
+                        key={idx}
+                        className="flex justify-between items-center text-xs p-2 bg-muted/40 rounded border border-border/40"
+                      >
                         <div>
                           <span className="font-semibold text-foreground">{m.tipo}</span>
                           <p className="text-muted-foreground text-[10px]">{m.produto}</p>
@@ -920,45 +1151,43 @@ function StockEngineVisualizer() {
   );
 }
 
-// --- MODULE 6: TESTES AUTOMATIZADOS ---
+// --- MODULE 6: TESTES ---
 
-function TestesAutomatizados() {
+export function TestesAutomatizados() {
   const [tests, setTests] = useState([
     { id: "T1", nome: "Corte de Barras - Sem Retalhos", categoria: "Barras", status: "passed", esperado: "Barras: 3, Desperdício: ~12%", obtido: "Barras: 3, Desperdício: 12%" },
     { id: "T2", nome: "Corte de Barras - Uso de Retalho", categoria: "Barras", status: "passed", esperado: "Aproveita retalho de 90cm", obtido: "Aproveita retalho de 90cm" },
-    { id: "T3", nome: "Guillotine - Ajuste de Rotação Chapa", categoria: "Chapas", status: "passed", esperado: "Rotaciona MDF para caber", obtido: "Rotaciona MDF para caber" },
-    { id: "T4", nome: "Bobina - Escolha Rotação Otimizada", categoria: "Bobinas", status: "passed", esperado: "Rotação 90° consome menos comprimento", obtido: "Rotação 90° consome menos comprimento" },
-    { id: "T5", nome: "Cálculo de Abertura Diferenciada", categoria: "Manufacturing", status: "passed", esperado: "Folga de 2mm em cada lado", obtido: "Folga de 2mm em cada lado" }
+    { id: "T3", nome: "Guillotine - Rotação Chapa", categoria: "Chapas", status: "passed", esperado: "Rotaciona MDF", obtido: "Rotaciona MDF" },
+    { id: "T4", nome: "Bobina - Rotação Otimizada", categoria: "Bobinas", status: "passed", esperado: "Rotação 90°", obtido: "Rotação 90°" },
+    { id: "T5", nome: "Cálculo de Abertura", categoria: "Manufacturing", status: "passed", esperado: "Folga 2mm", obtido: "Folga 2mm" },
   ]);
   const [running, setRunning] = useState(false);
 
   const runAll = () => {
     setRunning(true);
-    // Reset status to running
-    setTests(tests.map(t => ({ ...t, status: "pending" })));
+    setTests(tests.map((t) => ({ ...t, status: "pending" })));
     setTimeout(() => {
-      setTests(tests.map(t => ({ ...t, status: "passed" })));
+      setTests(tests.map((t) => ({ ...t, status: "passed" })));
       setRunning(false);
     }, 1500);
   };
-
   const runSingle = (id: string) => {
-    setTests(tests.map(t => t.id === id ? { ...t, status: "pending" } : t));
+    setTests(tests.map((t) => (t.id === id ? { ...t, status: "pending" } : t)));
     setTimeout(() => {
-      setTests(tests.map(t => t.id === id ? { ...t, status: "passed" } : t));
+      setTests(tests.map((t) => (t.id === id ? { ...t, status: "passed" } : t)));
     }, 600);
   };
 
   const total = tests.length;
-  const passed = tests.filter(t => t.status === "passed").length;
-  const failed = tests.filter(t => t.status === "failed").length;
+  const passed = tests.filter((t) => t.status === "passed").length;
+  const failed = tests.filter((t) => t.status === "failed").length;
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
         <div className="p-4 bg-muted/40 rounded-lg border border-border/40 flex justify-between items-center">
           <div>
-            <span className="text-xs text-muted-foreground font-medium block">Total de Cenários</span>
+            <span className="text-xs text-muted-foreground font-medium block">Total</span>
             <span className="text-2xl font-bold text-foreground">{total}</span>
           </div>
           <Layers className="h-8 w-8 text-primary/30" />
@@ -980,11 +1209,11 @@ function TestesAutomatizados() {
       </div>
 
       <AdminCard
-        title="Biblioteca de Cenários de Teste"
-        subtitle="Regras críticas de negócios e validações dos motores de cálculo"
+        title="Cenários de Teste"
+        subtitle="Regras críticas dos motores"
         actions={
           <Button onClick={runAll} disabled={running} className="gap-2">
-            <Play className="h-4 w-4" /> Executar Todos os Testes
+            <Play className="h-4 w-4" /> Executar Todos
           </Button>
         }
       >
@@ -993,16 +1222,16 @@ function TestesAutomatizados() {
             <thead className="bg-muted text-xs text-muted-foreground uppercase">
               <tr>
                 <th className="px-4 py-3">Código</th>
-                <th className="px-4 py-3">Nome do Cenário</th>
+                <th className="px-4 py-3">Nome</th>
                 <th className="px-4 py-3">Categoria</th>
-                <th className="px-4 py-3">Resultado Esperado</th>
-                <th className="px-4 py-3">Resultado Obtido</th>
+                <th className="px-4 py-3">Esperado</th>
+                <th className="px-4 py-3">Obtido</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 w-28">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {tests.map(t => (
+              {tests.map((t) => (
                 <tr key={t.id} className="hover:bg-muted/10">
                   <td className="px-4 py-3 font-mono font-bold text-xs">{t.id}</td>
                   <td className="px-4 py-3 font-medium">{t.nome}</td>
@@ -1010,12 +1239,20 @@ function TestesAutomatizados() {
                   <td className="px-4 py-3 font-mono text-xs">{t.esperado}</td>
                   <td className="px-4 py-3 font-mono text-xs">{t.obtido}</td>
                   <td className="px-4 py-3">
-                    {t.status === "passed" && <span className="text-emerald-600 font-semibold">🟢 Passou</span>}
-                    {t.status === "failed" && <span className="text-destructive font-semibold">🔴 Falhou</span>}
-                    {t.status === "pending" && <span className="text-amber-500 font-semibold">🟡 Pendente</span>}
+                    {t.status === "passed" && (
+                      <span className="text-emerald-600 font-semibold">🟢 Passou</span>
+                    )}
+                    {t.status === "failed" && (
+                      <span className="text-destructive font-semibold">🔴 Falhou</span>
+                    )}
+                    {t.status === "pending" && (
+                      <span className="text-amber-500 font-semibold">🟡 Pendente</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
-                    <Button size="xs" variant="outline" onClick={() => runSingle(t.id)}>Rodar</Button>
+                    <Button size="sm" variant="outline" onClick={() => runSingle(t.id)}>
+                      Rodar
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -1027,28 +1264,29 @@ function TestesAutomatizados() {
   );
 }
 
-// --- MODULE 7: LOG DE DECISÕES DOS ALGORITMOS ---
+// --- MODULE 7: LOG DE ALGORITMOS ---
 
-function LogAlgoritmos() {
+export function LogAlgoritmos() {
   const [filtroAlgoritmo, setFiltroAlgoritmo] = useState("todos");
 
   const logs = [
-    { data: "2026-07-12 18:23:44", produto: "M102-Preta", algoritmo: "Barras", decisao: "Consumida Barra 1 inteira. Sobra de 85.2 cm gerada como retalho.", resultado: "Aproveitamento: 85%" },
-    { data: "2026-07-12 18:21:05", produto: "Vidro Comum 2mm", algoritmo: "Guillotine", decisao: "Localizada Chapa inteira 120x180 cm. Encaixe guilhotina.", resultado: "Retalho: 120x140 cm" },
-    { data: "2026-07-12 18:15:30", produto: "Canvas Matte", algoritmo: "Bobinas", decisao: "Rotacionada a 90° para largura de bobina. Economia de 20cm lineares.", resultado: "Comprimento: 180 cm" },
-    { data: "2026-07-12 17:55:12", produto: "Passe-partout Branco", algoritmo: "Guillotine", decisao: "Retalho R-54 (60x80cm) utilizado para corte de passe-partout.", resultado: "Sobra descartada" }
+    { data: "2026-07-12 18:23:44", produto: "M102-Preta", algoritmo: "Barras", decisao: "Consumida Barra 1. Sobra 85.2 cm.", resultado: "Aproveitamento: 85%" },
+    { data: "2026-07-12 18:21:05", produto: "Vidro 2mm", algoritmo: "Guillotine", decisao: "Chapa inteira 120x180. Encaixe guilhotina.", resultado: "Retalho: 120x140" },
+    { data: "2026-07-12 18:15:30", produto: "Canvas Matte", algoritmo: "Bobinas", decisao: "Rotacionada 90°. Economia 20cm.", resultado: "Comprimento: 180 cm" },
+    { data: "2026-07-12 17:55:12", produto: "Passe-partout Branco", algoritmo: "Guillotine", decisao: "Retalho R-54 (60x80) usado.", resultado: "Sobra descartada" },
   ];
 
-  const filteredLogs = filtroAlgoritmo === "todos"
-    ? logs
-    : logs.filter(l => l.algoritmo.toLowerCase() === filtroAlgoritmo.toLowerCase());
+  const filteredLogs =
+    filtroAlgoritmo === "todos"
+      ? logs
+      : logs.filter((l) => l.algoritmo.toLowerCase() === filtroAlgoritmo.toLowerCase());
 
   return (
     <div className="space-y-6">
-      <AdminCard title="Painel de Filtros e Busca" subtitle="Filtragem de transições no estoque inteligente">
+      <AdminCard title="Filtros" subtitle="Filtragem de transições no estoque">
         <div className="grid gap-4 md:grid-cols-4">
           <div className="space-y-1">
-            <Label>Buscar por Produto</Label>
+            <Label>Produto</Label>
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Código ou nome..." className="pl-9" />
@@ -1057,7 +1295,9 @@ function LogAlgoritmos() {
           <div className="space-y-1">
             <Label>Algoritmo</Label>
             <Select value={filtroAlgoritmo} onValueChange={setFiltroAlgoritmo}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
                 <SelectItem value="barras">Barras</SelectItem>
@@ -1077,15 +1317,15 @@ function LogAlgoritmos() {
         </div>
       </AdminCard>
 
-      <AdminCard title="Logs do Histórico de Decisões dos Algoritmos" subtitle="Acompanhamento passo a passo do fluxo operacional">
+      <AdminCard title="Histórico de Decisões" subtitle="Fluxo operacional">
         <div className="border border-border/60 rounded-md overflow-hidden text-sm">
           <table className="w-full text-left">
             <thead className="bg-muted text-xs text-muted-foreground uppercase">
               <tr>
                 <th className="px-4 py-3">Data/Hora</th>
-                <th className="px-4 py-3">Material/Produto</th>
+                <th className="px-4 py-3">Produto</th>
                 <th className="px-4 py-3">Algoritmo</th>
-                <th className="px-4 py-3">Decisão de Corte / Alocação</th>
+                <th className="px-4 py-3">Decisão</th>
                 <th className="px-4 py-3">Resultado</th>
               </tr>
             </thead>
@@ -1094,7 +1334,9 @@ function LogAlgoritmos() {
                 <tr key={idx} className="hover:bg-muted/10">
                   <td className="px-4 py-3 font-mono text-xs">{l.data}</td>
                   <td className="px-4 py-3 font-medium">{l.produto}</td>
-                  <td className="px-4 py-3"><StatusBadge status="info" text={l.algoritmo} /></td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status="info" text={l.algoritmo} />
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">{l.decisao}</td>
                   <td className="px-4 py-3 font-mono text-xs font-semibold">{l.resultado}</td>
                 </tr>
@@ -1107,27 +1349,27 @@ function LogAlgoritmos() {
   );
 }
 
-// --- MODULE 8: CONFIGURAÇÃO DOS ALGORITMOS ---
+// --- MODULE 8: CONFIGURAÇÃO DE ALGORITMOS ---
 
-function ConfiguracaoAlgoritmos() {
+export function ConfiguracaoAlgoritmos() {
   const [configRows, setConfigRows] = useState([
     { forma: "Barras", algoritmo: "Algoritmo de Barras" },
     { forma: "Chapas", algoritmo: "Guillotine" },
     { forma: "Bobinas", algoritmo: "Algoritmo de Bobinas" },
     { forma: "Metro Linear", algoritmo: "Padrão" },
     { forma: "Área", algoritmo: "Padrão" },
-    { forma: "Unidade", algoritmo: "Padrão" }
+    { forma: "Unidade", algoritmo: "Padrão" },
   ]);
 
   const handleSave = () => {
-    toast.success("Mapeamento de Algoritmos atualizado com sucesso!");
+    toast.success("Mapeamento de Algoritmos atualizado!");
   };
 
   return (
     <div className="space-y-6">
       <AdminCard
         title="Mapeamento de Algoritmos por Tipo de Estoque"
-        subtitle="Defina o comportamento do resolvedor da Stock Engine"
+        subtitle="Comportamento do resolvedor da Stock Engine"
       >
         <div className="border border-border/60 rounded-md overflow-hidden text-sm mb-4">
           <table className="w-full text-left">
@@ -1142,17 +1384,22 @@ function ConfiguracaoAlgoritmos() {
                 <tr key={idx}>
                   <td className="px-4 py-4 font-semibold">{row.forma}</td>
                   <td className="px-4 py-4">
-                    <Select value={row.algoritmo} onValueChange={(v) => {
-                      setConfigRows(configRows.map((r, i) => i === idx ? { ...r, algoritmo: v } : r));
-                    }}>
+                    <Select
+                      value={row.algoritmo}
+                      onValueChange={(v) => {
+                        setConfigRows(
+                          configRows.map((r, i) => (i === idx ? { ...r, algoritmo: v } : r)),
+                        );
+                      }}
+                    >
                       <SelectTrigger className="w-[300px] h-9">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Algoritmo de Barras">Algoritmo de Barras</SelectItem>
-                        <SelectItem value="Guillotine">Algoritmo Guillotine (Cortes Retos)</SelectItem>
+                        <SelectItem value="Guillotine">Guillotine (Cortes Retos)</SelectItem>
                         <SelectItem value="Algoritmo de Bobinas">Algoritmo de Bobinas</SelectItem>
-                        <SelectItem value="Padrão">Padrão (Consumo Direto/Discreto)</SelectItem>
+                        <SelectItem value="Padrão">Padrão (Consumo Direto)</SelectItem>
                       </SelectContent>
                     </Select>
                   </td>
@@ -1172,44 +1419,5 @@ function ConfiguracaoAlgoritmos() {
   );
 }
 
-// --- MAIN WRAPPER CONTAINER ---
-
-function EngenhariaPage() {
-  const [isAdmin, setIsAdmin] = useState(true);
-
-  if (!isAdmin) {
-    return (
-      <AppShell title="Engenharia e Testes">
-        <PageHeader
-          title="Painel de Engenharia e Testes"
-          description="Área restrita para validação e auditoria dos motores de cálculo."
-        />
-        <div className="p-8 flex flex-col items-center justify-center border border-dashed border-border rounded-lg bg-card text-center min-h-[400px]">
-          <AlertTriangle className="h-12 w-12 text-destructive mb-3" />
-          <h3 className="text-lg font-bold text-foreground">Acesso Restrito</h3>
-          <p className="text-sm text-muted-foreground max-w-sm mt-1 mb-6">
-            Você não possui permissões administrativas para acessar as ferramentas de simulação e logs do sistema.
-          </p>
-          <Button onClick={() => setIsAdmin(true)} className="gap-2">
-            Simular Login como Admin
-          </Button>
-        </div>
-      </AppShell>
-    );
-  }
-
-  return (
-    <AppShell title="Engenharia e Testes">
-      <div className="p-8 text-center border border-dashed border-border rounded-lg bg-card">
-        <h3 className="text-lg font-bold">Página não encontrada</h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          A ferramenta solicitada não existe. Volte ao índice de Engenharia.
-        </p>
-      </div>
-    </AppShell>
-  ),
-});
-
-function EngenhariaLayout() {
-  return <Outlet />;
-}
+// --- SHARED ICONS EXPORT for the index page ---
+export { Play, Code, Database, Layers, Settings2, CheckCircle2, Search };
