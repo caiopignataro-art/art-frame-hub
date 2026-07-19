@@ -103,18 +103,24 @@ function ProducaoPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  /** Coluna com seleção ativa — define o grupo permitido para novas seleções.
+   *  Enquanto houver ao menos um pedido selecionado, checkboxes de outras
+   *  colunas ficam desabilitados. Quando a seleção zera, qualquer coluna
+   *  pode iniciar um novo grupo. */
+  const statusAtivo = (Object.keys(selecao) as PedidoStatus[]).find(
+    (s) => (selecao[s]?.size ?? 0) > 0,
+  ) ?? null;
+
   return (
     <AppShell title="Produção">
       <PageHeader title="Fluxo de produção" description="Visão Kanban dos pedidos aprovados em produção." />
-      {/* Coluna com seleção ativa — define o grupo permitido. */}
-      {(() => null)()}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-
-
         {COLUMNS.map((col) => {
           const items = pedidos.filter((p) => p.status === col.status);
           const selecionados = selecao[col.status] ?? new Set<string>();
           const qtdSelecionados = selecionados.size;
+          const bloqueado = statusAtivo !== null && statusAtivo !== col.status;
+
           return (
             <Card key={col.status}>
               <CardHeader className="pb-3">
