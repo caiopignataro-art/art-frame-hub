@@ -44,6 +44,10 @@ function ProducaoPage() {
   const { data } = useQuery({ queryKey: ["pedidos"], queryFn: () => pedidosService.list() });
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [selecao, setSelecao] = useState<SelecaoPorColuna>({});
+  /** Estado explícito da coluna ativa para seleção múltipla.
+   *  Definido ao marcar o primeiro pedido; limpo quando a seleção zera.
+   *  Reutilizável pelas próximas etapas (ações em lote). */
+  const [activeSelectionStatus, setActiveSelectionStatus] = useState<PedidoStatus | null>(null);
 
   const pedidos = data ?? [];
 
