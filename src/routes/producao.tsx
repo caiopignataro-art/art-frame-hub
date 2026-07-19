@@ -44,6 +44,10 @@ function ProducaoPage() {
   const { data } = useQuery({ queryKey: ["pedidos"], queryFn: () => pedidosService.list() });
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [selecao, setSelecao] = useState<SelecaoPorColuna>({});
+  /** Estado explícito da coluna ativa para seleção múltipla.
+   *  Definido ao marcar o primeiro pedido; limpo quando a seleção zera.
+   *  Reutilizável pelas próximas etapas (ações em lote). */
+  const [activeSelectionStatus, setActiveSelectionStatus] = useState<PedidoStatus | null>(null);
 
   const pedidos = data ?? [];
 
@@ -103,13 +107,21 @@ function ProducaoPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  /** Coluna com seleção ativa — define o grupo permitido para novas seleções.
-   *  Enquanto houver ao menos um pedido selecionado, checkboxes de outras
-   *  colunas ficam desabilitados. Quando a seleção zera, qualquer coluna
-   *  pode iniciar um novo grupo. */
-  const statusAtivo = (Object.keys(selecao) as PedidoStatus[]).find(
-    (s) => (selecao[s]?.size ?? 0) > 0,
-  ) ?? null;
+  /** Sincroniza o estado explícito `activeSelectionStatus` com a seleção atual.
+   *  - Ao passar de zero para ≥1 selecionado, adota o status da coluna que iniciou a seleção.
+   *  - Ao zerar a seleção (via limpar, mover pedido de coluna, etc.), reseta para null. */
+  useEffect(() => {
+    const statusComSelecao = (Object.keys(selecao) as PedidoStatus[]).find(
+      (s) => (selecao[s]?.size ?? 0) > 0,
+    ) ?? null;
+    setActiveSelectionStatus((prev) => {
+      if (statusComSelecao === null) return null;
+      if (prev !== null && (selecao[prev]?.size ?? 0) > 0) return prev;
+      return statusComSelecao;
+    });
+  }, [selecao]);
+
+  const statusAtivo = activeSelectionStatus;
 
   return (
     <AppShell title="Produção">
