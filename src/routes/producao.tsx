@@ -106,7 +106,9 @@ function ProducaoPage() {
   return (
     <AppShell title="Produção">
       <PageHeader title="Fluxo de produção" description="Visão Kanban dos pedidos aprovados em produção." />
+      {(() => null)()}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+
         {COLUMNS.map((col) => {
           const items = pedidos.filter((p) => p.status === col.status);
           const selecionados = selecao[col.status] ?? new Set<string>();
