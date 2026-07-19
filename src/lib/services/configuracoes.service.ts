@@ -35,24 +35,4 @@ export const configuracoesService = {
       );
     if (error) throw error;
   },
-
-  async getJson(chave: string, fallback: any): Promise<any> {
-    const { data, error } = await supabase
-      .from("configuracoes_sistema")
-      .select("valor")
-      .eq("chave", chave)
-      .maybeSingle();
-    if (error || !data) return fallback;
-    return data.valor ?? fallback;
-  },
-
-  async setJson(chave: string, valor: any, descricao?: string) {
-    const { error } = await supabase
-      .from("configuracoes_sistema")
-      .upsert(
-        { chave, valor: valor as unknown as never, descricao: descricao ?? null },
-        { onConflict: "chave" },
-      );
-    if (error) throw error;
-  },
 };

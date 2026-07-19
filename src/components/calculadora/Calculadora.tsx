@@ -168,7 +168,7 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel, initial
     setPasses(((en.passe_partouts ?? []) as any[])
       .map((pp) => {
         const produto = (passeQ.data ?? []).find((p) => p.id === pp.produto_id);
-        return produto ? { produto, medida_cm: Number(pp.medida_cm) || 0, ordem: pp.ordem ?? undefined } : null;
+        return produto ? { produto, medida_cm: pp.medida_cm, ordem: pp.ordem ?? undefined } : null;
       })
       .filter(Boolean) as PassePartoutSelecionado[]);
     setProtecao(en.protecao_id ? (protecaoQ.data ?? []).find((p) => p.id === en.protecao_id) ?? null : null);
@@ -239,7 +239,7 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel, initial
     largura > 0 &&
     altura > 0 &&
     quantidade > 0 &&
-    (molduras.filter(Boolean).length > 0 || servicos.length > 0 || protecao || fundo || impressao || chassi);
+    (molduras.length > 0 || servicos.length > 0 || protecao || fundo || impressao || chassi);
 
   const reset = () => {
     setQuantidadeStr("");
