@@ -166,6 +166,13 @@ function ProducaoPage() {
                           onCheckedChange={() => toggleSelecao(col.status, p.id)}
                           aria-label={`Selecionar pedido ${p.numero_pedido}`}
                           className="mt-0.5"
+                          disabled={bloqueado && !checked}
+                          aria-disabled={bloqueado && !checked}
+                          title={
+                            bloqueado && !checked
+                              ? "Só é possível selecionar pedidos da mesma coluna"
+                              : undefined
+                          }
                         />
                         <button className="text-left flex-1" onClick={() => setSelecionado(p.id)}>
                           <div className="font-mono text-xs text-muted-foreground">#{p.numero_pedido}</div>
@@ -173,6 +180,7 @@ function ProducaoPage() {
                           <div className="text-xs text-muted-foreground">Entrega: {formatDate(p.data_entrega_prevista)}</div>
                         </button>
                       </div>
+
                       {next && (
                         <Button
                           size="sm"
