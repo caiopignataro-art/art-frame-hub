@@ -34,7 +34,7 @@ import { produtosService } from "@/lib/services/produtos.service";
 import { calculadoraService, novoPedidoStore } from "@/lib/services/calculadora.service";
 import { configuracoesService } from "@/lib/services/configuracoes.service";
 import { CONFIG_KEYS } from "@/types/estoque";
-import { calcular } from "@/lib/calculadora/calculator";
+import { ProductionPipeline } from "@/lib/production/ProductionPipeline";
 import type {
   CalcInput,
   MaterialOrigem,
@@ -203,7 +203,7 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel, initial
     [quantidade, largura, altura, molduras, passes, protecao, fundo, impressao, chassi, servicos, observacoes, imagens, barraCm],
   );
 
-  const result = React.useMemo(() => calcular(input), [input]);
+  const result = React.useMemo(() => ProductionPipeline.process(input), [input]);
 
   // ---- handlers ----
   const addMoldura = () => setMolduras((arr) => [...arr, null as unknown as Produto]);
