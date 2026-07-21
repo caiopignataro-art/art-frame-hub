@@ -106,13 +106,17 @@ export const ordemProducaoService = {
     return opId;
   },
 
-  async removerPedido(params: { pedidoId: string; motivo: string }): Promise<void> {
+  async removerPedido(params: { pedidoId: string; motivo: string }): Promise<{
+    ordem_producao_id: string;
+    op_ficou_vazia: boolean;
+    pedidos_restantes: number;
+  }> {
     const { pedidoId, motivo } = params;
 
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id || null;
 
-    const { error } = await supabase.rpc("remover_pedido_da_ordem_producao", {
+    const { data, error } = await supabase.rpc("remover_pedido_da_ordem_producao", {
       p_pedido_id: pedidoId,
       p_motivo: motivo,
       p_usuario_id: userId,
@@ -121,6 +125,13 @@ export const ordemProducaoService = {
     if (error) {
       throw new Error(`Erro ao remover pedido da Ordem de Produção: ${error.message}`);
     }
+
+    const payload = data as any;
+    return {
+      ordem_producao_id: payload.ordem_producao_id,
+      op_ficou_vazia: !!payload.op_ficou_vazia,
+      pedidos_restantes: Number(payload.pedidos_restantes || 0),
+    };
   },
 
   async concluir(id: string): Promise<void> {

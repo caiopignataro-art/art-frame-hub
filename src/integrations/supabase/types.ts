@@ -1097,7 +1097,7 @@ export type Database = {
           p_motivo: string
           p_usuario_id: string | null
         }
-        Returns: undefined
+        Returns: Json
       }
       proximo_codigo_produto: { Args: never; Returns: string }
     }

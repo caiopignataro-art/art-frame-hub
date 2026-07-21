@@ -336,19 +336,13 @@ function NovoPedidoPage() {
     setShowOpConfirmDialog(false);
     setSaving(true);
     try {
-      const opId = pedidoEditQ.data!.ordem_producao_id!;
-      await ordemProducaoService.removerPedido({
+      const result = await ordemProducaoService.removerPedido({
         pedidoId: editId!,
         motivo: "Alteração produtiva no pedido",
       });
 
-      const opDetails = await ordemProducaoService.get(opId);
-      const temPedidosAtivos = opDetails?.pedidos.some(
-        (p) => p.id !== editId && p.status === "em_producao"
-      );
-
-      if (!temPedidosAtivos) {
-        setArchiveOpId(opId);
+      if (result.op_ficou_vazia) {
+        setArchiveOpId(result.ordem_producao_id);
         setShowArchiveOpConfirmDialog(true);
       } else {
         await executarSalvar("aprovado", true);
