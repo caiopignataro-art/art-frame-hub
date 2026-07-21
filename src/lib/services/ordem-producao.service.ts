@@ -140,7 +140,6 @@ export const ordemProducaoService = {
       .update({
         status: "Concluída",
         concluido_em: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       })
       .eq("id", id);
 
@@ -176,7 +175,6 @@ export const ordemProducaoService = {
       .from("ordem_producao")
       .update({
         status: "Arquivada",
-        updated_at: new Date().toISOString(),
       })
       .eq("id", id);
 
