@@ -10,6 +10,7 @@ import { ordemProducaoService } from "@/lib/services/ordem-producao.service";
 import { formatOPNumber, formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { OrdemProducaoStatus } from "@/types/erp";
+import { ProductionTable } from "@/components/erp/ProductionTable";
 
 export const Route = createFileRoute("/producao/ordens/$id")({
   head: ({ params }) => ({ meta: [{ title: `OP #${params.id} — Molduraria ERP` }] }),
@@ -231,18 +232,8 @@ function DetalheOrdemProducaoPage() {
           </Card>
         </div>
 
-        {/* Tabela Interativa (placeholder) */}
-        <Card>
-          <CardHeader className="border-b border-border">
-            <CardTitle className="text-base font-semibold">Itens da Ordem de Produção</CardTitle>
-          </CardHeader>
-          <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            <div className="mx-auto max-w-sm space-y-2">
-              <p className="font-semibold text-foreground">Tabela Interativa da Oficina</p>
-              <p className="text-xs">Esta funcionalidade será disponibilizada na próxima etapa (P-006) para gerenciar o apontamento individual de itens e cortes de molduras.</p>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Tabela Interativa */}
+        <ProductionTable pedidos={pedidos} />
 
         {/* Histórico Cronológico */}
         <Card>
