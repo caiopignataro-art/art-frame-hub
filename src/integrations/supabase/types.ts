@@ -663,6 +663,88 @@ export type Database = {
           },
         ]
       }
+      ordem_producao: {
+        Row: {
+          id: string
+          numero: number
+          status: string
+          criado_em: string
+          atualizado_em: string
+          concluido_em: string | null
+          criado_por: string | null
+          observacoes: string | null
+        }
+        Insert: {
+          id?: string
+          numero?: number
+          status?: string
+          criado_em?: string
+          atualizado_em?: string
+          concluido_em?: string | null
+          criado_por?: string | null
+          observacoes?: string | null
+        }
+        Update: {
+          id?: string
+          numero?: number
+          status?: string
+          criado_em?: string
+          atualizado_em?: string
+          concluido_em?: string | null
+          criado_por?: string | null
+          observacoes?: string | null
+        }
+        Relationships: []
+      }
+      ordem_producao_itens: {
+        Row: {
+          id: string
+          ordem_producao_id: string
+          pedido_id: string
+          item_pedido_id: string
+          criado_em: string
+          atualizado_em: string
+        }
+        Insert: {
+          id?: string
+          ordem_producao_id: string
+          pedido_id: string
+          item_pedido_id: string
+          criado_em?: string
+          atualizado_em?: string
+        }
+        Update: {
+          id?: string
+          ordem_producao_id?: string
+          pedido_id?: string
+          item_pedido_id?: string
+          criado_em?: string
+          atualizado_em?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordem_producao_itens_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "ordem_producao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordem_producao_itens_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordem_producao_itens_item_pedido_id_fkey"
+            columns: ["item_pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedido_itens"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       pedidos: {
         Row: {
           cliente_id: string | null
@@ -681,6 +763,7 @@ export type Database = {
           updated_at: string
           valor_total: number
           whatsapp_enviado: boolean
+          ordem_producao_id: string | null
         }
         Insert: {
           cliente_id?: string | null
@@ -701,6 +784,7 @@ export type Database = {
           updated_at?: string
           valor_total?: number
           whatsapp_enviado?: boolean
+          ordem_producao_id?: string | null
         }
         Update: {
           cliente_id?: string | null
@@ -721,6 +805,7 @@ export type Database = {
           updated_at?: string
           valor_total?: number
           whatsapp_enviado?: boolean
+          ordem_producao_id?: string | null
         }
         Relationships: [
           {
@@ -737,6 +822,13 @@ export type Database = {
             referencedRelation: "orcamentos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pedidos_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "ordem_producao"
+            referencedColumns: ["id"]
+          }
         ]
       }
       produtos: {
@@ -989,6 +1081,22 @@ export type Database = {
       }
       processar_reserva_pedido: {
         Args: { _pedido_id: string }
+        Returns: undefined
+      }
+      criar_ordem_producao: {
+        Args: {
+          p_pedidos_ids: string[]
+          p_observacoes: string | null
+          p_criado_por: string | null
+        }
+        Returns: string
+      }
+      remover_pedido_da_ordem_producao: {
+        Args: {
+          p_pedido_id: string
+          p_motivo: string
+          p_usuario_id: string | null
+        }
         Returns: undefined
       }
       proximo_codigo_produto: { Args: never; Returns: string }

@@ -152,3 +152,31 @@ export interface PedidoItemDraft {
   valor_total: number;
   metadados: Record<string, unknown>;
 }
+
+// ---------- Ordem de Produção ----------
+export type OrdemProducaoStatus = "Em Preparação" | "Concluída" | "Arquivada";
+
+export interface OrdemProducao {
+  id: string;
+  numero: number;
+  status: OrdemProducaoStatus;
+  criado_em: string;
+  atualizado_em: string;
+  concluido_em: string | null;
+  criado_por: string | null;
+  observacoes: string | null;
+}
+
+export interface OrdemProducaoItem {
+  id: string;
+  ordem_producao_id: string;
+  pedido_id: string;
+  item_pedido_id: string;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export type OrdemProducaoDetalhada = OrdemProducao & {
+  pedidos: PedidoComItens[];
+};
+

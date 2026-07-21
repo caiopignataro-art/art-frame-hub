@@ -31,9 +31,20 @@ import { ClienteFormDialog } from "@/components/erp/ClienteFormDialog";
 import { clientesService } from "@/lib/services/clientes.service";
 import { pedidosService } from "@/lib/services/pedidos.service";
 import { configuracoesService } from "@/lib/services/configuracoes.service";
+import { ordemProducaoService } from "@/lib/services/ordem-producao.service";
 import { novoPedidoStore } from "@/lib/services/calculadora.service";
 import { formatBRL } from "@/lib/format";
 import type { PedidoItemDraft, Cliente } from "@/types/erp";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   MODALIDADES,
   MODALIDADE_LABEL,
@@ -127,6 +138,15 @@ function NovoPedidoPage() {
     queryFn: () => pedidosService.get(editId!),
     enabled: isEdit,
   });
+
+  const opQuery = useQuery({
+    queryKey: ["ordem_producao", pedidoEditQ.data?.ordem_producao_id],
+    queryFn: () => ordemProducaoService.get(pedidoEditQ.data!.ordem_producao_id!),
+    enabled: isEdit && !!pedidoEditQ.data?.ordem_producao_id,
+  });
+
+  const [showOpConfirmDialog, setShowOpConfirmDialog] = React.useState(false);
+  const [showArchiveOpConfirmDialog, setShowArchiveOpConfirmDialog] = React.useState(false);
   React.useEffect(() => {
     const p = pedidoEditQ.data;
     if (!p) return;
@@ -232,6 +252,135 @@ function NovoPedidoPage() {
     }
   };
 
+  const [archiveOpId, setArchiveOpId] = React.useState<string | null>(null);
+
+  const checkFabricationChanges = () => {
+    if (!isEdit || !pedidoEditQ.data) return false;
+    const p = pedidoEditQ.data;
+    const originalItens: PedidoItemDraft[] = (p.itens ?? []).map((i: any) => ({
+      descricao: i.descricao,
+      quantidade: Number(i.quantidade),
+      largura_cm: Number(i.largura_cm),
+      altura_cm: Number(i.altura_cm),
+      valor_unitario: Number(i.valor_unitario),
+      valor_total: Number(i.valor_total),
+      metadados: i.metadados ?? {},
+    }));
+
+    if (originalItens.length !== itens.length) return true;
+    for (let i = 0; i < originalItens.length; i++) {
+      const o = originalItens[i];
+      const a = itens[i];
+      if (o.quantidade !== a.quantidade) return true;
+      if (o.largura_cm !== a.largura_cm) return true;
+      if (o.altura_cm !== a.altura_cm) return true;
+      if (o.descricao !== a.descricao) return true;
+      if (JSON.stringify(o.metadados) !== JSON.stringify(a.metadados)) return true;
+    }
+    return false;
+  };
+
+  const executarSalvar = async (finalStatus: import("@/types/erp").PedidoStatus, bypassOpCheck = false) => {
+    const formaPagamento = modalidadeToFormaPagamento(modalidade);
+
+    if (isEdit && editId && pedidoEditQ.data?.ordem_producao_id && opQuery.data?.op.status === "Em Preparação" && !bypassOpCheck) {
+      const hasFabricationChanges = checkFabricationChanges();
+      if (hasFabricationChanges) {
+        setShowOpConfirmDialog(true);
+        return;
+      }
+    }
+
+    setSaving(true);
+    try {
+      if (isEdit && editId) {
+        await pedidosService.atualizarPedidoCompleto(editId, {
+          cliente_id: cliente?.id ?? null,
+          itens,
+          forma_pagamento: formaPagamento,
+          data_pedido: new Date(dataPedido).toISOString(),
+          data_entrega_prevista: dataEntrega,
+          observacoes: observacoes || null,
+          status: finalStatus,
+          pagamento: snapshot,
+        });
+        toast.success(`Pedido #${numeroPedido ?? ""} atualizado`);
+      } else {
+        const pedido = await pedidosService.criarPedidoCompleto({
+          cliente_id: cliente?.id ?? null,
+          itens,
+          forma_pagamento: formaPagamento,
+          data_pedido: new Date(dataPedido).toISOString(),
+          data_entrega_prevista: dataEntrega,
+          observacoes: observacoes || null,
+          status: finalStatus,
+          pagamento: snapshot,
+        });
+        toast.success(`Pedido #${pedido.numero_pedido} criado`);
+      }
+      qc.invalidateQueries({ queryKey: ["pedidos"] });
+      qc.invalidateQueries({ queryKey: ["pagamentos"] });
+      if (isEdit && editId) {
+        qc.invalidateQueries({ queryKey: ["pedido", editId] });
+        qc.invalidateQueries({ queryKey: ["ordem_producao"] });
+      }
+      navigate({ to: "/pedidos" });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao salvar pedido");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmarRollbackOP = async () => {
+    setShowOpConfirmDialog(false);
+    setSaving(true);
+    try {
+      const opId = pedidoEditQ.data!.ordem_producao_id!;
+      await ordemProducaoService.removerPedido({
+        pedidoId: editId!,
+        motivo: "Alteração produtiva no pedido",
+      });
+
+      const opDetails = await ordemProducaoService.get(opId);
+      const temPedidosAtivos = opDetails?.pedidos.some(
+        (p) => p.id !== editId && p.status === "em_producao"
+      );
+
+      if (!temPedidosAtivos) {
+        setArchiveOpId(opId);
+        setShowArchiveOpConfirmDialog(true);
+      } else {
+        await executarSalvar("aprovado", true);
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao desvincular pedido da OP");
+      setSaving(false);
+    }
+  };
+
+  const confirmarArquivamentoOP = async () => {
+    setShowArchiveOpConfirmDialog(false);
+    setSaving(true);
+    try {
+      if (archiveOpId) {
+        await ordemProducaoService.arquivar(archiveOpId);
+      }
+      await executarSalvar("aprovado", true);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao arquivar OP");
+    } finally {
+      setSaving(false);
+      setArchiveOpId(null);
+    }
+  };
+
+  const recusarArquivamentoOP = async () => {
+    setShowArchiveOpConfirmDialog(false);
+    await executarSalvar("aprovado", true);
+    setArchiveOpId(null);
+  };
+
   const handleSalvar = async (
     statusFinal: import("@/types/erp").PedidoStatus = "orcamento",
   ) => {
@@ -269,42 +418,8 @@ function NovoPedidoPage() {
       toast.error("Valor do sinal deve ser maior que 0 e menor ou igual ao total.");
       return;
     }
-    setSaving(true);
-    try {
-      if (isEdit && editId) {
-        await pedidosService.atualizarPedidoCompleto(editId, {
-          cliente_id: cliente?.id ?? null,
-          itens,
-          forma_pagamento: formaPagamento,
-          data_pedido: new Date(dataPedido).toISOString(),
-          data_entrega_prevista: dataEntrega,
-          observacoes: observacoes || null,
-          status: statusFinal,
-          pagamento: snapshot,
-        });
-        toast.success(`Pedido #${numeroPedido ?? ""} atualizado`);
-      } else {
-        const pedido = await pedidosService.criarPedidoCompleto({
-          cliente_id: cliente?.id ?? null,
-          itens,
-          forma_pagamento: formaPagamento,
-          data_pedido: new Date(dataPedido).toISOString(),
-          data_entrega_prevista: dataEntrega,
-          observacoes: observacoes || null,
-          status: statusFinal,
-          pagamento: snapshot,
-        });
-        toast.success(`Pedido #${pedido.numero_pedido} criado`);
-      }
-      qc.invalidateQueries({ queryKey: ["pedidos"] });
-      qc.invalidateQueries({ queryKey: ["pagamentos"] });
-      if (isEdit && editId) qc.invalidateQueries({ queryKey: ["pedido", editId] });
-      navigate({ to: "/pedidos" });
-    } catch (e: any) {
-      toast.error(e?.message ?? "Falha ao salvar pedido");
-    } finally {
-      setSaving(false);
-    }
+
+    await executarSalvar(statusFinal);
   };
 
   const pageTitle = isEdit ? `Editar pedido${numeroPedido ? ` #${numeroPedido}` : ""}` : "Novo pedido";

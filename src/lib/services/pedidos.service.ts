@@ -11,17 +11,63 @@ import type {
 } from "@/types/erp";
 
 export const pedidosService = {
-  async list(opts?: { status?: PedidoStatus }): Promise<
-    (Pedido & { cliente: { nome: string } | null })[]
-  > {
+  async list(opts?: {
+    status?: PedidoStatus;
+    incluirArquivados?: boolean;
+  }): Promise<(Pedido & { cliente: { nome: string } | null })[]> {
     let q = supabase
       .from("pedidos")
       .select("*, cliente:clientes(nome)")
       .order("created_at", { ascending: false });
     if (opts?.status) q = q.eq("status", opts.status);
+    
     const { data, error } = await q;
     if (error) throw error;
-    return (data as any) ?? [];
+    
+    const result = ((data as any) ?? []) as (Pedido & { cliente: { nome: string } | null })[];
+    if (opts?.incluirArquivados === true) {
+      return result;
+    }
+    
+    return result.filter(p => !((p.metadados as any)?.arquivado === true));
+  },
+
+  async arquivarEmLote(ids: string[]): Promise<void> {
+    await Promise.all(
+      ids.map(async (id) => {
+        const { data: atual } = await supabase
+          .from("pedidos")
+          .select("metadados")
+          .eq("id", id)
+          .single();
+        const metadados = { ...((atual?.metadados as any) ?? {}), arquivado: true };
+        const { error } = await supabase
+          .from("pedidos")
+          .update({ metadados } as any)
+          .eq("id", id);
+        if (error) throw error;
+      })
+    );
+  },
+
+  async produzirEmLote(ids: string[]): Promise<void> {
+    await this.setStatusLote(ids, "em_producao");
+  },
+
+  async finalizarProducaoEmLote(ids: string[]): Promise<void> {
+    await this.setStatusLote(ids, "pronto");
+  },
+
+  async voltarParaAprovadoEmLote(ids: string[]): Promise<void> {
+    await this.setStatusLote(ids, "aprovado");
+  },
+
+  async setStatusLote(ids: string[], status: PedidoStatus): Promise<void> {
+    await Promise.all(
+      ids.map(async (id) => {
+        await this.setStatus(id, status);
+      })
+    );
   },
 
   async get(id: string): Promise<PedidoComItens | null> {
