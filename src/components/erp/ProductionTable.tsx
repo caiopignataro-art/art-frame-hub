@@ -8,63 +8,87 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
-import type { PedidoItem, PedidoComItens } from "@/types/erp";
+import {
+  prepareProductionRows,
+  type ProductionRow,
+  type OrdemProducaoDetalhadaCompleta,
+} from "@/lib/production/prepareProductionRows";
 
-// Configuração das Colunas (Refinamento sugerido)
+// Tipo fortemente tipado das chaves de coluna (Ajuste 5)
+export type ProductionColumnKey =
+  | "pedido"
+  | "quantidade"
+  | "moldura"
+  | "medidas"
+  | "protecao_frontal"
+  | "fundo"
+  | "passe_partout"
+  | "mao_de_obra"
+  | "identificacao"
+  | "preparado"
+  | "problemas";
+
+// Interface evoluída das colunas (Ajuste 6 & Refinamento 8)
 export interface ProductionColumn {
-  key: string;
+  key: ProductionColumnKey;
   label: string;
+  width?: string;
+  align?: "left" | "center" | "right";
+  visible?: boolean;
+  printable?: boolean;
+  sortable?: boolean;
+  exportable?: boolean;
   className?: string;
 }
 
+// Configurações das colunas
 export const productionColumns: ProductionColumn[] = [
-  { key: "pedido", label: "Pedido", className: "w-[120px] font-semibold text-muted-foreground" },
-  { key: "quantidade", label: "Qtde", className: "w-[80px] text-center" },
-  { key: "moldura", label: "Moldura", className: "min-w-[150px]" },
-  { key: "medidas", label: "Medidas", className: "w-[120px] text-center" },
-  { key: "protecao_frontal", label: "Proteção Frontal", className: "min-w-[140px]" },
-  { key: "fundo", label: "Fundo", className: "min-w-[120px]" },
-  { key: "passe_partout", label: "Passe-partout", className: "w-[120px] text-center" },
-  { key: "mao_de_obra", label: "Mão de Obra", className: "min-w-[140px]" },
-  { key: "identificacao", label: "Identificação", className: "min-w-[160px]" },
-  { key: "preparado", label: "Preparado", className: "w-[100px] text-center font-mono text-muted-foreground" },
-  { key: "problemas", label: "Problemas", className: "w-[100px] text-center font-mono text-muted-foreground" },
+  { key: "pedido", label: "Pedido", visible: false, exportable: true, printable: true },
+  { key: "quantidade", label: "Qtde", align: "center", className: "w-[80px] text-center", exportable: true, printable: true },
+  { key: "moldura", label: "Moldura", className: "min-w-[150px]", exportable: true, printable: true },
+  { key: "medidas", label: "Medidas", align: "center", className: "w-[120px] text-center", exportable: true, printable: true },
+  { key: "protecao_frontal", label: "Proteção Frontal", className: "min-w-[140px]", exportable: true, printable: true },
+  { key: "fundo", label: "Fundo", className: "min-w-[120px]", exportable: true, printable: true },
+  { key: "passe_partout", label: "Passe-partout", align: "center", className: "w-[120px] text-center", exportable: true, printable: true },
+  { key: "mao_de_obra", label: "Mão de Obra", className: "min-w-[140px]", exportable: true, printable: true },
+  { key: "identificacao", label: "Identificação", className: "min-w-[160px]", exportable: true, printable: true },
+  { key: "preparado", label: "Preparado", align: "center", className: "w-[100px] text-center font-mono", exportable: false, printable: true },
+  { key: "problemas", label: "Problemas", align: "center", className: "w-[100px] text-center font-mono", exportable: false, printable: true },
 ];
 
+// Indicadores perenes (Ajuste 7)
+export function PreparedIndicator() {
+  return (
+    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-muted-foreground/30 text-[10px] text-muted-foreground hover:bg-muted/50 cursor-default transition-colors">
+      ○
+    </span>
+  );
+}
+
+export function ProblemIndicator() {
+  return (
+    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-muted-foreground/30 text-[10px] text-muted-foreground hover:bg-muted/50 cursor-default transition-colors">
+      ○
+    </span>
+  );
+}
+
 export interface ProductionTableProps {
-  pedidos: PedidoComItens[];
+  ordemData: OrdemProducaoDetalhadaCompleta;
 }
 
-interface ProductionRowItem {
-  pedidoId: string;
-  pedidoNumero: number;
-  item: PedidoItem;
-  itemIndex: number;
-  totalItensNoPedido: number;
-  isFirstItemOfPedido: boolean;
-}
+export function ProductionTable({ ordemData }: ProductionTableProps) {
+  // Prepara os dados uma única vez utilizando useMemo (Performance e Ajuste 3)
+  const groupedOrders = React.useMemo(() => {
+    return prepareProductionRows(ordemData);
+  }, [ordemData]);
 
-export function ProductionTable({ pedidos }: ProductionTableProps) {
-  // Prepara os dados de forma otimizada antes da renderização
-  const rows = React.useMemo(() => {
-    const list: ProductionRowItem[] = [];
-    pedidos.forEach((p) => {
-      const itens = p.itens ?? [];
-      itens.forEach((item, index) => {
-        list.push({
-          pedidoId: p.id,
-          pedidoNumero: p.numero_pedido,
-          item,
-          itemIndex: index,
-          totalItensNoPedido: itens.length,
-          isFirstItemOfPedido: index === 0,
-        });
-      });
-    });
-    return list;
-  }, [pedidos]);
+  // Filtra as colunas visíveis para a exibição na tabela interativa
+  const visibleColumns = React.useMemo(() => {
+    return productionColumns.filter((col) => col.visible !== false);
+  }, []);
 
-  if (rows.length === 0) {
+  if (groupedOrders.length === 0) {
     return (
       <Card className="p-12 text-center border border-dashed border-muted-foreground/30 bg-muted/10">
         <p className="text-sm text-muted-foreground font-medium">
@@ -75,22 +99,36 @@ export function ProductionTable({ pedidos }: ProductionTableProps) {
   }
 
   return (
-    <Card className="overflow-hidden border border-border">
-      <div className="overflow-x-auto">
-        <Table className="w-full border-collapse">
-          <ProductionTableHeader columns={productionColumns} />
-          <TableBody>
-            {rows.map((row) => (
-              <ProductionTableRow
-                key={row.item.id}
-                row={row}
-                columns={productionColumns}
-              />
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </Card>
+    <div className="space-y-6">
+      {groupedOrders.map((groupedOrder) => (
+        <Card key={groupedOrder.pedidoId} className="overflow-hidden border border-border shadow-sm">
+          {/* Cabeçalho do Bloco de Pedido (Ajuste 1 - Sem rowspan) */}
+          <div className="bg-muted/40 px-4 py-3 border-b flex justify-between items-center">
+            <span className="font-semibold text-sm text-foreground">
+              Pedido #{groupedOrder.pedidoNumero}
+            </span>
+            <span className="text-xs text-muted-foreground font-medium">
+              {groupedOrder.totalItens} item(ns)
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <Table className="w-full border-collapse">
+              <ProductionTableHeader columns={visibleColumns} />
+              <TableBody>
+                {groupedOrder.itens.map((row) => (
+                  <ProductionTableRow
+                    key={row.itemId}
+                    row={row}
+                    columns={visibleColumns}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      ))}
+    </div>
   );
 }
 
@@ -100,13 +138,10 @@ interface ProductionTableHeaderProps {
 
 export function ProductionTableHeader({ columns }: ProductionTableHeaderProps) {
   return (
-    <TableHeader className="bg-muted/40">
+    <TableHeader className="bg-muted/20">
       <TableRow className="hover:bg-transparent">
         {columns.map((col) => (
-          <TableHead
-            key={col.key}
-            className={col.className}
-          >
+          <TableHead key={col.key} className={col.className}>
             {col.label}
           </TableHead>
         ))}
@@ -116,105 +151,57 @@ export function ProductionTableHeader({ columns }: ProductionTableHeaderProps) {
 }
 
 interface ProductionTableRowProps {
-  row: ProductionRowItem;
+  row: ProductionRow;
   columns: ProductionColumn[];
 }
 
 export function ProductionTableRow({ row, columns }: ProductionTableRowProps) {
   return (
-    <TableRow className="hover:bg-muted/10 transition-colors">
-      {columns.map((col) => {
-        // Se a coluna for "pedido", aplicamos agrupamento (rowspan)
-        if (col.key === "pedido") {
-          if (!row.isFirstItemOfPedido) {
-            return null; // Não renderiza a célula para evitar repetição
-          }
-          return (
-            <TableCell
-              key={col.key}
-              rowSpan={row.totalItensNoPedido}
-              className="align-middle border-r border-border font-mono text-center bg-muted/5 font-semibold"
-            >
-              #{row.pedidoNumero}
-            </TableCell>
-          );
-        }
-
-        return (
-          <ProductionTableCell
-            key={col.key}
-            columnKey={col.key}
-            item={row.item}
-          />
-        );
-      })}
+    <TableRow className="hover:bg-muted/5 transition-colors">
+      {columns.map((col) => (
+        <ProductionTableCell
+          key={col.key}
+          columnKey={col.key}
+          row={row}
+        />
+      ))}
     </TableRow>
   );
 }
 
 interface ProductionTableCellProps {
-  columnKey: string;
-  item: PedidoItem;
+  columnKey: ProductionColumnKey;
+  row: ProductionRow;
 }
 
-export function ProductionTableCell({ columnKey, item }: ProductionTableCellProps) {
-  const md = item.metadados as any;
-
-  // Extrai informações dos metadados de forma robusta e otimizada
+export function ProductionTableCell({ columnKey, row }: ProductionTableCellProps) {
+  // Apenas renderiza dados preparados (Ajuste 4)
   const cellValue = React.useMemo(() => {
     switch (columnKey) {
       case "quantidade":
-        return Number(item.quantidade);
-
-      case "moldura": {
-        const moldurasInput = md?.entrada?.molduras ?? [];
-        if (moldurasInput.length > 0) {
-          return moldurasInput.map((m: any) => m.codigo || m.descricao).join(" + ");
-        }
-        return "—";
-      }
-
+        return row.quantidade;
+      case "moldura":
+        return row.moldura;
       case "medidas":
-        return `${Number(item.largura_cm)} × ${Number(item.altura_cm)}`;
-
+        return row.medidas;
       case "protecao_frontal":
-        return (
-          md?.calculo?.materiais?.find((m: any) => m.origem === "protecao_frontal")?.descricao ||
-          "—"
-        );
-
+        return row.protecaoFrontal;
       case "fundo":
-        return (
-          md?.calculo?.materiais?.find((m: any) => m.origem === "fundo")?.descricao ||
-          "—"
-        );
-
+        return row.fundo;
       case "passe_partout":
-        return md?.entrada?.passe_partouts?.length > 0 ? "Sim" : "Não";
-
-      case "mao_de_obra": {
-        const servicos = md?.calculo?.materiais
-          ?.filter((m: any) => m.origem === "servico")
-          ?.map((m: any) => m.descricao);
-        if (servicos && servicos.length > 0) {
-          return servicos.join(", ");
-        }
-        return "—";
-      }
-
+        return row.passePartout;
+      case "mao_de_obra":
+        return row.maoDeObra;
       case "identificacao":
-        return md?.entrada?.observacoes || item.descricao || "—";
-
+        return row.identificacao;
       case "preparado":
-        return "○"; // Placeholder de status preparado (não interativo)
-
+        return <PreparedIndicator />;
       case "problemas":
-        return "○"; // Placeholder de status de problemas (não interativo)
-
+        return <ProblemIndicator />;
       default:
         return "";
     }
-  }, [columnKey, item, md]);
+  }, [columnKey, row]);
 
   const alignClass =
     columnKey === "quantidade" ||
@@ -225,9 +212,5 @@ export function ProductionTableCell({ columnKey, item }: ProductionTableCellProp
       ? "text-center"
       : "";
 
-  return (
-    <TableCell className={alignClass}>
-      {cellValue}
-    </TableCell>
-  );
+  return <TableCell className={alignClass}>{cellValue}</TableCell>;
 }

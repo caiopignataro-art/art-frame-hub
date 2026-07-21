@@ -233,7 +233,7 @@ function DetalheOrdemProducaoPage() {
         </div>
 
         {/* Tabela Interativa */}
-        <ProductionTable pedidos={pedidos} />
+        <ProductionTable ordemData={opData} />
 
         {/* Histórico Cronológico */}
         <Card>
