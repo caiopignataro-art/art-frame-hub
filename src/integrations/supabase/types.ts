@@ -1139,6 +1139,18 @@ export type Database = {
         }
         Returns: Json
       }
+      concluir_pedido_producao: {
+        Args: {
+          p_pedido_id: string
+        }
+        Returns: Json
+      }
+      obter_detalhe_ordem_producao: {
+        Args: {
+          p_ordem_producao_id: string
+        }
+        Returns: Json
+      }
       proximo_codigo_produto: { Args: never; Returns: string }
     }
     Enums: {

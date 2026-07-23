@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import {
   ordemProducaoService,
   type ProductionOperationResult,
+  type ProductionConclusionResult,
 } from "@/lib/services/ordem-producao.service";
 import {
   prepareProductionRows,
@@ -78,6 +79,151 @@ export const productionColumns: ProductionColumn[] = [
   { key: "preparado", label: "Preparado", align: "center", className: "w-[100px] text-center font-mono", exportable: false, printable: true },
   { key: "problemas", label: "Problemas", align: "center", className: "w-[100px] text-center font-mono", exportable: false, printable: true },
 ];
+
+// Componente para exibir o status do Pedido (P-008 Badge)
+export function PedidoStatusBadge({
+  pronto,
+  concluido
+}: {
+  pronto: boolean;
+  concluido: boolean;
+}) {
+  if (concluido) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700 border border-green-200">
+        ✔ Concluído
+      </span>
+    );
+  }
+  if (pronto) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200 animate-pulse">
+        ✅ Pronto para concluir
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 border border-amber-200">
+      ⏳ Em preparação
+    </span>
+  );
+}
+
+// Botão com modal de confirmação para conclusão do pedido (P-008)
+export function ConcluirPedidoButton({
+  pedidoId,
+  opId,
+  disabled
+}: {
+  pedidoId: string;
+  opId: string;
+  disabled?: boolean;
+}) {
+  const qc = useQueryClient();
+  const queryKey = ["ordem_producao", opId];
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  const mutation = useMutation({
+    mutationFn: () => ordemProducaoService.concluirPedidoProducao(pedidoId),
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey });
+      const previousOpData = qc.getQueryData(queryKey);
+
+      qc.setQueryData(queryKey, (prev: any) => {
+        if (!prev || !prev.pedidos) return prev;
+        return {
+          ...prev,
+          pedidos: prev.pedidos.map((p: any) =>
+            p.id === pedidoId
+              ? {
+                  ...p,
+                  status: "pronto",
+                  pedido_concluido: true,
+                }
+              : p
+          ),
+        };
+      });
+
+      return { previousOpData };
+    },
+    onError: (err: any, variables, context) => {
+      if (context?.previousOpData) {
+        qc.setQueryData(queryKey, context.previousOpData);
+      }
+      toast.error(err.message || "Erro ao concluir pedido.");
+    },
+    onSuccess: (result: ProductionConclusionResult) => {
+      qc.setQueryData(queryKey, (prev: any) => {
+        if (!prev) return prev;
+
+        const updatedPedidos = prev.pedidos.map((p: any) => {
+          if (p.id === pedidoId) {
+            return {
+              ...p,
+              status: "pronto",
+              pedido_concluido: true,
+            };
+          }
+          return p;
+        });
+
+        const updatedOp = {
+          ...prev.op,
+          status: result.ordemProducao.concluida ? "Concluída" : prev.op.status,
+          concluido_em: result.ordemProducao.concluida ? new Date().toISOString() : prev.op.concluido_em,
+        };
+
+        return {
+          ...prev,
+          op: updatedOp,
+          pedidos: updatedPedidos,
+        };
+      });
+      toast.success("Pedido concluído com sucesso!");
+      setIsOpen(false);
+    },
+  });
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        className="border-green-600 text-green-700 hover:bg-green-50 h-7 text-xs py-1 px-2"
+        disabled={disabled || mutation.isPending}
+        onClick={() => setIsOpen(true)}
+      >
+        Concluir Pedido
+      </Button>
+
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Concluir Pedido?</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              Após concluir este pedido ele será removido da fila de produção.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsOpen(false)} disabled={mutation.isPending}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={() => mutation.mutate()}
+              disabled={mutation.isPending}
+            >
+              {mutation.isPending ? "Concluindo..." : "Concluir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
 
 // Componente interativo para a preparação do item (P-007)
 export function PreparedItemControl({
@@ -405,12 +551,27 @@ export function ProductionTable({ ordemData }: ProductionTableProps) {
         <Card key={groupedOrder.pedidoId} className="overflow-hidden border border-border shadow-sm">
           {/* Cabeçalho do Bloco de Pedido (Ajuste 1 - Sem rowspan) */}
           <div className="bg-muted/40 px-4 py-3 border-b flex justify-between items-center">
-            <span className="font-semibold text-sm text-foreground">
-              Pedido #{groupedOrder.pedidoNumero}
-            </span>
-            <span className="text-xs text-muted-foreground font-medium">
-              {groupedOrder.totalItens} item(ns)
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="font-semibold text-sm text-foreground">
+                Pedido #{groupedOrder.pedidoNumero}
+              </span>
+              <PedidoStatusBadge
+                pronto={groupedOrder.pedidoPronto}
+                concluido={groupedOrder.pedidoConcluido}
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              {groupedOrder.pedidoPronto && !groupedOrder.pedidoConcluido && (
+                <ConcluirPedidoButton
+                  pedidoId={groupedOrder.pedidoId}
+                  opId={ordemData.op.id}
+                  disabled={isReadOnly}
+                />
+              )}
+              <span className="text-xs text-muted-foreground font-medium">
+                {groupedOrder.totalItens} item(ns)
+              </span>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -423,7 +584,7 @@ export function ProductionTable({ ordemData }: ProductionTableProps) {
                     row={row}
                     columns={visibleColumns}
                     opId={ordemData.op.id}
-                    disabled={isReadOnly}
+                    disabled={isReadOnly || groupedOrder.pedidoConcluido}
                   />
                 ))}
               </TableBody>

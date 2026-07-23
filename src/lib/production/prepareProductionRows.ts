@@ -44,6 +44,8 @@ export interface ProductionGroupedOrder {
   readonly pedidoNumero: number;
   readonly itens: readonly ProductionRow[];
   readonly totalItens: number;
+  readonly pedidoPronto: boolean;
+  readonly pedidoConcluido: boolean;
 }
 
 export interface OrdemProducaoDetalhadaCompleta {
@@ -138,6 +140,8 @@ export function prepareProductionRows(ordemData: OrdemProducaoDetalhadaCompleta)
       pedidoNumero: pedido.numero_pedido,
       itens: mappedItens,
       totalItens: mappedItens.length,
+      pedidoPronto: !!(pedido as any).pedido_pronto,
+      pedidoConcluido: !!(pedido as any).pedido_concluido,
     };
   });
 }

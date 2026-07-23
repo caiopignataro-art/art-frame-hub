@@ -39,53 +39,22 @@ export const ordemProducaoService = {
     quantidadesCount: number;
     historico: any[];
   } | null> {
-    const { data: op, error: opError } = await supabase
-      .from("ordem_producao")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc("obter_detalhe_ordem_producao", {
+      p_ordem_producao_id: id,
+    });
 
-    if (opError) throw new Error(`Erro ao buscar Ordem de Produção: ${opError.message}`);
-    if (!op) return null;
+    if (error) throw new Error(`Erro ao obter detalhes da Ordem de Produção: ${error.message}`);
+    if (!data) return null;
 
-    const { data: pedidos, error: pedidosError } = await supabase
-      .from("pedidos")
-      .select("*, cliente:clientes(*), itens:pedido_itens(*), pagamentos:pagamentos(*)")
-      .eq("ordem_producao_id", id);
-
-    if (pedidosError) throw new Error(`Erro ao buscar pedidos da Ordem de Produção: ${pedidosError.message}`);
-
-    const { data: opItens, error: opItensError } = await supabase
-      .from("ordem_producao_itens")
-      .select("*")
-      .eq("ordem_producao_id", id);
-
-    if (opItensError) throw new Error(`Erro ao buscar itens de controle da Ordem de Produção: ${opItensError.message}`);
-
-    const { data: hist, error: histError } = await supabase
-      .from("historico")
-      .select("*")
-      .eq("entidade", "ordem_producao")
-      .eq("entidade_id", id)
-      .order("created_at", { ascending: true });
-
-    if (histError) throw new Error(`Erro ao buscar histórico da Ordem de Produção: ${histError.message}`);
-
-    let totalItens = 0;
-    let totalQtd = 0;
-    for (const p of pedidos ?? []) {
-      const items = (p.itens as any[]) ?? [];
-      totalItens += items.length;
-      totalQtd += items.reduce((sum, item) => sum + (Number(item.quantidade) || 0), 0);
-    }
+    const payload = data as any;
 
     return {
-      op: op as OrdemProducao,
-      pedidos: (pedidos as unknown as PedidoComItens[]) ?? [],
-      opItens: opItens ?? [],
-      itensCount: totalItens,
-      quantidadesCount: totalQtd,
-      historico: hist ?? [],
+      op: payload.op as OrdemProducao,
+      pedidos: (payload.pedidos as unknown as PedidoComItens[]) ?? [],
+      opItens: payload.opItens ?? [],
+      itensCount: Number(payload.itensCount || 0),
+      quantidadesCount: Number(payload.quantidadesCount || 0),
+      historico: payload.historico ?? [],
     };
   },
 
@@ -244,7 +213,48 @@ export const ordemProducaoService = {
       pedido: payload.pedido as PedidoOperationalState,
     };
   },
+
+  async concluirPedidoProducao(
+    pedidoId: string
+  ): Promise<ProductionConclusionResult> {
+    const { data, error } = await supabase.rpc("concluir_pedido_producao", {
+      p_pedido_id: pedidoId,
+    });
+
+    if (error) {
+      throw new Error(`Erro ao concluir pedido na produção: ${error.message}`);
+    }
+
+    const payload = data as any;
+    return {
+      pedido: {
+        id: payload.pedido.id,
+        concluido: payload.pedido.concluido,
+        pedido_pronto: payload.pedido.pedido_pronto,
+      },
+      ordemProducao: {
+        id: payload.ordem_producao.id,
+        concluida: payload.ordem_producao.concluida,
+        pedidosConcluidos: payload.ordem_producao.pedidos_concluidos,
+        pedidosTotal: payload.ordem_producao.pedidos_total,
+      },
+    };
+  },
 };
+
+export interface ProductionConclusionResult {
+  pedido: {
+    id: string;
+    concluido: boolean;
+    pedido_pronto: boolean;
+  };
+  ordemProducao: {
+    id: string;
+    concluida: boolean;
+    pedidosConcluidos: number;
+    pedidosTotal: number;
+  };
+}
 
 export interface ProductionItemState {
   id: string;
