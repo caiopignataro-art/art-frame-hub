@@ -9,6 +9,29 @@ import {
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  ordemProducaoService,
+  type ProductionOperationResult,
+} from "@/lib/services/ordem-producao.service";
+import {
   prepareProductionRows,
   type ProductionRow,
   type OrdemProducaoDetalhadaCompleta,
@@ -56,20 +79,294 @@ export const productionColumns: ProductionColumn[] = [
   { key: "problemas", label: "Problemas", align: "center", className: "w-[100px] text-center font-mono", exportable: false, printable: true },
 ];
 
-// Indicadores perenes (Ajuste 7)
-export function PreparedIndicator() {
+// Componente interativo para a preparação do item (P-007)
+export function PreparedItemControl({
+  itemId,
+  preparado,
+  opId,
+  disabled
+}: {
+  itemId: string;
+  preparado: boolean;
+  opId: string;
+  disabled?: boolean;
+}) {
+  const qc = useQueryClient();
+  const queryKey = ["ordem_producao", opId];
+
+  const mutation = useMutation({
+    mutationFn: (newVal: boolean) => ordemProducaoService.marcarItemPreparado(itemId, newVal),
+    onMutate: async (newVal) => {
+      await qc.cancelQueries({ queryKey });
+      const previousOpData = qc.getQueryData(queryKey);
+
+      qc.setQueryData(queryKey, (prev: any) => {
+        if (!prev || !prev.opItens) return prev;
+        return {
+          ...prev,
+          opItens: prev.opItens.map((oi: any) =>
+            oi.id === itemId
+              ? {
+                  ...oi,
+                  preparado: newVal,
+                  possui_problema: newVal ? false : oi.possui_problema,
+                  problema_tipo: newVal ? null : oi.problema_tipo,
+                  problema_descricao: newVal ? null : oi.problema_descricao,
+                }
+              : oi
+          ),
+        };
+      });
+
+      return { previousOpData };
+    },
+    onError: (err: any, newVal, context) => {
+      if (context?.previousOpData) {
+        qc.setQueryData(queryKey, context.previousOpData);
+      }
+      toast.error(err.message || "Erro ao atualizar item.");
+    },
+    onSuccess: (result: ProductionOperationResult) => {
+      qc.setQueryData(queryKey, (prev: any) => {
+        if (!prev || !prev.opItens) return prev;
+        return {
+          ...prev,
+          opItens: prev.opItens.map((oi: any) =>
+            oi.id === itemId ? { ...oi, ...result.item } : oi
+          ),
+        };
+      });
+    },
+  });
+
+  const isPending = mutation.isPending;
+  const isError = mutation.isError;
+
+  if (isPending) {
+    return (
+      <span className="inline-flex h-5 w-5 items-center justify-center animate-spin text-muted-foreground font-mono text-[10px]">
+        ◌
+      </span>
+    );
+  }
+
+  if (isError) {
+    return (
+      <button
+        onClick={() => mutation.mutate(!preparado)}
+        disabled={disabled}
+        title="Erro ao atualizar. Clique para tentar novamente."
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-destructive text-[10px] text-destructive hover:bg-destructive/10 transition-colors"
+      >
+        ⚠
+      </button>
+    );
+  }
+
   return (
-    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-muted-foreground/30 text-[10px] text-muted-foreground hover:bg-muted/50 cursor-default transition-colors">
-      ○
-    </span>
+    <button
+      onClick={() => mutation.mutate(!preparado)}
+      disabled={disabled}
+      className={`inline-flex h-5 w-5 items-center justify-center rounded border transition-colors ${
+        preparado
+          ? "border-green-600 bg-green-600 text-white"
+          : "border-muted-foreground/30 text-transparent hover:border-muted-foreground/60"
+      }`}
+    >
+      {preparado ? "✔" : " "}
+    </button>
   );
 }
 
-export function ProblemIndicator() {
+// Componente interativo para gerenciamento de problemas do item (P-007-A)
+export function ProblemItemControl({
+  itemId,
+  possuiProblema,
+  problemaTipo,
+  problemaDescricao,
+  opId,
+  disabled
+}: {
+  itemId: string;
+  possuiProblema: boolean;
+  problemaTipo: string | null;
+  problemaDescricao: string | null;
+  opId: string;
+  disabled?: boolean;
+}) {
+  const qc = useQueryClient();
+  const queryKey = ["ordem_producao", opId];
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [tipo, setTipo] = React.useState(problemaTipo || "MATERIAL_FALTANTE");
+  const [descricao, setDescricao] = React.useState(problemaDescricao || "");
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setTipo(problemaTipo || "MATERIAL_FALTANTE");
+      setDescricao(problemaDescricao || "");
+    }
+  }, [isOpen, problemaTipo, problemaDescricao]);
+
+  const mutation = useMutation({
+    mutationFn: (params: { possui_problema: boolean; tipo?: string; descricao?: string }) =>
+      ordemProducaoService.registrarProblemaItem(itemId, params),
+    onMutate: async (params) => {
+      await qc.cancelQueries({ queryKey });
+      const previousOpData = qc.getQueryData(queryKey);
+
+      qc.setQueryData(queryKey, (prev: any) => {
+        if (!prev || !prev.opItens) return prev;
+        return {
+          ...prev,
+          opItens: prev.opItens.map((oi: any) =>
+            oi.id === itemId
+              ? {
+                  ...oi,
+                  possui_problema: params.possui_problema,
+                  problema_tipo: params.tipo || null,
+                  problema_descricao: params.descricao || null,
+                  preparado: false,
+                  preparado_em: null,
+                  preparado_por: null,
+                }
+              : oi
+          ),
+        };
+      });
+
+      return { previousOpData };
+    },
+    onError: (err: any, params, context) => {
+      if (context?.previousOpData) {
+        qc.setQueryData(queryKey, context.previousOpData);
+      }
+      toast.error(err.message || "Erro ao atualizar problema.");
+    },
+    onSuccess: (result: ProductionOperationResult) => {
+      qc.setQueryData(queryKey, (prev: any) => {
+        if (!prev || !prev.opItens) return prev;
+        return {
+          ...prev,
+          opItens: prev.opItens.map((oi: any) =>
+            oi.id === itemId ? { ...oi, ...result.item } : oi
+          ),
+        };
+      });
+      setIsOpen(false);
+    },
+  });
+
+  const isPending = mutation.isPending;
+  const isError = mutation.isError;
+
+  const handleSave = () => {
+    mutation.mutate({
+      possui_problema: true,
+      tipo,
+      descricao
+    });
+  };
+
+  const handleRemove = () => {
+    mutation.mutate({
+      possui_problema: false
+    });
+  };
+
+  if (isPending) {
+    return (
+      <span className="inline-flex h-5 w-5 items-center justify-center animate-spin text-muted-foreground font-mono text-[10px]">
+        ◌
+      </span>
+    );
+  }
+
+  if (isError) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        disabled={disabled}
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-destructive text-[10px] text-destructive hover:bg-destructive/10 transition-colors"
+      >
+        ⚠
+      </button>
+    );
+  }
+
+  const indicator = possuiProblema
+    ? (problemaDescricao ? "✎" : "⚠")
+    : "○";
+
+  const btnClass = possuiProblema
+    ? (problemaDescricao
+        ? "border-amber-500 bg-amber-50 text-amber-600 hover:bg-amber-100/50"
+        : "border-destructive bg-destructive/5 text-destructive hover:bg-destructive/10")
+    : "border-muted-foreground/30 text-muted-foreground/60 hover:border-muted-foreground/60 hover:text-muted-foreground";
+
   return (
-    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-muted-foreground/30 text-[10px] text-muted-foreground hover:bg-muted/50 cursor-default transition-colors">
-      ○
-    </span>
+    <>
+      <button
+        onClick={() => setIsOpen(true)}
+        disabled={disabled}
+        className={`inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] transition-colors font-medium ${btnClass}`}
+      >
+        {indicator}
+      </button>
+
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>
+              {possuiProblema ? "Detalhes do Problema" : "Registrar Problema"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="tipo-problema">Tipo de Problema</Label>
+              <Select value={tipo} onValueChange={setTipo}>
+                <SelectTrigger id="tipo-problema">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MATERIAL_FALTANTE">Material Faltante</SelectItem>
+                  <SelectItem value="MEDIDA_INCORRETA">Medida Incorreta</SelectItem>
+                  <SelectItem value="MOLDURA_DANIFICADA">Moldura Danificada</SelectItem>
+                  <SelectItem value="VIDRO_DANIFICADO">Vidro Danificado</SelectItem>
+                  <SelectItem value="PASSE_PARTOUT_DANIFICADO">Passe-partout Danificado</SelectItem>
+                  <SelectItem value="IMPRESSAO_INCORRETA">Impressão Incorreta</SelectItem>
+                  <SelectItem value="OUTRO">Outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="descricao-problema">Descrição (Opcional)</Label>
+              <Textarea
+                id="descricao-problema"
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                placeholder="Detalhes sobre o problema encontrado..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex sm:justify-between gap-2">
+            {possuiProblema && (
+              <Button type="button" variant="destructive" onClick={handleRemove} disabled={mutation.isPending}>
+                Remover Problema
+              </Button>
+            )}
+            <div className="flex gap-2 ml-auto">
+              <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={mutation.isPending}>
+                Cancelar
+              </Button>
+              <Button type="button" onClick={handleSave} disabled={mutation.isPending}>
+                Salvar
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -98,6 +395,10 @@ export function ProductionTable({ ordemData }: ProductionTableProps) {
     );
   }
 
+  // OP status validation: disable controls if archived or concluded
+  const isReadOnly =
+    ordemData.op.status === "Concluída" || ordemData.op.status === "Arquivada";
+
   return (
     <div className="space-y-6">
       {groupedOrders.map((groupedOrder) => (
@@ -121,6 +422,8 @@ export function ProductionTable({ ordemData }: ProductionTableProps) {
                     key={row.itemId}
                     row={row}
                     columns={visibleColumns}
+                    opId={ordemData.op.id}
+                    disabled={isReadOnly}
                   />
                 ))}
               </TableBody>
@@ -153,9 +456,11 @@ export function ProductionTableHeader({ columns }: ProductionTableHeaderProps) {
 interface ProductionTableRowProps {
   row: ProductionRow;
   columns: ProductionColumn[];
+  opId: string;
+  disabled?: boolean;
 }
 
-export function ProductionTableRow({ row, columns }: ProductionTableRowProps) {
+export function ProductionTableRow({ row, columns, opId, disabled }: ProductionTableRowProps) {
   return (
     <TableRow className="hover:bg-muted/5 transition-colors">
       {columns.map((col) => (
@@ -163,6 +468,8 @@ export function ProductionTableRow({ row, columns }: ProductionTableRowProps) {
           key={col.key}
           columnKey={col.key}
           row={row}
+          opId={opId}
+          disabled={disabled}
         />
       ))}
     </TableRow>
@@ -172,9 +479,11 @@ export function ProductionTableRow({ row, columns }: ProductionTableRowProps) {
 interface ProductionTableCellProps {
   columnKey: ProductionColumnKey;
   row: ProductionRow;
+  opId: string;
+  disabled?: boolean;
 }
 
-export function ProductionTableCell({ columnKey, row }: ProductionTableCellProps) {
+export function ProductionTableCell({ columnKey, row, opId, disabled }: ProductionTableCellProps) {
   // Apenas renderiza dados preparados (Ajuste 4)
   const cellValue = React.useMemo(() => {
     switch (columnKey) {
@@ -195,13 +504,29 @@ export function ProductionTableCell({ columnKey, row }: ProductionTableCellProps
       case "identificacao":
         return row.identificacao;
       case "preparado":
-        return <PreparedIndicator />;
+        return (
+          <PreparedItemControl
+            itemId={row.itemId}
+            preparado={row.preparado}
+            opId={opId}
+            disabled={disabled}
+          />
+        );
       case "problemas":
-        return <ProblemIndicator />;
+        return (
+          <ProblemItemControl
+            itemId={row.itemId}
+            possuiProblema={row.possuiProblema}
+            problemaTipo={row.problemaTipo}
+            problemaDescricao={row.problemaDescricao}
+            opId={opId}
+            disabled={disabled}
+          />
+        );
       default:
         return "";
     }
-  }, [columnKey, row]);
+  }, [columnKey, row, opId, disabled]);
 
   const alignClass =
     columnKey === "quantidade" ||

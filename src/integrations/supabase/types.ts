@@ -704,6 +704,14 @@ export type Database = {
           item_pedido_id: string
           criado_em: string
           atualizado_em: string
+          preparado: boolean
+          preparado_em: string | null
+          preparado_por: string | null
+          possui_problema: boolean
+          problema_tipo: Database["public"]["Enums"]["problema_tipo_enum"] | null
+          problema_descricao: string | null
+          problema_em: string | null
+          problema_por: string | null
         }
         Insert: {
           id?: string
@@ -712,6 +720,14 @@ export type Database = {
           item_pedido_id: string
           criado_em?: string
           atualizado_em?: string
+          preparado?: boolean
+          preparado_em?: string | null
+          preparado_por?: string | null
+          possui_problema?: boolean
+          problema_tipo?: Database["public"]["Enums"]["problema_tipo_enum"] | null
+          problema_descricao?: string | null
+          problema_em?: string | null
+          problema_por?: string | null
         }
         Update: {
           id?: string
@@ -720,6 +736,14 @@ export type Database = {
           item_pedido_id?: string
           criado_em?: string
           atualizado_em?: string
+          preparado?: boolean
+          preparado_em?: string | null
+          preparado_por?: string | null
+          possui_problema?: boolean
+          problema_tipo?: Database["public"]["Enums"]["problema_tipo_enum"] | null
+          problema_descricao?: string | null
+          problema_em?: string | null
+          problema_por?: string | null
         }
         Relationships: [
           {
@@ -1099,6 +1123,22 @@ export type Database = {
         }
         Returns: Json
       }
+      marcar_item_preparado: {
+        Args: {
+          p_ordem_producao_item_id: string
+          p_preparado: boolean
+        }
+        Returns: Json
+      }
+      marcar_item_problema: {
+        Args: {
+          p_ordem_producao_item_id: string
+          p_possui_problema: boolean
+          p_tipo: Database["public"]["Enums"]["problema_tipo_enum"]
+          p_descricao: string
+        }
+        Returns: Json
+      }
       proximo_codigo_produto: { Args: never; Returns: string }
     }
     Enums: {
@@ -1120,7 +1160,23 @@ export type Database = {
         | "transferencia"
         | "boleto"
         | "outro"
-      historico_acao: "criado" | "atualizado" | "excluido" | "status_alterado"
+      historico_acao:
+        | "criado"
+        | "atualizado"
+        | "excluido"
+        | "status_alterado"
+        | "ITEM_PREPARADO"
+        | "ITEM_DESMARCADO"
+        | "ITEM_PROBLEMA_REGISTRADO"
+        | "ITEM_PROBLEMA_REMOVIDO"
+      problema_tipo_enum:
+        | "MATERIAL_FALTANTE"
+        | "MEDIDA_INCORRETA"
+        | "MOLDURA_DANIFICADA"
+        | "VIDRO_DANIFICADO"
+        | "PASSE_PARTOUT_DANIFICADO"
+        | "IMPRESSAO_INCORRETA"
+        | "OUTRO"
       orcamento_status:
         | "rascunho"
         | "enviado"

@@ -75,7 +75,10 @@ function DetalheOrdemProducaoPage() {
     );
   }
 
-  const { op, pedidos, itensCount, quantidadesCount, historico } = opData;
+  const { op, pedidos, opItens, itensCount, quantidadesCount, historico } = opData;
+
+  const preparadosCount = opItens?.filter((oi: any) => oi.preparado).length ?? 0;
+  const problemasCount = opItens?.filter((oi: any) => oi.possui_problema).length ?? 0;
 
   const getStatusStyle = (status: OrdemProducaoStatus) => {
     switch (status) {
@@ -219,7 +222,7 @@ function DetalheOrdemProducaoPage() {
               <span className="text-xs font-medium text-muted-foreground uppercase">Itens preparados</span>
             </CardHeader>
             <CardContent>
-              <span className="text-2xl font-bold text-muted-foreground">0</span>
+              <span className={`text-2xl font-bold ${preparadosCount > 0 ? "text-green-600" : "text-muted-foreground"}`}>{preparadosCount}</span>
             </CardContent>
           </Card>
           <Card>
@@ -227,7 +230,7 @@ function DetalheOrdemProducaoPage() {
               <span className="text-xs font-medium text-muted-foreground uppercase">Itens c/ apontamentos</span>
             </CardHeader>
             <CardContent>
-              <span className="text-2xl font-bold text-muted-foreground">0</span>
+              <span className={`text-2xl font-bold ${problemasCount > 0 ? "text-amber-600" : "text-muted-foreground"}`}>{problemasCount}</span>
             </CardContent>
           </Card>
         </div>

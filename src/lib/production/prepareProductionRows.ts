@@ -1,9 +1,24 @@
 import type { OrdemProducao, PedidoComItens } from "@/types/erp";
 
+export type OperationalStatus = "PENDENTE" | "PREPARADO" | "PROBLEMA";
+
+export function getOperationalStatus(item: { preparado: boolean; possui_problema: boolean }): OperationalStatus {
+  if (item.preparado && item.possui_problema) {
+    if (process.env.NODE_ENV !== "production") {
+      throw new Error("Estado inválido: item não pode ser preparado e possuir problema simultaneamente.");
+    }
+    return "PROBLEMA";
+  }
+  if (item.preparado) return "PREPARADO";
+  if (item.possui_problema) return "PROBLEMA";
+  return "PENDENTE";
+}
+
 export interface ProductionRow {
   readonly pedidoId: string;
   readonly pedidoNumero: number;
-  readonly itemId: string;
+  readonly itemId: string; // ID of the row in ordem_producao_itens
+  readonly itemPedidoId: string; // ID of the row in pedido_itens
   readonly itemIndex: number;
   readonly quantidade: number;
   readonly moldura: string;
@@ -13,6 +28,15 @@ export interface ProductionRow {
   readonly passePartout: string;
   readonly maoDeObra: string;
   readonly identificacao: string;
+  readonly preparado: boolean;
+  readonly preparadoEm: string | null;
+  readonly preparadoPor: string | null;
+  readonly possuiProblema: boolean;
+  readonly problemaTipo: string | null;
+  readonly problemaDescricao: string | null;
+  readonly problemaEm: string | null;
+  readonly problemaPor: string | null;
+  readonly status: OperationalStatus;
 }
 
 export interface ProductionGroupedOrder {
@@ -25,6 +49,7 @@ export interface ProductionGroupedOrder {
 export interface OrdemProducaoDetalhadaCompleta {
   op: OrdemProducao;
   pedidos: PedidoComItens[];
+  opItens: any[];
   itensCount: number;
   quantidadesCount: number;
   historico: any[];
@@ -35,13 +60,16 @@ export interface OrdemProducaoDetalhadaCompleta {
  * Respects original ordering without sorting, filtering, or modifying inputs.
  */
 export function prepareProductionRows(ordemData: OrdemProducaoDetalhadaCompleta): readonly ProductionGroupedOrder[] {
-  if (!ordemData || !ordemData.pedidos) return [];
+  if (!ordemData || !ordemData.pedidos || !ordemData.opItens) return [];
+
+  const opItensMap = new Map(ordemData.opItens.map(oi => [oi.item_pedido_id, oi]));
 
   return ordemData.pedidos.map((pedido) => {
     const itens = pedido.itens ?? [];
 
     const mappedItens = itens.map((item, index): ProductionRow => {
       const md = item.metadados as any;
+      const opItem = opItensMap.get(item.id);
 
       // Extract moldura
       let moldura = "—";
@@ -76,10 +104,14 @@ export function prepareProductionRows(ordemData: OrdemProducaoDetalhadaCompleta)
       // Extract identificacao
       const identificacao = md?.entrada?.observacoes || item.descricao || "—";
 
+      const prepVal = !!opItem?.preparado;
+      const probVal = !!opItem?.possui_problema;
+
       return {
         pedidoId: pedido.id,
         pedidoNumero: pedido.numero_pedido,
-        itemId: item.id,
+        itemId: opItem?.id ?? "",
+        itemPedidoId: item.id,
         itemIndex: index,
         quantidade: Number(item.quantidade || 0),
         moldura,
@@ -89,6 +121,15 @@ export function prepareProductionRows(ordemData: OrdemProducaoDetalhadaCompleta)
         passePartout,
         maoDeObra,
         identificacao,
+        preparado: prepVal,
+        preparadoEm: opItem?.preparado_em ?? null,
+        preparadoPor: opItem?.preparado_por ?? null,
+        possuiProblema: probVal,
+        problemaTipo: opItem?.problema_tipo ?? null,
+        problemaDescricao: opItem?.problema_descricao ?? null,
+        problemaEm: opItem?.problema_em ?? null,
+        problemaPor: opItem?.problema_por ?? null,
+        status: getOperationalStatus({ preparado: prepVal, possui_problema: probVal }),
       };
     });
 

@@ -34,6 +34,7 @@ export const ordemProducaoService = {
   async get(id: string): Promise<{
     op: OrdemProducao;
     pedidos: PedidoComItens[];
+    opItens: any[];
     itensCount: number;
     quantidadesCount: number;
     historico: any[];
@@ -53,6 +54,13 @@ export const ordemProducaoService = {
       .eq("ordem_producao_id", id);
 
     if (pedidosError) throw new Error(`Erro ao buscar pedidos da Ordem de Produção: ${pedidosError.message}`);
+
+    const { data: opItens, error: opItensError } = await supabase
+      .from("ordem_producao_itens")
+      .select("*")
+      .eq("ordem_producao_id", id);
+
+    if (opItensError) throw new Error(`Erro ao buscar itens de controle da Ordem de Produção: ${opItensError.message}`);
 
     const { data: hist, error: histError } = await supabase
       .from("historico")
@@ -74,6 +82,7 @@ export const ordemProducaoService = {
     return {
       op: op as OrdemProducao,
       pedidos: (pedidos as unknown as PedidoComItens[]) ?? [],
+      opItens: opItens ?? [],
       itensCount: totalItens,
       quantidadesCount: totalQtd,
       historico: hist ?? [],
@@ -193,4 +202,71 @@ export const ordemProducaoService = {
       descricao: "Ordem de Produção arquivada.",
     });
   },
+
+  async marcarItemPreparado(
+    ordemProducaoItemId: string,
+    preparado: boolean
+  ): Promise<ProductionOperationResult> {
+    const { data, error } = await supabase.rpc("marcar_item_preparado", {
+      p_ordem_producao_item_id: ordemProducaoItemId,
+      p_preparado: preparado,
+    });
+
+    if (error) {
+      throw new Error(`Erro ao marcar item como preparado: ${error.message}`);
+    }
+
+    const payload = data as any;
+    return {
+      item: payload.item as ProductionItemState,
+      pedido: payload.pedido as PedidoOperationalState,
+    };
+  },
+
+  async registrarProblemaItem(
+    ordemProducaoItemId: string,
+    problema: { possui_problema: boolean; tipo?: string; descricao?: string }
+  ): Promise<ProductionOperationResult> {
+    const { data, error } = await supabase.rpc("marcar_item_problema", {
+      p_ordem_producao_item_id: ordemProducaoItemId,
+      p_possui_problema: problema.possui_problema,
+      p_tipo: (problema.tipo || null) as any,
+      p_descricao: problema.descricao || "",
+    });
+
+    if (error) {
+      throw new Error(`Erro ao registrar problema no item: ${error.message}`);
+    }
+
+    const payload = data as any;
+    return {
+      item: payload.item as ProductionItemState,
+      pedido: payload.pedido as PedidoOperationalState,
+    };
+  },
 };
+
+export interface ProductionItemState {
+  id: string;
+  preparado: boolean;
+  possui_problema: boolean;
+  problema_tipo: string | null;
+  problema_descricao: string | null;
+  preparado_em: string | null;
+  preparado_por: string | null;
+  problema_em: string | null;
+  problema_por: string | null;
+}
+
+export interface PedidoOperationalState {
+  id: string;
+  itens_total: number;
+  itens_preparados: number;
+  itens_com_problema: number;
+  pedido_pronto: boolean;
+}
+
+export interface ProductionOperationResult {
+  item: ProductionItemState;
+  pedido: PedidoOperationalState;
+}
