@@ -2,11 +2,12 @@
 ALTER TYPE public.historico_acao ADD VALUE IF NOT EXISTS 'PEDIDO_CONCLUIDO_PRODUCAO';
 ALTER TYPE public.historico_acao ADD VALUE IF NOT EXISTS 'ORDEM_PRODUCAO_CONCLUIDA';
 
--- 2. Create obtaining details RPC function with backend evaluation of pedido_pronto and pedido_concluido
+-- 2. Create STABLE SQL Function to obtain OP details decorated with operational flags (SECURITY INVOKER)
 CREATE OR REPLACE FUNCTION public.obter_detalhe_ordem_producao(p_ordem_producao_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
-SECURITY DEFINER
+STABLE
+SECURITY INVOKER
 SET search_path = public
 AS $$
 DECLARE
@@ -17,7 +18,7 @@ DECLARE
   v_total_itens INT;
   v_total_qtd INT;
 BEGIN
-  -- 1. Fetch OP
+  -- Fetch OP details
   SELECT to_jsonb(o) INTO v_op
   FROM public.ordem_producao o
   WHERE id = p_ordem_producao_id;
@@ -26,7 +27,7 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  -- 2. Fetch Pedidos, decorating each with backend-evaluated variables
+  -- Fetch associated Pedidos (decorating each with derived flags)
   SELECT jsonb_agg(
     to_jsonb(p) || jsonb_build_object(
       'cliente', to_jsonb(c),
@@ -40,7 +41,9 @@ BEGIN
         FROM public.pagamentos pag
         WHERE pag.pedido_id = p.id
       ), '[]'::jsonb),
+      -- Derived state (all items prepared, none have problems, total > 0)
       'pedido_pronto', (SELECT (public.calcular_estado_pedido(p.id) ->> 'pedido_pronto')::BOOLEAN),
+      -- Persisted state (status is 'pronto')
       'pedido_concluido', (p.status = 'pronto')
     )
   ) INTO v_pedidos
@@ -48,12 +51,12 @@ BEGIN
   LEFT JOIN public.clientes c ON p.cliente_id = c.id
   WHERE p.ordem_producao_id = p_ordem_producao_id;
 
-  -- 3. Fetch opItens
+  -- Fetch item tracking statuses
   SELECT jsonb_agg(to_jsonb(oi)) INTO v_op_itens
   FROM public.ordem_producao_itens oi
   WHERE oi.ordem_producao_id = p_ordem_producao_id;
 
-  -- 4. Fetch historico
+  -- Fetch chronological history
   SELECT jsonb_agg(to_jsonb(h)) INTO v_historico
   FROM (
     SELECT *
@@ -62,8 +65,8 @@ BEGIN
     ORDER BY created_at ASC
   ) h;
 
-  -- 5. Calculate global aggregates
-  SELECT COALESCE(COUNT(1), 0), COALESCE(SUM((it.metadados->'quantidade')::text::int), 0)
+  -- Calculate global aggregates
+  SELECT COALESCE(COUNT(1), 0), COALESCE(SUM((it.metadados->>'quantidade')::INT), 0)
   INTO v_total_itens, v_total_qtd
   FROM public.ordem_producao_itens oi
   JOIN public.pedido_itens it ON oi.item_pedido_id = it.id
@@ -80,7 +83,7 @@ BEGIN
 END;
 $$;
 
--- 3. Transactional RPC for concluding a pedido in production
+-- 3. Create transactional RPC function to conclude a Pedido (SECURITY DEFINER to edit status/logs)
 CREATE OR REPLACE FUNCTION public.concluir_pedido_producao(
   p_pedido_id UUID
 )
@@ -95,9 +98,11 @@ DECLARE
   v_usuario_id UUID;
   v_usuario_email TEXT;
   v_correlation_id UUID;
-  v_estado_pedido JSONB;
-  v_pedidos_restantes INT;
+  v_calc_res JSONB;
+  v_pedido_pronto BOOLEAN;
+  v_pedidos_restantes_abertos INT;
   v_pedidos_total INT;
+  v_pedidos_concluidos INT;
   v_op_concluida BOOLEAN := false;
 BEGIN
   -- Resolve operator
@@ -107,7 +112,7 @@ BEGIN
     v_usuario_email := 'sistema';
   END IF;
 
-  -- Lock and fetch Pedido
+  -- LOCK hierarchy: 1. pedidos
   SELECT * INTO v_pedido
   FROM public.pedidos
   WHERE id = p_pedido_id
@@ -117,24 +122,29 @@ BEGIN
     RAISE EXCEPTION 'Pedido não encontrado.';
   END IF;
 
+  -- Validate Pedido is associated with an active OP
   IF v_pedido.ordem_producao_id IS NULL THEN
     RAISE EXCEPTION 'Pedido não está associado a nenhuma Ordem de Produção.';
   END IF;
 
-  -- Lock and fetch OP
+  -- LOCK hierarchy: 2. ordem_producao
   SELECT * INTO v_op
   FROM public.ordem_producao
   WHERE id = v_pedido.ordem_producao_id
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Ordem de Produção associada não encontrada.';
+    RAISE EXCEPTION 'Ordem de Produção correspondente não encontrada.';
   END IF;
 
-  -- Idempotency check: if status is already pronto, return immediately
+  IF v_op.status IN ('Concluída', 'Arquivada') THEN
+    RAISE EXCEPTION 'Não é permitido concluir pedidos de uma Ordem de Produção concluída ou arquivada.';
+  END IF;
+
+  -- Idempotency Check: if already pronto, skip update and return current state
   IF v_pedido.status = 'pronto' THEN
     SELECT COUNT(1), COUNT(1) FILTER (WHERE status = 'pronto')
-    INTO v_pedidos_total, v_pedidos_restantes
+    INTO v_pedidos_total, v_pedidos_concluidos
     FROM public.pedidos
     WHERE ordem_producao_id = v_op.id;
 
@@ -147,29 +157,32 @@ BEGIN
       'ordem_producao', jsonb_build_object(
         'id', v_op.id,
         'concluida', (v_op.status = 'Concluída'),
-        'pedidos_concluidos', v_pedidos_restantes,
+        'pedidos_concluidos', v_pedidos_concluidos,
         'pedidos_total', v_pedidos_total
       )
     );
   END IF;
 
-  IF v_op.status IN ('Concluída', 'Arquivada') THEN
-    RAISE EXCEPTION 'Não é permitido concluir pedidos de uma Ordem de Produção concluída ou arquivada.';
+  -- Validate operational readiness (calcular_estado_pedido)
+  v_calc_res := public.calcular_estado_pedido(p_pedido_id);
+  v_pedido_pronto := (v_calc_res ->> 'pedido_pronto')::BOOLEAN;
+
+  -- Ensure order has items (total > 0)
+  IF (v_calc_res ->> 'itens_total')::INT = 0 THEN
+    RAISE EXCEPTION 'O pedido não possui itens cadastrados na Ordem de Produção.';
   END IF;
 
-  -- Validate operational readiness via calcular_estado_pedido()
-  v_estado_pedido := public.calcular_estado_pedido(p_pedido_id);
-  IF NOT (v_estado_pedido ->> 'pedido_pronto')::BOOLEAN THEN
-    RAISE EXCEPTION 'Pedido não está pronto para conclusão (existem itens pendentes ou com problemas).';
+  IF NOT v_pedido_pronto THEN
+    RAISE EXCEPTION 'O pedido possui itens pendentes ou com problemas e não pode ser concluído.';
   END IF;
 
-  -- Update status of Pedido
+  -- Update pedido status to pronto
   UPDATE public.pedidos
   SET status = 'pronto',
-      atualizado_em = now()
+      updated_at = now()
   WHERE id = p_pedido_id;
 
-  -- Write structured log for pedido conclusion
+  -- Log versioned history audit
   v_correlation_id := gen_random_uuid();
 
   INSERT INTO public.historico (
@@ -195,14 +208,14 @@ BEGIN
     )
   );
 
-  -- Check if all pedidos associated with this OP are now completed (status = 'pronto')
-  SELECT COUNT(1), COUNT(1) FILTER (WHERE status = 'pronto')
-  INTO v_pedidos_total, v_pedidos_restantes
+  -- Check if all associated orders are now completed ('pronto')
+  SELECT COUNT(1) FILTER (WHERE status != 'pronto')
+  INTO v_pedidos_restantes_abertos
   FROM public.pedidos
   WHERE ordem_producao_id = v_op.id;
 
-  IF v_pedidos_total > 0 AND v_pedidos_restantes = v_pedidos_total THEN
-    -- Conclude the OP automatically
+  IF v_pedidos_restantes_abertos = 0 THEN
+    -- Complete the OP
     UPDATE public.ordem_producao
     SET status = 'Concluída',
         concluido_em = now(),
@@ -211,6 +224,7 @@ BEGIN
 
     v_op_concluida := true;
 
+    -- Log OP conclusion
     INSERT INTO public.historico (
       entidade,
       entidade_id,
@@ -223,7 +237,7 @@ BEGIN
       v_op.id,
       v_usuario_email,
       'ORDEM_PRODUCAO_CONCLUIDA'::public.historico_acao,
-      'Ordem de Produção concluída automaticamente após conclusão de todos os pedidos.',
+      'Ordem de Produção concluída automaticamente após a conclusão de todos os pedidos.',
       jsonb_build_object(
         'schema_version', 1,
         'correlation_id', v_correlation_id,
@@ -234,6 +248,12 @@ BEGIN
     );
   END IF;
 
+  -- Re-calculate counts
+  SELECT COUNT(1), COUNT(1) FILTER (WHERE status = 'pronto')
+  INTO v_pedidos_total, v_pedidos_concluidos
+  FROM public.pedidos
+  WHERE ordem_producao_id = v_op.id;
+
   RETURN jsonb_build_object(
     'pedido', jsonb_build_object(
       'id', p_pedido_id,
@@ -243,14 +263,14 @@ BEGIN
     'ordem_producao', jsonb_build_object(
       'id', v_op.id,
       'concluida', v_op_concluida,
-      'pedidos_concluidos', v_pedidos_restantes,
+      'pedidos_concluidos', v_pedidos_concluidos,
       'pedidos_total', v_pedidos_total
     )
   );
 END;
 $$;
 
--- 4. Override marcar_item_preparado with check for completed orders
+-- 4. Re-declare marcar_item_preparado to block modifications on concluded pedidos
 CREATE OR REPLACE FUNCTION public.marcar_item_preparado(
   p_ordem_producao_item_id UUID,
   p_preparado BOOLEAN
@@ -263,11 +283,11 @@ AS $$
 DECLARE
   v_item RECORD;
   v_op RECORD;
+  v_pedido RECORD;
   v_usuario_id UUID;
   v_usuario_email TEXT;
   v_correlation_id UUID;
   v_pedido_estado JSONB;
-  v_pedido_status TEXT;
 BEGIN
   v_usuario_id := auth.uid();
   SELECT email INTO v_usuario_email FROM auth.users WHERE id = v_usuario_id;
@@ -275,7 +295,7 @@ BEGIN
     v_usuario_email := 'sistema';
   END IF;
 
-  -- Validate item existence
+  -- Validate item
   SELECT * INTO v_item
   FROM public.ordem_producao_itens
   WHERE id = p_ordem_producao_item_id
@@ -285,13 +305,16 @@ BEGIN
     RAISE EXCEPTION 'Item da Ordem de Produção não encontrado.';
   END IF;
 
-  -- BLOCK edits if associated pedido is already pronto (concluded) (Correção 5)
-  SELECT status INTO v_pedido_status FROM public.pedidos WHERE id = v_item.pedido_id;
-  IF v_pedido_status = 'pronto' THEN
+  -- Validate Pedido is not already concluded
+  SELECT * INTO v_pedido
+  FROM public.pedidos
+  WHERE id = v_item.pedido_id;
+
+  IF v_pedido.status = 'pronto' THEN
     RAISE EXCEPTION 'Não é permitido alterar itens de um pedido concluído na produção.';
   END IF;
 
-  -- Validate OP existence and status
+  -- Validate OP
   SELECT * INTO v_op
   FROM public.ordem_producao
   WHERE id = v_item.ordem_producao_id;
@@ -304,6 +327,7 @@ BEGIN
     RAISE EXCEPTION 'Não é permitido alterar itens de uma Ordem de Produção concluída ou arquivada.';
   END IF;
 
+  -- Transition Validation
   IF v_item.preparado = p_preparado THEN
     v_pedido_estado := public.calcular_estado_pedido(v_item.pedido_id);
     RETURN jsonb_build_object(
@@ -389,7 +413,7 @@ BEGIN
 END;
 $$;
 
--- 5. Override marcar_item_problema with check for completed orders
+-- 5. Re-declare marcar_item_problema to block modifications on concluded pedidos
 CREATE OR REPLACE FUNCTION public.marcar_item_problema(
   p_ordem_producao_item_id UUID,
   p_possui_problema BOOLEAN,
@@ -404,11 +428,11 @@ AS $$
 DECLARE
   v_item RECORD;
   v_op RECORD;
+  v_pedido RECORD;
   v_usuario_id UUID;
   v_usuario_email TEXT;
   v_correlation_id UUID;
   v_pedido_estado JSONB;
-  v_pedido_status TEXT;
 BEGIN
   v_usuario_id := auth.uid();
   SELECT email INTO v_usuario_email FROM auth.users WHERE id = v_usuario_id;
@@ -416,7 +440,7 @@ BEGIN
     v_usuario_email := 'sistema';
   END IF;
 
-  -- Validate item existence
+  -- Validate item
   SELECT * INTO v_item
   FROM public.ordem_producao_itens
   WHERE id = p_ordem_producao_item_id
@@ -426,13 +450,16 @@ BEGIN
     RAISE EXCEPTION 'Item da Ordem de Produção não encontrado.';
   END IF;
 
-  -- BLOCK edits if associated pedido is already pronto (concluded) (Correção 5)
-  SELECT status INTO v_pedido_status FROM public.pedidos WHERE id = v_item.pedido_id;
-  IF v_pedido_status = 'pronto' THEN
+  -- Validate Pedido is not already concluded
+  SELECT * INTO v_pedido
+  FROM public.pedidos
+  WHERE id = v_item.pedido_id;
+
+  IF v_pedido.status = 'pronto' THEN
     RAISE EXCEPTION 'Não é permitido alterar itens de um pedido concluído na produção.';
   END IF;
 
-  -- Validate OP existence and status
+  -- Validate OP
   SELECT * INTO v_op
   FROM public.ordem_producao
   WHERE id = v_item.ordem_producao_id;
@@ -449,6 +476,7 @@ BEGIN
     RAISE EXCEPTION 'O tipo do problema é obrigatório ao registrar um problema.';
   END IF;
 
+  -- Transition Validation
   IF v_item.possui_problema = p_possui_problema AND 
      (NOT p_possui_problema OR (v_item.problema_tipo = p_tipo AND COALESCE(v_item.problema_descricao, '') = COALESCE(p_descricao, ''))) THEN
     v_pedido_estado := public.calcular_estado_pedido(v_item.pedido_id);
