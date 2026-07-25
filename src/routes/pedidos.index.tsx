@@ -46,7 +46,10 @@ function PedidosPage() {
         description="Pedidos do orçamento à entrega."
         actions={
           <Button asChild>
-            <Link to="/pedidos/novo"><Plus className="mr-2 h-4 w-4" /> Novo pedido</Link>
+            <Link
+              to="/pedidos/novo"
+              search={{}}
+            ><Plus className="mr-2 h-4 w-4" /> Novo pedido</Link>
           </Button>
         }
       />

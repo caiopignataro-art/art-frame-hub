@@ -277,7 +277,7 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel, initial
         toast.success("Item enviado para o novo pedido");
         reset();
         console.log("[Calculadora] navegando para /pedidos/novo");
-        navigate({ to: "/pedidos/novo" });
+        navigate({ to: "/pedidos/novo", search: {} });
       }
     } finally {
       setSaving(false);
