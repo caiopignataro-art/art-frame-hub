@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { ordemProducaoService } from "@/lib/services/ordem-producao.service";
 import { formatOPNumber, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { OrdemProducaoStatus } from "@/types/erp";
+import type { OrdemProducaoStatus } from "@/lib/constants/ordem-producao-status";
+import { getOrdemProducaoStatusLabel } from "@/lib/constants/ordem-producao-status";
 
 export const Route = createFileRoute("/producao/ordens")({
   head: () => ({ meta: [{ title: "Ordens de Produção — Molduraria ERP" }] }),
@@ -31,11 +32,13 @@ function OrdensProducaoPage() {
 
   const getStatusStyle = (status: OrdemProducaoStatus) => {
     switch (status) {
-      case "Em Preparação":
+      case "aberta":
         return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900";
-      case "Concluída":
+      case "em_andamento":
+        return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900";
+      case "concluida":
         return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900";
-      case "Arquivada":
+      case "cancelada":
         return "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800";
       default:
         return "bg-zinc-50 text-zinc-600 border-zinc-200";
@@ -73,22 +76,16 @@ function OrdensProducaoPage() {
       <div className="space-y-4">
         {/* Status Filters */}
         <div className="flex flex-wrap gap-2">
-          {(["Todas", "Em Preparação", "Concluídas", "Arquivadas"] as const).map((label) => {
-            const statusMap: Record<string, FilterType> = {
-              "Todas": "Todas",
-              "Em Preparação": "Em Preparação",
-              "Concluídas": "Concluída",
-              "Arquivadas": "Arquivada",
-            };
-            const targetStatus = statusMap[label];
-            const active = filter === targetStatus;
+          {(["Todas", "aberta", "em_andamento", "concluida", "cancelada"] as const).map((status) => {
+            const label = status === "Todas" ? "Todas" : getOrdemProducaoStatusLabel(status);
+            const active = filter === status;
 
             return (
               <Button
-                key={label}
+                key={status}
                 variant={active ? "default" : "outline"}
                 size="sm"
-                onClick={() => setFilter(targetStatus)}
+                onClick={() => setFilter(status)}
               >
                 {label}
               </Button>
@@ -137,7 +134,7 @@ function OrdensProducaoPage() {
                               getStatusStyle(op.status)
                             )}
                           >
-                            {op.status}
+                            {getOrdemProducaoStatusLabel(op.status)}
                           </span>
                         </td>
                         <td className="p-4 text-muted-foreground">

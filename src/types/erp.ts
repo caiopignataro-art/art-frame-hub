@@ -154,7 +154,8 @@ export interface PedidoItemDraft {
 }
 
 // ---------- Ordem de Produção ----------
-export type OrdemProducaoStatus = "Em Preparação" | "Concluída" | "Arquivada";
+import type { OrdemProducaoStatus } from "@/lib/constants/ordem-producao-status";
+export type { OrdemProducaoStatus };
 
 export interface OrdemProducao {
   id: string;

@@ -1111,7 +1111,6 @@ export type Database = {
         Args: {
           p_pedidos_ids: string[]
           p_observacoes: string | null
-          p_criado_por: string | null
         }
         Returns: string
       }
@@ -1119,7 +1118,6 @@ export type Database = {
         Args: {
           p_pedido_id: string
           p_motivo: string
-          p_usuario_id: string | null
         }
         Returns: Json
       }

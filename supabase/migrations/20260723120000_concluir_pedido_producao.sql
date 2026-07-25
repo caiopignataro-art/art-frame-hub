@@ -137,7 +137,7 @@ BEGIN
     RAISE EXCEPTION 'Ordem de Produção correspondente não encontrada.';
   END IF;
 
-  IF v_op.status IN ('Concluída', 'Arquivada') THEN
+  IF v_op.status IN ('concluida', 'cancelada') THEN
     RAISE EXCEPTION 'Não é permitido concluir pedidos de uma Ordem de Produção concluída ou arquivada.';
   END IF;
 
@@ -156,7 +156,7 @@ BEGIN
       ),
       'ordem_producao', jsonb_build_object(
         'id', v_op.id,
-        'concluida', (v_op.status = 'Concluída'),
+        'concluida', (v_op.status = 'concluida'),
         'pedidos_concluidos', v_pedidos_concluidos,
         'pedidos_total', v_pedidos_total
       )
@@ -217,7 +217,7 @@ BEGIN
   IF v_pedidos_restantes_abertos = 0 THEN
     -- Complete the OP
     UPDATE public.ordem_producao
-    SET status = 'Concluída',
+    SET status = 'concluida',
         concluido_em = now(),
         atualizado_em = now()
     WHERE id = v_op.id;
@@ -323,7 +323,7 @@ BEGIN
     RAISE EXCEPTION 'Ordem de Produção associada não encontrada.';
   END IF;
 
-  IF v_op.status IN ('Concluída', 'Arquivada') THEN
+  IF v_op.status IN ('concluida', 'cancelada') THEN
     RAISE EXCEPTION 'Não é permitido alterar itens de uma Ordem de Produção concluída ou arquivada.';
   END IF;
 
@@ -468,7 +468,7 @@ BEGIN
     RAISE EXCEPTION 'Ordem de Produção associada não encontrada.';
   END IF;
 
-  IF v_op.status IN ('Concluída', 'Arquivada') THEN
+  IF v_op.status IN ('concluida', 'cancelada') THEN
     RAISE EXCEPTION 'Não é permitido alterar itens de uma Ordem de Produção concluída ou arquivada.';
   END IF;
 

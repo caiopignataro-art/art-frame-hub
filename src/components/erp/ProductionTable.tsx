@@ -543,7 +543,7 @@ export function ProductionTable({ ordemData }: ProductionTableProps) {
 
   // OP status validation: disable controls if archived or concluded
   const isReadOnly =
-    ordemData.op.status === "Concluída" || ordemData.op.status === "Arquivada";
+    ordemData.op.status === "concluida" || ordemData.op.status === "cancelada";
 
   return (
     <div className="space-y-6">

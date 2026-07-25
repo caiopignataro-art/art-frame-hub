@@ -65,13 +65,9 @@ export const ordemProducaoService = {
       throw new Error("Selecione pelo menos um pedido para iniciar a produção.");
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id || null;
-
     const { data: opId, error } = await supabase.rpc("criar_ordem_producao", {
       p_pedidos_ids: pedidosIds,
       p_observacoes: observacoes,
-      p_criado_por: userId,
     });
 
     if (error) {
@@ -91,13 +87,9 @@ export const ordemProducaoService = {
   }> {
     const { pedidoId, motivo } = params;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id || null;
-
     const { data, error } = await supabase.rpc("remover_pedido_da_ordem_producao", {
       p_pedido_id: pedidoId,
       p_motivo: motivo,
-      p_usuario_id: userId,
     });
 
     if (error) {
@@ -116,7 +108,7 @@ export const ordemProducaoService = {
     const { error } = await supabase
       .from("ordem_producao")
       .update({
-        status: "Concluída",
+        status: "concluida",
         concluido_em: new Date().toISOString(),
       })
       .eq("id", id);
@@ -145,14 +137,14 @@ export const ordemProducaoService = {
 
     const temPedidosAtivos = pedidos.some((p) => p.status === "em_producao");
 
-    if (op.status === "Em Preparação" && temPedidosAtivos) {
+    if (op.status === "aberta" && temPedidosAtivos) {
       throw new Error("Não é permitido arquivar uma Ordem de Produção ativa contendo pedidos em andamento.");
     }
 
     const { error } = await supabase
       .from("ordem_producao")
       .update({
-        status: "Arquivada",
+        status: "cancelada",
       })
       .eq("id", id);
 

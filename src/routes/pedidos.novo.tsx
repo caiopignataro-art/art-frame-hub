@@ -283,7 +283,7 @@ function NovoPedidoPage() {
   const executarSalvar = async (finalStatus: import("@/types/erp").PedidoStatus, bypassOpCheck = false) => {
     const formaPagamento = modalidadeToFormaPagamento(modalidade);
 
-    if (isEdit && editId && pedidoEditQ.data?.ordem_producao_id && opQuery.data?.op.status === "Em Preparação" && !bypassOpCheck) {
+    if (isEdit && editId && pedidoEditQ.data?.ordem_producao_id && opQuery.data?.op.status === "aberta" && !bypassOpCheck) {
       const hasFabricationChanges = checkFabricationChanges();
       if (hasFabricationChanges) {
         setShowOpConfirmDialog(true);

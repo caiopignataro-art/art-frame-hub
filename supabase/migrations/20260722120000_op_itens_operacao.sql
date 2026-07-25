@@ -128,7 +128,7 @@ BEGIN
     RAISE EXCEPTION 'Ordem de Produção associada não encontrada.';
   END IF;
 
-  IF v_op.status IN ('Concluída', 'Arquivada') THEN
+  IF v_op.status IN ('concluida', 'cancelada') THEN
     RAISE EXCEPTION 'Não é permitido alterar itens de uma Ordem de Produção concluída ou arquivada.';
   END IF;
 
@@ -266,7 +266,7 @@ BEGIN
     RAISE EXCEPTION 'Ordem de Produção associada não encontrada.';
   END IF;
 
-  IF v_op.status IN ('Concluída', 'Arquivada') THEN
+  IF v_op.status IN ('concluida', 'cancelada') THEN
     RAISE EXCEPTION 'Não é permitido alterar itens de uma Ordem de Produção concluída ou arquivada.';
   END IF;
 

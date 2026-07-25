@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS public.ordem_producao (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   numero SERIAL NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('Em Preparação', 'Concluída', 'Arquivada')) DEFAULT 'Em Preparação',
+  status public.ordem_producao_status NOT NULL DEFAULT 'aberta',
   criado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
   atualizado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
   concluido_em TIMESTAMPTZ,
@@ -54,11 +54,11 @@ CREATE TRIGGER trg_audit_ordem_producao_itens
   AFTER INSERT OR UPDATE OR DELETE ON public.ordem_producao_itens
   FOR EACH ROW EXECUTE FUNCTION public.tg_audit_historico_simples();
 
+
 -- 7. RPC: criar_ordem_producao
 CREATE OR REPLACE FUNCTION public.criar_ordem_producao(
   p_pedidos_ids UUID[],
-  p_observacoes TEXT,
-  p_criado_por UUID
+  p_observacoes TEXT
 )
 RETURNS UUID
 LANGUAGE plpgsql
@@ -88,7 +88,7 @@ BEGIN
 
   -- 2. Create the OP
   INSERT INTO public.ordem_producao (status, criado_por, observacoes)
-  VALUES ('Em Preparação', p_criado_por, p_observacoes)
+  VALUES ('aberta', auth.uid(), p_observacoes)
   RETURNING id, numero INTO v_op_id, v_op_numero;
 
   -- 3. Bind orders to the OP and update status to 'em_producao'
@@ -110,7 +110,11 @@ BEGIN
   WHERE id = any(p_pedidos_ids);
   
   v_pedidos_count := array_length(p_pedidos_ids, 1);
-  v_usuario := COALESCE(current_setting('request.jwt.claim.email', true), 'sistema');
+  v_usuario := COALESCE(
+    nullif(current_setting('request.jwt.claim.email', true), ''),
+    auth.uid()::text,
+    'sistema'
+  );
 
   INSERT INTO public.historico (
     entidade,
@@ -138,11 +142,11 @@ BEGIN
 END;
 $$;
 
+
 -- 8. RPC: remover_pedido_da_ordem_producao
 CREATE OR REPLACE FUNCTION public.remover_pedido_da_ordem_producao(
   p_pedido_id UUID,
-  p_motivo TEXT,
-  p_usuario_id UUID
+  p_motivo TEXT
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -190,7 +194,11 @@ BEGIN
   WHERE pedido_id = p_pedido_id AND ordem_producao_id = v_op_id;
 
   -- 4. Write logs to history
-  v_usuario := COALESCE(current_setting('request.jwt.claim.email', true), 'sistema');
+  v_usuario := COALESCE(
+    nullif(current_setting('request.jwt.claim.email', true), ''),
+    auth.uid()::text,
+    'sistema'
+  );
 
   -- Log on the order (pedido)
   INSERT INTO public.historico (

@@ -9,7 +9,8 @@ import { Calendar, User, FileText, ArrowLeft, Archive, CheckCircle2 } from "luci
 import { ordemProducaoService } from "@/lib/services/ordem-producao.service";
 import { formatOPNumber, formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { OrdemProducaoStatus } from "@/types/erp";
+import type { OrdemProducaoStatus } from "@/lib/constants/ordem-producao-status";
+import { getOrdemProducaoStatusLabel } from "@/lib/constants/ordem-producao-status";
 import { ProductionTable } from "@/components/erp/ProductionTable";
 
 export const Route = createFileRoute("/producao/ordens/$id")({
@@ -82,11 +83,13 @@ function DetalheOrdemProducaoPage() {
 
   const getStatusStyle = (status: OrdemProducaoStatus) => {
     switch (status) {
-      case "Em Preparação":
+      case "aberta":
         return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900";
-      case "Concluída":
+      case "em_andamento":
+        return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900";
+      case "concluida":
         return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900";
-      case "Arquivada":
+      case "cancelada":
         return "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800";
       default:
         return "bg-zinc-50 text-zinc-600 border-zinc-200";
@@ -105,7 +108,7 @@ function DetalheOrdemProducaoPage() {
           </Button>
 
           <div className="flex gap-2">
-            {op.status === "Em Preparação" && (
+            {op.status === "aberta" && (
               <Button
                 size="sm"
                 variant="outline"
@@ -116,7 +119,7 @@ function DetalheOrdemProducaoPage() {
                 <CheckCircle2 className="mr-2 h-4 w-4" /> Concluir OP
               </Button>
             )}
-            {op.status !== "Arquivada" && (
+            {op.status !== "cancelada" && (
               <Button
                 size="sm"
                 variant="destructive"
@@ -144,7 +147,7 @@ function DetalheOrdemProducaoPage() {
                     getStatusStyle(op.status as OrdemProducaoStatus)
                   )}
                 >
-                  {op.status}
+                  {getOrdemProducaoStatusLabel(op.status as OrdemProducaoStatus)}
                 </span>
               </div>
             </div>
