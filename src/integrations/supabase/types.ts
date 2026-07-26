@@ -1082,7 +1082,20 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_ordens_producao: {
+        Row: {
+          id: string
+          numero: number
+          status: Database["public"]["Enums"]["ordem_producao_status"]
+          criado_em: string
+          atualizado_em: string | null
+          concluido_em: string | null
+          criado_por: string | null
+          observacoes: string | null
+          qtd_pedidos: number
+          para_dia: string | null
+        }
+      }
     }
     Functions: {
       calcular_consumo_moldura: {
@@ -1149,6 +1162,12 @@ export type Database = {
         }
         Returns: Json
       }
+      cancelar_ordem_producao: {
+        Args: {
+          p_ordem_producao_id: string
+        }
+        Returns: undefined
+      }
       proximo_codigo_produto: { Args: never; Returns: string }
     }
     Enums: {
@@ -1196,8 +1215,8 @@ export type Database = {
         | "convertido"
       ordem_producao_status:
         | "aberta"
-        | "em_andamento"
         | "concluida"
+        | "arquivada"
         | "cancelada"
       pagamento_status:
         | "pendente"
@@ -1384,8 +1403,8 @@ export const Constants = {
       ],
       ordem_producao_status: [
         "aberta",
-        "em_andamento",
         "concluida",
+        "arquivada",
         "cancelada",
       ],
       pagamento_status: [

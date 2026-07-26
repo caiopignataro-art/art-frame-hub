@@ -25,11 +25,11 @@ import { Route as PedidosIndexRouteImport } from './routes/pedidos.index'
 import { Route as EstoqueIndexRouteImport } from './routes/estoque.index'
 import { Route as ProdutosImportacaoRouteImport } from './routes/produtos.importacao'
 import { Route as ProdutosEssenciaisRouteImport } from './routes/produtos.essenciais'
-import { Route as ProducaoOrdensRouteImport } from './routes/producao.ordens'
 import { Route as PedidosNovoRouteImport } from './routes/pedidos.novo'
 import { Route as EstoqueRetalhosRouteImport } from './routes/estoque.retalhos'
 import { Route as EstoqueOrdensRouteImport } from './routes/estoque.ordens'
 import { Route as EstoqueMovimentacoesRouteImport } from './routes/estoque.movimentacoes'
+import { Route as ProducaoOrdensIndexRouteImport } from './routes/producao.ordens.index'
 import { Route as ProducaoOrdensIdRouteImport } from './routes/producao.ordens.$id'
 
 const ProdutosRoute = ProdutosRouteImport.update({
@@ -112,11 +112,6 @@ const ProdutosEssenciaisRoute = ProdutosEssenciaisRouteImport.update({
   path: '/essenciais',
   getParentRoute: () => ProdutosRoute,
 } as any)
-const ProducaoOrdensRoute = ProducaoOrdensRouteImport.update({
-  id: '/ordens',
-  path: '/ordens',
-  getParentRoute: () => ProducaoRoute,
-} as any)
 const PedidosNovoRoute = PedidosNovoRouteImport.update({
   id: '/novo',
   path: '/novo',
@@ -137,10 +132,15 @@ const EstoqueMovimentacoesRoute = EstoqueMovimentacoesRouteImport.update({
   path: '/movimentacoes',
   getParentRoute: () => EstoqueRoute,
 } as any)
+const ProducaoOrdensIndexRoute = ProducaoOrdensIndexRouteImport.update({
+  id: '/ordens/',
+  path: '/ordens/',
+  getParentRoute: () => ProducaoRoute,
+} as any)
 const ProducaoOrdensIdRoute = ProducaoOrdensIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => ProducaoOrdensRoute,
+  id: '/ordens/$id',
+  path: '/ordens/$id',
+  getParentRoute: () => ProducaoRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -158,7 +158,6 @@ export interface FileRoutesByFullPath {
   '/estoque/ordens': typeof EstoqueOrdensRoute
   '/estoque/retalhos': typeof EstoqueRetalhosRoute
   '/pedidos/novo': typeof PedidosNovoRoute
-  '/producao/ordens': typeof ProducaoOrdensRouteWithChildren
   '/produtos/essenciais': typeof ProdutosEssenciaisRoute
   '/produtos/importacao': typeof ProdutosImportacaoRoute
   '/estoque/': typeof EstoqueIndexRoute
@@ -166,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/producao/': typeof ProducaoIndexRoute
   '/produtos/': typeof ProdutosIndexRoute
   '/producao/ordens/$id': typeof ProducaoOrdensIdRoute
+  '/producao/ordens/': typeof ProducaoOrdensIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -178,7 +178,6 @@ export interface FileRoutesByTo {
   '/estoque/ordens': typeof EstoqueOrdensRoute
   '/estoque/retalhos': typeof EstoqueRetalhosRoute
   '/pedidos/novo': typeof PedidosNovoRoute
-  '/producao/ordens': typeof ProducaoOrdensRouteWithChildren
   '/produtos/essenciais': typeof ProdutosEssenciaisRoute
   '/produtos/importacao': typeof ProdutosImportacaoRoute
   '/estoque': typeof EstoqueIndexRoute
@@ -186,6 +185,7 @@ export interface FileRoutesByTo {
   '/producao': typeof ProducaoIndexRoute
   '/produtos': typeof ProdutosIndexRoute
   '/producao/ordens/$id': typeof ProducaoOrdensIdRoute
+  '/producao/ordens': typeof ProducaoOrdensIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -203,7 +203,6 @@ export interface FileRoutesById {
   '/estoque/ordens': typeof EstoqueOrdensRoute
   '/estoque/retalhos': typeof EstoqueRetalhosRoute
   '/pedidos/novo': typeof PedidosNovoRoute
-  '/producao/ordens': typeof ProducaoOrdensRouteWithChildren
   '/produtos/essenciais': typeof ProdutosEssenciaisRoute
   '/produtos/importacao': typeof ProdutosImportacaoRoute
   '/estoque/': typeof EstoqueIndexRoute
@@ -211,6 +210,7 @@ export interface FileRoutesById {
   '/producao/': typeof ProducaoIndexRoute
   '/produtos/': typeof ProdutosIndexRoute
   '/producao/ordens/$id': typeof ProducaoOrdensIdRoute
+  '/producao/ordens/': typeof ProducaoOrdensIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -229,7 +229,6 @@ export interface FileRouteTypes {
     | '/estoque/ordens'
     | '/estoque/retalhos'
     | '/pedidos/novo'
-    | '/producao/ordens'
     | '/produtos/essenciais'
     | '/produtos/importacao'
     | '/estoque/'
@@ -237,6 +236,7 @@ export interface FileRouteTypes {
     | '/producao/'
     | '/produtos/'
     | '/producao/ordens/$id'
+    | '/producao/ordens/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -249,7 +249,6 @@ export interface FileRouteTypes {
     | '/estoque/ordens'
     | '/estoque/retalhos'
     | '/pedidos/novo'
-    | '/producao/ordens'
     | '/produtos/essenciais'
     | '/produtos/importacao'
     | '/estoque'
@@ -257,6 +256,7 @@ export interface FileRouteTypes {
     | '/producao'
     | '/produtos'
     | '/producao/ordens/$id'
+    | '/producao/ordens'
   id:
     | '__root__'
     | '/'
@@ -273,7 +273,6 @@ export interface FileRouteTypes {
     | '/estoque/ordens'
     | '/estoque/retalhos'
     | '/pedidos/novo'
-    | '/producao/ordens'
     | '/produtos/essenciais'
     | '/produtos/importacao'
     | '/estoque/'
@@ -281,6 +280,7 @@ export interface FileRouteTypes {
     | '/producao/'
     | '/produtos/'
     | '/producao/ordens/$id'
+    | '/producao/ordens/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -410,13 +410,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProdutosEssenciaisRouteImport
       parentRoute: typeof ProdutosRoute
     }
-    '/producao/ordens': {
-      id: '/producao/ordens'
-      path: '/ordens'
-      fullPath: '/producao/ordens'
-      preLoaderRoute: typeof ProducaoOrdensRouteImport
-      parentRoute: typeof ProducaoRoute
-    }
     '/pedidos/novo': {
       id: '/pedidos/novo'
       path: '/novo'
@@ -445,12 +438,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstoqueMovimentacoesRouteImport
       parentRoute: typeof EstoqueRoute
     }
+    '/producao/ordens/': {
+      id: '/producao/ordens/'
+      path: '/ordens'
+      fullPath: '/producao/ordens/'
+      preLoaderRoute: typeof ProducaoOrdensIndexRouteImport
+      parentRoute: typeof ProducaoRoute
+    }
     '/producao/ordens/$id': {
       id: '/producao/ordens/$id'
-      path: '/$id'
+      path: '/ordens/$id'
       fullPath: '/producao/ordens/$id'
       preLoaderRoute: typeof ProducaoOrdensIdRouteImport
-      parentRoute: typeof ProducaoOrdensRoute
+      parentRoute: typeof ProducaoRoute
     }
   }
 }
@@ -485,26 +485,16 @@ const PedidosRouteChildren: PedidosRouteChildren = {
 const PedidosRouteWithChildren =
   PedidosRoute._addFileChildren(PedidosRouteChildren)
 
-interface ProducaoOrdensRouteChildren {
-  ProducaoOrdensIdRoute: typeof ProducaoOrdensIdRoute
-}
-
-const ProducaoOrdensRouteChildren: ProducaoOrdensRouteChildren = {
-  ProducaoOrdensIdRoute: ProducaoOrdensIdRoute,
-}
-
-const ProducaoOrdensRouteWithChildren = ProducaoOrdensRoute._addFileChildren(
-  ProducaoOrdensRouteChildren,
-)
-
 interface ProducaoRouteChildren {
-  ProducaoOrdensRoute: typeof ProducaoOrdensRouteWithChildren
   ProducaoIndexRoute: typeof ProducaoIndexRoute
+  ProducaoOrdensIdRoute: typeof ProducaoOrdensIdRoute
+  ProducaoOrdensIndexRoute: typeof ProducaoOrdensIndexRoute
 }
 
 const ProducaoRouteChildren: ProducaoRouteChildren = {
-  ProducaoOrdensRoute: ProducaoOrdensRouteWithChildren,
   ProducaoIndexRoute: ProducaoIndexRoute,
+  ProducaoOrdensIdRoute: ProducaoOrdensIdRoute,
+  ProducaoOrdensIndexRoute: ProducaoOrdensIndexRoute,
 }
 
 const ProducaoRouteWithChildren = ProducaoRoute._addFileChildren(

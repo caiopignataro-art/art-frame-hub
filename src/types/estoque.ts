@@ -44,8 +44,8 @@ export const RESERVA_STATUS_LABEL: Record<ReservaStatus, string> = {
 
 export const OP_STATUS_LABEL: Record<OrdemProducaoStatus, string> = {
   aberta: "Aberta",
-  em_andamento: "Em andamento",
   concluida: "Concluída",
+  arquivada: "Arquivada",
   cancelada: "Cancelada",
 };
 

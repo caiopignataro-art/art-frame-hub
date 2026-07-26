@@ -33,5 +33,10 @@ export const productionCache = {
     qc.invalidateQueries({ queryKey: productionKeys.pedidos });
     qc.invalidateQueries({ queryKey: productionKeys.ordens });
     qc.invalidateQueries({ queryKey: productionKeys.ordem(opId) });
+  },
+  invalidateAfterOPCancelled(qc: QueryClient, opId: string) {
+    qc.invalidateQueries({ queryKey: productionKeys.pedidos });
+    qc.invalidateQueries({ queryKey: productionKeys.ordens });
+    qc.invalidateQueries({ queryKey: productionKeys.ordem(opId) });
   }
 };

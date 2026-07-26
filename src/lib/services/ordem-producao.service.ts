@@ -2,32 +2,19 @@ import { supabase } from "@/integrations/supabase/client";
 import type { OrdemProducao, OrdemProducaoStatus, PedidoComItens } from "@/types/erp";
 
 export const ordemProducaoService = {
-  async list(): Promise<(OrdemProducao & { qtd_pedidos: number })[]> {
+  async list(): Promise<(OrdemProducao & { qtd_pedidos: number; para_dia?: string })[]> {
     const { data: ops, error: opsError } = await supabase
-      .from("ordem_producao")
+      .from("v_ordens_producao")
       .select("*")
       .order("numero", { ascending: false });
 
     if (opsError) throw new Error(`Erro ao listar Ordens de Produção: ${opsError.message}`);
 
-    const { data: counts, error: countsError } = await supabase
-      .from("pedidos")
-      .select("ordem_producao_id")
-      .not("ordem_producao_id", "is", null);
-
-    if (countsError) throw new Error(`Erro ao obter contagem de pedidos: ${countsError.message}`);
-
-    const countsMap = new Map<string, number>();
-    for (const c of counts) {
-      if (c.ordem_producao_id) {
-        countsMap.set(c.ordem_producao_id, (countsMap.get(c.ordem_producao_id) ?? 0) + 1);
-      }
-    }
-
     return (ops ?? []).map((op) => ({
       ...op,
       status: op.status as OrdemProducaoStatus,
-      qtd_pedidos: countsMap.get(op.id) ?? 0,
+      qtd_pedidos: Number(op.qtd_pedidos || 0),
+      para_dia: op.para_dia ?? undefined,
     }));
   },
 
@@ -150,7 +137,7 @@ export const ordemProducaoService = {
     const { error } = await supabase
       .from("ordem_producao")
       .update({
-        status: "cancelada",
+        status: "arquivada",
       })
       .eq("id", id);
 
@@ -168,6 +155,16 @@ export const ordemProducaoService = {
       acao: "status_alterado",
       descricao: "Ordem de Produção arquivada.",
     });
+  },
+
+  async cancelar(id: string): Promise<void> {
+    const { error } = await supabase.rpc("cancelar_ordem_producao", {
+      p_ordem_producao_id: id,
+    });
+
+    if (error) {
+      throw new Error(`Erro ao cancelar Ordem de Produção: ${error.message}`);
+    }
   },
 
   async marcarItemPreparado(

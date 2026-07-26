@@ -166,6 +166,7 @@ export interface OrdemProducao {
   concluido_em: string | null;
   criado_por: string | null;
   observacoes: string | null;
+  para_dia?: string;
 }
 
 export interface OrdemProducaoItem {

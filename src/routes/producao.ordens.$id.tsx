@@ -1,11 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
-import { PageHeader } from "@/components/erp/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, User, FileText, ArrowLeft, Archive, CheckCircle2, AlertCircle } from "lucide-react";
+import { Calendar, User, FileText, ArrowLeft, Archive, CheckCircle2, AlertCircle, Trash2 } from "lucide-react";
 import { ordemProducaoService } from "@/lib/services/ordem-producao.service";
 import { formatOPNumber, formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,16 @@ import { ProductionTable } from "@/components/erp/ProductionTable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { productionKeys, productionCache } from "@/lib/services/production-cache";
 import { ProductionErrorAlert } from "@/components/production/ProductionErrorAlert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/producao/ordens/$id")({
   head: ({ params }) => ({ meta: [{ title: `OP #${params.id} — Molduraria ERP` }] }),
@@ -25,6 +35,7 @@ function DetalheOrdemProducaoPage() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const [confirmAction, setConfirmAction] = useState<"concluir" | "arquivar" | "cancelar" | null>(null);
 
   const { data: opData, isLoading, isError, refetch } = useQuery({
     queryKey: productionKeys.ordem(id),
@@ -38,8 +49,12 @@ function DetalheOrdemProducaoPage() {
     onSuccess: () => {
       toast.success("Ordem de Produção concluída!");
       productionCache.invalidateAfterOPStatusChanged(qc, id);
+      setConfirmAction(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      toast.error(e.message);
+      setConfirmAction(null);
+    },
   });
 
   const arquivarOp = useMutation({
@@ -47,9 +62,27 @@ function DetalheOrdemProducaoPage() {
     onSuccess: () => {
       toast.success("Ordem de Produção arquivada com sucesso!");
       productionCache.invalidateAfterOPStatusChanged(qc, id);
+      setConfirmAction(null);
       navigate({ to: "/producao/ordens" });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      toast.error(e.message);
+      setConfirmAction(null);
+    },
+  });
+
+  const cancelarOp = useMutation({
+    mutationFn: () => ordemProducaoService.cancelar(id),
+    onSuccess: () => {
+      toast.success("Ordem de Produção cancelada com sucesso!");
+      productionCache.invalidateAfterOPCancelled(qc, id);
+      setConfirmAction(null);
+      navigate({ to: "/producao/ordens" });
+    },
+    onError: (e: Error) => {
+      toast.error(e.message);
+      setConfirmAction(null);
+    },
   });
 
   if (isLoading) {
@@ -76,8 +109,8 @@ function DetalheOrdemProducaoPage() {
                 <Skeleton className="h-7 w-24 rounded-full" />
               </div>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[1, 2, 3, 4].map((i) => (
+            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="flex items-center gap-3 rounded-md bg-muted/30 p-3">
                   <Skeleton className="h-5 w-5 rounded" />
                   <div className="flex-1 space-y-1.5">
@@ -193,6 +226,8 @@ function DetalheOrdemProducaoPage() {
   const preparadosCount = opItens?.filter((oi: any) => oi.preparado).length ?? 0;
   const problemasCount = opItens?.filter((oi: any) => oi.possui_problema).length ?? 0;
 
+  const isPending = concluirOp.isPending || arquivarOp.isPending || cancelarOp.isPending;
+
   return (
     <>
       <div className="space-y-6">
@@ -210,21 +245,31 @@ function DetalheOrdemProducaoPage() {
                 size="sm"
                 variant="outline"
                 className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
-                onClick={() => concluirOp.mutate()}
-                disabled={concluirOp.isPending}
+                onClick={() => setConfirmAction("concluir")}
+                disabled={isPending}
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" /> Concluir OP
               </Button>
             )}
-            {op.status !== "cancelada" && (
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => arquivarOp.mutate()}
-                disabled={arquivarOp.isPending}
-              >
-                <Archive className="mr-2 h-4 w-4" /> Arquivar OP
-              </Button>
+            {op.status !== "cancelada" && op.status !== "arquivada" && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setConfirmAction("arquivar")}
+                  disabled={isPending}
+                >
+                  <Archive className="mr-2 h-4 w-4" /> Arquivar OP
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setConfirmAction("cancelar")}
+                  disabled={isPending}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> Cancelar OP
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -249,12 +294,20 @@ function DetalheOrdemProducaoPage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div className="flex items-center gap-3 rounded-md bg-muted/30 p-3">
               <Calendar className="h-5 w-5 text-muted-foreground" />
               <div>
                 <span className="block text-[10px] uppercase font-bold text-muted-foreground">Criado em</span>
                 <span className="text-sm font-medium text-foreground">{formatDate(op.criado_em)}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-md bg-muted/30 p-3 border border-primary/10">
+              <Calendar className="h-5 w-5 text-primary" />
+              <div>
+                <span className="block text-[10px] uppercase font-bold text-primary">Para dia</span>
+                <span className="text-sm font-bold text-foreground">{op.para_dia ? formatDate(op.para_dia) : "—"}</span>
               </div>
             </div>
 
@@ -378,6 +431,38 @@ function DetalheOrdemProducaoPage() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction === "concluir" && "Concluir Ordem de Produção?"}
+              {confirmAction === "arquivar" && "Arquivar Ordem de Produção?"}
+              {confirmAction === "cancelar" && "Cancelar Ordem de Produção?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction === "concluir" && "Esta ação mudará o status desta OP para Concluída. Todos os pedidos vinculados permanecerão associados a ela."}
+              {confirmAction === "arquivar" && "Esta ação mudará o status desta OP para Arquivada. O vínculo com os pedidos será mantido para fins de histórico."}
+              {confirmAction === "cancelar" && "ATENÇÃO: Ao cancelar a Ordem de Produção, todos os pedidos vinculados retornarão para o status Aprovado no Kanban e a OP será inativada permanentemente."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              className={confirmAction === "cancelar" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+              disabled={isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (confirmAction === "concluir") concluirOp.mutate();
+                if (confirmAction === "arquivar") arquivarOp.mutate();
+                if (confirmAction === "cancelar") cancelarOp.mutate();
+              }}
+            >
+              {isPending ? "Aguarde..." : "Confirmar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
