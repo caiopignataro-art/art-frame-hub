@@ -27,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { productionKeys, productionCache } from "@/lib/services/production-cache";
 import {
   ordemProducaoService,
   type ProductionOperationResult,
@@ -120,7 +121,7 @@ export function ConcluirPedidoButton({
   disabled?: boolean;
 }) {
   const qc = useQueryClient();
-  const queryKey = ["ordem_producao", opId];
+  const queryKey = productionKeys.ordem(opId);
   const [isOpen, setIsOpen] = React.useState(false);
 
   const mutation = useMutation({
@@ -181,6 +182,7 @@ export function ConcluirPedidoButton({
         };
       });
       toast.success("Pedido concluído com sucesso!");
+      productionCache.invalidateAfterPedidoCompleted(qc, opId);
       setIsOpen(false);
     },
   });
@@ -238,7 +240,7 @@ export function PreparedItemControl({
   disabled?: boolean;
 }) {
   const qc = useQueryClient();
-  const queryKey = ["ordem_producao", opId];
+  const queryKey = productionKeys.ordem(opId);
 
   const mutation = useMutation({
     mutationFn: (newVal: boolean) => ordemProducaoService.marcarItemPreparado(itemId, newVal),
@@ -282,6 +284,7 @@ export function PreparedItemControl({
           ),
         };
       });
+      productionCache.invalidateAfterItemUpdated(qc, opId);
     },
   });
 
@@ -341,7 +344,7 @@ export function ProblemItemControl({
   disabled?: boolean;
 }) {
   const qc = useQueryClient();
-  const queryKey = ["ordem_producao", opId];
+  const queryKey = productionKeys.ordem(opId);
   const [isOpen, setIsOpen] = React.useState(false);
   const [tipo, setTipo] = React.useState(problemaTipo || "MATERIAL_FALTANTE");
   const [descricao, setDescricao] = React.useState(problemaDescricao || "");
@@ -398,6 +401,7 @@ export function ProblemItemControl({
           ),
         };
       });
+      productionCache.invalidateAfterItemUpdated(qc, opId);
       setIsOpen(false);
     },
   });

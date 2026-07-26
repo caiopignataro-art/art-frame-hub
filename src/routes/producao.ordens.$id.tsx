@@ -5,13 +5,16 @@ import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, User, FileText, ArrowLeft, Archive, CheckCircle2 } from "lucide-react";
+import { Calendar, User, FileText, ArrowLeft, Archive, CheckCircle2, AlertCircle } from "lucide-react";
 import { ordemProducaoService } from "@/lib/services/ordem-producao.service";
 import { formatOPNumber, formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { OrdemProducaoStatus } from "@/lib/constants/ordem-producao-status";
-import { getOrdemProducaoStatusLabel } from "@/lib/constants/ordem-producao-status";
+import { getOrdemProducaoStatusLabel, getOrdemProducaoStatusStyle } from "@/lib/constants/ordem-producao-status";
 import { ProductionTable } from "@/components/erp/ProductionTable";
+import { Skeleton } from "@/components/ui/skeleton";
+import { productionKeys, productionCache } from "@/lib/services/production-cache";
+import { ProductionErrorAlert } from "@/components/production/ProductionErrorAlert";
 
 export const Route = createFileRoute("/producao/ordens/$id")({
   head: ({ params }) => ({ meta: [{ title: `OP #${params.id} — Molduraria ERP` }] }),
@@ -23,17 +26,18 @@ function DetalheOrdemProducaoPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: opData, isLoading, error } = useQuery({
-    queryKey: ["ordem_producao", id],
+  const { data: opData, isLoading, isError, refetch } = useQuery({
+    queryKey: productionKeys.ordem(id),
     queryFn: () => ordemProducaoService.get(id),
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
   const concluirOp = useMutation({
     mutationFn: () => ordemProducaoService.concluir(id),
     onSuccess: () => {
       toast.success("Ordem de Produção concluída!");
-      qc.invalidateQueries({ queryKey: ["ordem_producao", id] });
-      qc.invalidateQueries({ queryKey: ["ordens_producao"] });
+      productionCache.invalidateAfterOPStatusChanged(qc, id);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -42,8 +46,7 @@ function DetalheOrdemProducaoPage() {
     mutationFn: () => ordemProducaoService.arquivar(id),
     onSuccess: () => {
       toast.success("Ordem de Produção arquivada com sucesso!");
-      qc.invalidateQueries({ queryKey: ["ordem_producao", id] });
-      qc.invalidateQueries({ queryKey: ["ordens_producao"] });
+      productionCache.invalidateAfterOPStatusChanged(qc, id);
       navigate({ to: "/producao/ordens" });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -52,14 +55,97 @@ function DetalheOrdemProducaoPage() {
   if (isLoading) {
     return (
       <AppShell title="Produção">
-        <div className="flex h-64 items-center justify-center">
-          <p className="text-sm text-muted-foreground">Carregando detalhes da Ordem de Produção...</p>
+        <div className="space-y-6 animate-pulse" role="status" aria-busy="true" aria-label="Carregando detalhes da ordem de produção">
+          {/* Back button skeleton */}
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-9 w-36" />
+            <div className="flex gap-2">
+              <Skeleton className="h-9 w-28" />
+              <Skeleton className="h-9 w-28" />
+            </div>
+          </div>
+
+          {/* Cabeçalho Skeleton */}
+          <Card className="border-l-4 border-l-primary/40">
+            <CardHeader className="pb-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-8 w-44" />
+                </div>
+                <Skeleton className="h-7 w-24 rounded-full" />
+              </div>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-3 rounded-md bg-muted/30 p-3">
+                  <Skeleton className="h-5 w-5 rounded" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-4 w-28" />
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Resumo/Métricas Cards Skeletons */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Card key={i}>
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-3 w-24" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-12" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Tabela Interativa Skeleton */}
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-5 w-40" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Skeleton className="h-9 w-64" />
+                <Skeleton className="h-9 w-40" />
+              </div>
+              <div className="space-y-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Histórico Cronológico Skeleton */}
+          <Card>
+            <CardHeader className="border-b border-border">
+              <Skeleton className="h-5 w-36" />
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-start gap-4">
+                  <Skeleton className="h-4 w-4 rounded-full mt-1" />
+                  <div className="flex-1 space-y-2">
+                    <div className="flex justify-between">
+                      <Skeleton className="h-4 w-1/3" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </div>
       </AppShell>
     );
   }
 
-  if (error || !opData) {
+  if (isError) {
     return (
       <AppShell title="Produção">
         <div className="space-y-4">
@@ -68,8 +154,34 @@ function DetalheOrdemProducaoPage() {
               <ArrowLeft className="mr-2 h-4 w-4" /> Voltar para a lista
             </Link>
           </Button>
-          <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-center">
-            <p className="text-sm font-semibold text-destructive">Ordem de Produção não encontrada ou erro na consulta.</p>
+          <div className="max-w-md mx-auto">
+            <ProductionErrorAlert
+              title="Erro de Conexão"
+              description="Não foi possível carregar os dados desta Ordem de Produção."
+              onRetry={refetch}
+            />
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (!opData) {
+    return (
+      <AppShell title="Produção">
+        <div className="space-y-4" role="alert">
+          <Button asChild size="sm" variant="ghost">
+            <Link to="/producao/ordens">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Voltar para a lista
+            </Link>
+          </Button>
+          <div className="rounded-lg border border-muted bg-muted/10 p-6 text-center space-y-3 max-w-md mx-auto">
+            <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto" />
+            <p className="text-sm font-semibold text-foreground">Ordem de Produção não encontrada.</p>
+            <p className="text-xs text-muted-foreground">Ela pode ter sido removida ou o link está incorreto.</p>
+            <Button asChild size="sm" variant="default" className="mt-2">
+              <Link to="/producao/ordens">Voltar para Lista</Link>
+            </Button>
           </div>
         </div>
       </AppShell>
@@ -81,23 +193,8 @@ function DetalheOrdemProducaoPage() {
   const preparadosCount = opItens?.filter((oi: any) => oi.preparado).length ?? 0;
   const problemasCount = opItens?.filter((oi: any) => oi.possui_problema).length ?? 0;
 
-  const getStatusStyle = (status: OrdemProducaoStatus) => {
-    switch (status) {
-      case "aberta":
-        return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900";
-      case "em_andamento":
-        return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900";
-      case "concluida":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900";
-      case "cancelada":
-        return "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800";
-      default:
-        return "bg-zinc-50 text-zinc-600 border-zinc-200";
-    }
-  };
-
   return (
-    <AppShell title="Produção">
+    <>
       <div className="space-y-6">
         {/* Back and Action Buttons */}
         <div className="flex items-center justify-between">
@@ -144,7 +241,7 @@ function DetalheOrdemProducaoPage() {
                 <span
                   className={cn(
                     "inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold transition-colors",
-                    getStatusStyle(op.status as OrdemProducaoStatus)
+                    getOrdemProducaoStatusStyle(op.status as OrdemProducaoStatus)
                   )}
                 >
                   {getOrdemProducaoStatusLabel(op.status as OrdemProducaoStatus)}
@@ -281,6 +378,6 @@ function DetalheOrdemProducaoPage() {
           </CardContent>
         </Card>
       </div>
-    </AppShell>
+    </>
   );
 }

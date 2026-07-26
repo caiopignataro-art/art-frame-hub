@@ -20,6 +20,7 @@ import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProdutosIndexRouteImport } from './routes/produtos.index'
+import { Route as ProducaoIndexRouteImport } from './routes/producao.index'
 import { Route as PedidosIndexRouteImport } from './routes/pedidos.index'
 import { Route as EstoqueIndexRouteImport } from './routes/estoque.index'
 import { Route as ProdutosImportacaoRouteImport } from './routes/produtos.importacao'
@@ -85,6 +86,11 @@ const ProdutosIndexRoute = ProdutosIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => ProdutosRoute,
+} as any)
+const ProducaoIndexRoute = ProducaoIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProducaoRoute,
 } as any)
 const PedidosIndexRoute = PedidosIndexRouteImport.update({
   id: '/',
@@ -157,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/produtos/importacao': typeof ProdutosImportacaoRoute
   '/estoque/': typeof EstoqueIndexRoute
   '/pedidos/': typeof PedidosIndexRoute
+  '/producao/': typeof ProducaoIndexRoute
   '/produtos/': typeof ProdutosIndexRoute
   '/producao/ordens/$id': typeof ProducaoOrdensIdRoute
 }
@@ -167,7 +174,6 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/historico': typeof HistoricoRoute
   '/pagamentos': typeof PagamentosRoute
-  '/producao': typeof ProducaoRouteWithChildren
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/ordens': typeof EstoqueOrdensRoute
   '/estoque/retalhos': typeof EstoqueRetalhosRoute
@@ -177,6 +183,7 @@ export interface FileRoutesByTo {
   '/produtos/importacao': typeof ProdutosImportacaoRoute
   '/estoque': typeof EstoqueIndexRoute
   '/pedidos': typeof PedidosIndexRoute
+  '/producao': typeof ProducaoIndexRoute
   '/produtos': typeof ProdutosIndexRoute
   '/producao/ordens/$id': typeof ProducaoOrdensIdRoute
 }
@@ -201,6 +208,7 @@ export interface FileRoutesById {
   '/produtos/importacao': typeof ProdutosImportacaoRoute
   '/estoque/': typeof EstoqueIndexRoute
   '/pedidos/': typeof PedidosIndexRoute
+  '/producao/': typeof ProducaoIndexRoute
   '/produtos/': typeof ProdutosIndexRoute
   '/producao/ordens/$id': typeof ProducaoOrdensIdRoute
 }
@@ -226,6 +234,7 @@ export interface FileRouteTypes {
     | '/produtos/importacao'
     | '/estoque/'
     | '/pedidos/'
+    | '/producao/'
     | '/produtos/'
     | '/producao/ordens/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -236,7 +245,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/historico'
     | '/pagamentos'
-    | '/producao'
     | '/estoque/movimentacoes'
     | '/estoque/ordens'
     | '/estoque/retalhos'
@@ -246,6 +254,7 @@ export interface FileRouteTypes {
     | '/produtos/importacao'
     | '/estoque'
     | '/pedidos'
+    | '/producao'
     | '/produtos'
     | '/producao/ordens/$id'
   id:
@@ -269,6 +278,7 @@ export interface FileRouteTypes {
     | '/produtos/importacao'
     | '/estoque/'
     | '/pedidos/'
+    | '/producao/'
     | '/produtos/'
     | '/producao/ordens/$id'
   fileRoutesById: FileRoutesById
@@ -364,6 +374,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/produtos/'
       preLoaderRoute: typeof ProdutosIndexRouteImport
       parentRoute: typeof ProdutosRoute
+    }
+    '/producao/': {
+      id: '/producao/'
+      path: '/'
+      fullPath: '/producao/'
+      preLoaderRoute: typeof ProducaoIndexRouteImport
+      parentRoute: typeof ProducaoRoute
     }
     '/pedidos/': {
       id: '/pedidos/'
@@ -482,10 +499,12 @@ const ProducaoOrdensRouteWithChildren = ProducaoOrdensRoute._addFileChildren(
 
 interface ProducaoRouteChildren {
   ProducaoOrdensRoute: typeof ProducaoOrdensRouteWithChildren
+  ProducaoIndexRoute: typeof ProducaoIndexRoute
 }
 
 const ProducaoRouteChildren: ProducaoRouteChildren = {
   ProducaoOrdensRoute: ProducaoOrdensRouteWithChildren,
+  ProducaoIndexRoute: ProducaoIndexRoute,
 }
 
 const ProducaoRouteWithChildren = ProducaoRoute._addFileChildren(

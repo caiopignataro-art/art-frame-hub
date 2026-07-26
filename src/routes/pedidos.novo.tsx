@@ -33,6 +33,7 @@ import { pedidosService } from "@/lib/services/pedidos.service";
 import { configuracoesService } from "@/lib/services/configuracoes.service";
 import { ordemProducaoService } from "@/lib/services/ordem-producao.service";
 import { novoPedidoStore } from "@/lib/services/calculadora.service";
+import { productionKeys, productionCache } from "@/lib/services/production-cache";
 import { formatBRL } from "@/lib/format";
 import type { PedidoItemDraft, Cliente } from "@/types/erp";
 import {
@@ -318,10 +319,11 @@ function NovoPedidoPage() {
         });
         toast.success(`Pedido #${pedido.numero_pedido} criado`);
       }
-      qc.invalidateQueries({ queryKey: ["pedidos"] });
+      productionCache.invalidateAfterPedidoStatusChanged(qc);
       qc.invalidateQueries({ queryKey: ["pagamentos"] });
       if (isEdit && editId) {
         qc.invalidateQueries({ queryKey: ["pedido", editId] });
+        qc.invalidateQueries({ queryKey: productionKeys.ordens });
         qc.invalidateQueries({ queryKey: ["ordem_producao"] });
       }
       navigate({ to: "/pedidos" });
