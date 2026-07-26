@@ -70,11 +70,17 @@ export const ordemProducaoService = {
       p_observacoes: observacoes,
     });
 
+    console.log("===== RPC criar_ordem_producao =====");
+    console.log("Parâmetros enviados:", {
+      p_pedidos_ids: pedidosIds,
+      p_observacoes: observacoes,
+    });
+    console.log("Resposta (data):", opId);
+    console.log("Objeto error:", error);
+    console.log("===================================");
+
     if (error) {
-      if (error.message.includes("não estão aptos para produção")) {
-        throw new Error("Um ou mais pedidos selecionados não estão aptos para produção. Atualize a listagem e tente novamente.");
-      }
-      throw new Error(`Erro ao criar Ordem de Produção: ${error.message}`);
+      throw error;
     }
 
     return opId;
