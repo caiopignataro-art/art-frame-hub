@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/erp/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronRight, X } from "lucide-react";
+import { X } from "lucide-react";
 import { pedidosService } from "@/lib/services/pedidos.service";
 import { ordemProducaoService } from "@/lib/services/ordem-producao.service";
 import { PedidoDetailDialog } from "@/components/erp/PedidoDetailDialog";
@@ -27,7 +27,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { pagamentosService } from "@/lib/services/pagamentos.service";
 
 export const Route = createFileRoute("/producao/")({
   component: ProducaoIndexPage,
@@ -40,11 +39,7 @@ const COLUMNS: { status: PedidoStatus; label: string }[] = [
   { status: "pronto", label: "Pronto" },
 ];
 
-function proximoStatus(atual: PedidoStatus): PedidoStatus | null {
-  const i = PEDIDO_FLUXO.indexOf(atual);
-  if (i < 0 || i >= PEDIDO_FLUXO.length - 1) return null;
-  return PEDIDO_FLUXO[i + 1];
-}
+
 
 interface ActionDefinition {
   label: string;
@@ -139,15 +134,6 @@ function ProducaoIndexPage() {
     });
   };
 
-  const avancar = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: PedidoStatus }) => pedidosService.setStatus(id, status),
-    onSuccess: () => {
-      productionCache.invalidateAfterPedidoStatusChanged(qc);
-      toast.success("Status atualizado");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   const arquivarLote = useMutation({
     mutationFn: async (ids: string[]) => {
       const validos = ids.filter((id) => statusPorId.get(id) === "orcamento");
@@ -240,15 +226,7 @@ function ProducaoIndexPage() {
         throw new Error("Nenhum pedido válido restante para retornar.");
       }
 
-      for (const id of validos) {
-        const pCompleto = await pedidosService.get(id);
-        if (pCompleto?.pagamentos) {
-          for (const pg of pCompleto.pagamentos) {
-            await pagamentosService.remove(pg.id);
-          }
-        }
-      }
-      return pedidosService.setStatusLote(validos, "orcamento");
+      await Promise.all(validos.map((id) => pedidosService.reverterAprovacao(id)));
     },
     onSuccess: () => {
       toast.success("Pedidos retornados para orçamento");
@@ -441,7 +419,6 @@ function ProducaoIndexPage() {
                     </p>
                   )}
                   {items.map((p) => {
-                    const next = proximoStatus(p.status);
                     const checked = selecionados.has(p.id);
                     return (
                       <div
@@ -469,18 +446,6 @@ function ProducaoIndexPage() {
                             <div className="text-xs text-muted-foreground">Entrega: {formatDate(p.data_entrega_prevista)}</div>
                           </button>
                         </div>
-
-                        {next && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="mt-2 w-full"
-                            onClick={() => avancar.mutate({ id: p.id, status: next })}
-                            disabled={avancar.isPending}
-                          >
-                            Avançar <ChevronRight className="ml-1 h-3 w-3" />
-                          </Button>
-                        )}
                       </div>
                     );
                   })}

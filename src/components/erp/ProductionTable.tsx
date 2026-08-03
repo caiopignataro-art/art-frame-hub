@@ -77,7 +77,7 @@ export const productionColumns: ProductionColumn[] = [
   { key: "passe_partout", label: "Passe-partout", align: "center", className: "w-[120px] text-center", exportable: true, printable: true },
   { key: "mao_de_obra", label: "Mão de Obra", className: "min-w-[140px]", exportable: true, printable: true },
   { key: "identificacao", label: "Identificação", className: "min-w-[160px]", exportable: true, printable: true },
-  { key: "preparado", label: "Preparado", align: "center", className: "w-[100px] text-center font-mono", exportable: false, printable: true },
+  { key: "preparado", label: "Pronto", align: "center", className: "w-[100px] text-center font-mono", exportable: false, printable: true },
   { key: "problemas", label: "Problemas", align: "center", className: "w-[100px] text-center font-mono", exportable: false, printable: true },
 ];
 
@@ -323,6 +323,120 @@ export function PreparedItemControl({
       }`}
     >
       {preparado ? "✔" : " "}
+    </button>
+  );
+}
+
+// Componente para preparação de componentes individuais (C-0005)
+export function PreparedComponentControl({
+  componente,
+  opId,
+  disabled
+}: {
+  componente: { id: string; tipo: string; descricao: string; preparado: boolean };
+  opId: string;
+  disabled?: boolean;
+}) {
+  const qc = useQueryClient();
+  const queryKey = productionKeys.ordem(opId);
+
+  const mutation = useMutation({
+    mutationFn: (newVal: boolean) => ordemProducaoService.marcarComponentePreparado(componente.id, newVal),
+    onMutate: async (newVal) => {
+      await qc.cancelQueries({ queryKey });
+      const previousOpData = qc.getQueryData(queryKey);
+
+      qc.setQueryData(queryKey, (prev: any) => {
+        if (!prev || !prev.opItens) return prev;
+        return {
+          ...prev,
+          opItens: prev.opItens.map((oi: any) => {
+            const hasComp = oi.componentes?.some((c: any) => c.id === componente.id);
+            if (!hasComp) return oi;
+
+            const updatedComponentes = oi.componentes.map((c: any) =>
+              c.id === componente.id ? { ...c, preparado: newVal } : c
+            );
+
+            const parentPrepared = !newVal ? false : oi.preparado;
+
+            return {
+              ...oi,
+              componentes: updatedComponentes,
+              preparado: parentPrepared,
+              possui_problema: parentPrepared ? false : oi.possui_problema,
+              problema_tipo: parentPrepared ? null : oi.problema_tipo,
+              problema_descricao: parentPrepared ? null : oi.problema_descricao,
+            };
+          }),
+        };
+      });
+
+      return { previousOpData };
+    },
+    onError: (err: any, newVal, context) => {
+      if (context?.previousOpData) {
+        qc.setQueryData(queryKey, context.previousOpData);
+      }
+      toast.error(err.message || "Erro ao atualizar componente.");
+    },
+    onSuccess: (result: ProductionOperationResult) => {
+      qc.setQueryData(queryKey, (prev: any) => {
+        if (!prev || !prev.opItens) return prev;
+        return {
+          ...prev,
+          opItens: prev.opItens.map((oi: any) => {
+            if (oi.id !== result.item.id) return oi;
+            return {
+              ...oi,
+              ...result.item,
+              componentes: oi.componentes.map((c: any) =>
+                c.id === componente.id ? { ...c, preparado: result.item.preparado } : c
+              ),
+            };
+          }),
+        };
+      });
+      productionCache.invalidateAfterItemUpdated(qc, opId);
+    },
+  });
+
+  const isPending = mutation.isPending;
+  const isError = mutation.isError;
+
+  if (isPending) {
+    return (
+      <span className="inline-flex h-4 w-4 items-center justify-center animate-spin text-muted-foreground font-mono text-[9px] mr-2">
+        ◌
+      </span>
+    );
+  }
+
+  if (isError) {
+    return (
+      <button
+        onClick={() => mutation.mutate(!componente.preparado)}
+        disabled={disabled}
+        title="Erro ao atualizar. Clique para tentar novamente."
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-destructive text-[9px] text-destructive hover:bg-destructive/10 transition-colors mr-2"
+      >
+        ⚠
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => mutation.mutate(!componente.preparado)}
+      disabled={disabled}
+      aria-label={`Marcar ${componente.descricao} como preparado`}
+      className={`inline-flex h-4 w-4 items-center justify-center rounded border transition-colors mr-2 ${
+        componente.preparado
+          ? "border-green-600 bg-green-600 text-white"
+          : "border-muted-foreground/30 text-transparent hover:border-muted-foreground/60"
+      }`}
+    >
+      {componente.preparado ? "✔" : " "}
     </button>
   );
 }
@@ -654,18 +768,65 @@ export function ProductionTableCell({ columnKey, row, opId, disabled }: Producti
     switch (columnKey) {
       case "quantidade":
         return row.quantidade;
-      case "moldura":
-        return row.moldura;
+      case "moldura": {
+        const comp = row.componentes?.find((c: any) => c.tipo === "MOLDURA");
+        return (
+          <div className="flex items-center">
+            {comp && <PreparedComponentControl componente={comp} opId={opId} disabled={disabled} />}
+            <span>{row.moldura}</span>
+          </div>
+        );
+      }
       case "medidas":
         return row.medidas;
-      case "protecao_frontal":
-        return row.protecaoFrontal;
-      case "fundo":
-        return row.fundo;
-      case "passe_partout":
-        return row.passePartout;
-      case "mao_de_obra":
-        return row.maoDeObra;
+      case "protecao_frontal": {
+        const comp = row.componentes?.find((c: any) => c.tipo === "VIDRO");
+        return (
+          <div className="flex items-center">
+            {comp && <PreparedComponentControl componente={comp} opId={opId} disabled={disabled} />}
+            <span>{row.protecaoFrontal}</span>
+          </div>
+        );
+      }
+      case "fundo": {
+        const comp = row.componentes?.find((c: any) => c.tipo === "FUNDO");
+        return (
+          <div className="flex items-center">
+            {comp && <PreparedComponentControl componente={comp} opId={opId} disabled={disabled} />}
+            <span>{row.fundo}</span>
+          </div>
+        );
+      }
+      case "passe_partout": {
+        const comp = row.componentes?.find((c: any) => c.tipo === "PASSEPARTOUT");
+        return (
+          <div className="flex items-center justify-center">
+            {comp && <PreparedComponentControl componente={comp} opId={opId} disabled={disabled} />}
+            <span>{row.passePartout}</span>
+          </div>
+        );
+      }
+      case "mao_de_obra": {
+        const compCanvas = row.componentes?.find((c: any) => c.tipo === "CHASSI");
+        const compImp = row.componentes?.find((c: any) => c.tipo === "IMPRESSAO");
+        return (
+          <div className="space-y-1">
+            {compCanvas && (
+              <div className="flex items-center">
+                <PreparedComponentControl componente={compCanvas} opId={opId} disabled={disabled} />
+                <span className="text-xs text-muted-foreground mr-1">[Chassi]</span>
+              </div>
+            )}
+            {compImp && (
+              <div className="flex items-center">
+                <PreparedComponentControl componente={compImp} opId={opId} disabled={disabled} />
+                <span className="text-xs text-muted-foreground mr-1">[Impressão]</span>
+              </div>
+            )}
+            <div>{row.maoDeObra}</div>
+          </div>
+        );
+      }
       case "identificacao":
         return row.identificacao;
       case "preparado":

@@ -35,6 +35,7 @@ import { ordemProducaoService } from "@/lib/services/ordem-producao.service";
 import { novoPedidoStore } from "@/lib/services/calculadora.service";
 import { productionKeys, productionCache } from "@/lib/services/production-cache";
 import { formatBRL } from "@/lib/format";
+import { calcularMedidaAbertura } from "@/lib/calculadora/calculator";
 import type { PedidoItemDraft, Cliente } from "@/types/erp";
 import {
   AlertDialog,
@@ -72,6 +73,41 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function obterDataEntregaPadrao(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 15);
+  // Se domingo (0), volta para o sábado anterior (hoje + 14 dias)
+  if (d.getDay() === 0) {
+    d.setDate(d.getDate() - 1);
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+function obterMedidasPrecificacao(item: PedidoItemDraft): { largura: number; altura: number } {
+  const calculo = (item.metadados as any)?.calculo;
+  if (calculo) {
+    return {
+      largura: Number(calculo.largura_abertura_cm),
+      altura: Number(calculo.altura_abertura_cm),
+    };
+  }
+  const entrada = (item.metadados as any)?.entrada;
+  if (entrada) {
+    const la = Number(entrada.largura_arte_cm) || 0;
+    const aa = Number(entrada.altura_arte_cm) || 0;
+    const somaPp = (entrada.passe_partouts ?? []).reduce(
+      (s: number, pp: any) => s + (Number(pp.medida_cm) || 0),
+      0,
+    );
+    const abertura = calcularMedidaAbertura(la, aa, somaPp);
+    return { largura: abertura.largura, altura: abertura.altura };
+  }
+  return {
+    largura: item.largura_cm,
+    altura: item.altura_cm,
+  };
+}
+
 function NovoPedidoPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -83,6 +119,7 @@ function NovoPedidoPage() {
   const [calcOpen, setCalcOpen] = React.useState(false);
   const [cadCliOpen, setCadCliOpen] = React.useState(false);
   const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
+  const [approving, setApproving] = React.useState(false);
 
   React.useEffect(() => {
     if (isEdit) return; // em modo edição, ignora sessionStorage
@@ -128,7 +165,7 @@ function NovoPedidoPage() {
 
   // Datas / observações
   const [dataPedido, setDataPedido] = React.useState<string>(todayIso());
-  const [dataEntrega, setDataEntrega] = React.useState<string>("");
+  const [dataEntrega, setDataEntrega] = React.useState<string>(() => isEdit ? "" : obterDataEntregaPadrao());
   const [observacoes, setObservacoes] = React.useState("");
   const [pedidoStatus, setPedidoStatus] = React.useState<import("@/types/erp").PedidoStatus | null>(null);
   const [numeroPedido, setNumeroPedido] = React.useState<number | null>(null);
@@ -292,6 +329,9 @@ function NovoPedidoPage() {
       }
     }
 
+    if (finalStatus === "aprovado" && isEdit) {
+      setApproving(true);
+    }
     setSaving(true);
     try {
       if (isEdit && editId) {
@@ -305,7 +345,11 @@ function NovoPedidoPage() {
           status: finalStatus,
           pagamento: snapshot,
         });
-        toast.success(`Pedido #${numeroPedido ?? ""} atualizado`);
+        if (finalStatus === "aprovado" && pedidoEditQ.data?.status === "orcamento") {
+          toast.success("Pedido salvo e aprovado com sucesso");
+        } else {
+          toast.success(`Pedido #${numeroPedido ?? ""} atualizado`);
+        }
       } else {
         const pedido = await pedidosService.criarPedidoCompleto({
           cliente_id: cliente?.id ?? null,
@@ -331,6 +375,7 @@ function NovoPedidoPage() {
       toast.error(e?.message ?? "Falha ao salvar pedido");
     } finally {
       setSaving(false);
+      setApproving(false);
     }
   };
 
@@ -383,6 +428,18 @@ function NovoPedidoPage() {
     if (!canSalvar) {
       toast.error("Adicione pelo menos um item e informe a data prevista de entrega.");
       return;
+    }
+    if (dataEntrega) {
+      const hoje = todayIso();
+      if (dataEntrega < hoje) {
+        toast.error("A entrega prevista não pode ser anterior à data atual.");
+        return;
+      }
+      const dataEntregaObj = new Date(dataEntrega + "T12:00:00");
+      if (dataEntregaObj.getDay() === 0) {
+        toast.error("Entregas não podem ser agendadas para domingos.");
+        return;
+      }
     }
     const formaPagamento = modalidadeToFormaPagamento(modalidade);
     const requerPagamento =
@@ -593,7 +650,12 @@ function NovoPedidoPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{i.largura_cm}×{i.altura_cm} cm</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const m = obterMedidasPrecificacao(i);
+                        return `${m.largura}×${m.altura} cm`;
+                      })()}
+                    </TableCell>
                     <TableCell className="text-right">{i.quantidade}</TableCell>
                     <TableCell className="text-right">{formatBRL(i.valor_unitario)}</TableCell>
                     <TableCell className="text-right">{formatBRL(i.valor_total)}</TableCell>
@@ -685,17 +747,20 @@ function NovoPedidoPage() {
 
           {aceitaDesconto && (
             <div>
-              <Label className="text-xs text-muted-foreground">Desconto</Label>
-              <Select value={String(descontoPct)} onValueChange={(v) => setDescontoPct(Number(v))}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {DESCONTOS_PCT.map((p) => (
-                    <SelectItem key={p} value={String(p)}>
-                      {p === 0 ? "Sem desconto" : `${p}%`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-xs text-muted-foreground">Desc.</Label>
+              <Input
+                type="number"
+                step="any"
+                min={0}
+                max={100}
+                value={descontoPct || ""}
+                onChange={(e) => {
+                  const val = e.target.value === "" ? 0 : Number(e.target.value);
+                  setDescontoPct(Math.max(0, Math.min(100, val)));
+                }}
+                className="mt-1"
+                placeholder="0%"
+              />
             </div>
           )}
 
@@ -766,12 +831,23 @@ function NovoPedidoPage() {
           Cancelar
         </Button>
         {isEdit ? (
-          <Button
-            onClick={() => handleSalvar(pedidoStatus ?? "orcamento")}
-            disabled={!canSalvar || saving || !pedidoStatus}
-          >
-            <Save className="mr-2 h-4 w-4" /> Salvar alterações
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              onClick={() => handleSalvar(pedidoStatus ?? "orcamento")}
+              disabled={!canSalvar || saving || !pedidoStatus}
+            >
+              <Save className="mr-2 h-4 w-4" /> Salvar alterações
+            </Button>
+            {pedidoStatus === "orcamento" && (
+              <Button
+                onClick={() => handleSalvar("aprovado")}
+                disabled={!canSalvar || saving}
+              >
+                {approving ? "Aprovando..." : "Salvar e Aprovar"}
+              </Button>
+            )}
+          </>
         ) : (
           <>
             <Button variant="outline" onClick={() => handleSalvar("orcamento")} disabled={!canSalvar || saving}>

@@ -173,3 +173,4 @@ export const produtosService = {
     return { afetados: preview.filter((r) => r.preco_novo !== r.preco_atual).length, impactoVenda: impacto };
   },
 };
+

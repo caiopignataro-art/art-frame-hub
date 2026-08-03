@@ -37,6 +37,7 @@ export interface ProductionRow {
   readonly problemaEm: string | null;
   readonly problemaPor: string | null;
   readonly status: OperationalStatus;
+  readonly componentes: readonly any[];
 }
 
 export interface ProductionGroupedOrder {
@@ -132,6 +133,7 @@ export function prepareProductionRows(ordemData: OrdemProducaoDetalhadaCompleta)
         problemaEm: opItem?.problema_em ?? null,
         problemaPor: opItem?.problema_por ?? null,
         status: getOperationalStatus({ preparado: prepVal, possui_problema: probVal }),
+        componentes: opItem?.componentes ?? [],
       };
     });
 

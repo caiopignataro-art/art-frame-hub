@@ -103,6 +103,13 @@ export const pedidosService = {
     return this.update(id, { status });
   },
 
+  async reverterAprovacao(id: string): Promise<void> {
+    const { error } = await supabase.rpc("rpc_reverter_aprovacao_pedido", {
+      p_pedido_id: id,
+    });
+    if (error) throw error;
+  },
+
   async remove(id: string) {
     const { error } = await supabase.from("pedidos").delete().eq("id", id);
     if (error) throw error;
@@ -264,12 +271,11 @@ export const pedidosService = {
       cliente_id: opts.cliente_id,
       valor_total: total,
       observacoes: opts.observacoes ?? null,
-      forma_pagamento: opts.forma_pagamento,
       data_pedido: opts.data_pedido,
       data_entrega_prevista: opts.data_entrega_prevista,
       metadados: metadados as any,
     };
-    // Não altera o status neste passo: aplicaremos ao final, após substituir
+    // Não altera status nem forma_pagamento neste passo: aplicaremos ao final, após substituir
     // os pagamentos, para o trigger `tg_validar_status_pedido` conseguir
     // validar o pedido já com as linhas de pagamento corretas.
 
@@ -333,19 +339,20 @@ export const pedidosService = {
       if (pErr) console.error("[atualizarPedidoCompleto] falha ao criar pagamento", pErr);
     }
 
-    // Aplica status final após pagamentos existirem.
-    if (opts.status) {
-      const { data: atualizado, error: sErr } = await supabase
-        .from("pedidos")
-        .update({ status: opts.status } as PedidoUpdate)
-        .eq("id", id)
-        .select("*")
-        .single();
-      if (sErr) throw sErr;
-      return atualizado as Pedido;
-    }
+    // Aplica status final e forma_pagamento após pagamentos existirem.
+    const finalPatch: PedidoUpdate = {
+      forma_pagamento: opts.forma_pagamento,
+      ...(opts.status ? { status: opts.status } : {}),
+    };
 
-    return pedido as Pedido;
+    const { data: atualizado, error: sErr } = await supabase
+      .from("pedidos")
+      .update(finalPatch)
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (sErr) throw sErr;
+    return atualizado as Pedido;
   },
 
   /** Marca pedido como WhatsApp enviado e salva pdf_url opcional. */

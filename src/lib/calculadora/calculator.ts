@@ -25,6 +25,17 @@ const round = (n: number, d = 4) => {
   return Math.round(n * f) / f;
 };
 
+export function calcularMedidaAbertura(
+  larguraInterna: number,
+  alturaInterna: number,
+  somaPassePartout: number,
+): { largura: number; altura: number } {
+  return {
+    largura: round(larguraInterna + somaPassePartout * 2, 2),
+    altura: round(alturaInterna + somaPassePartout * 2, 2),
+  };
+}
+
 const ORDEM_RANK: Record<PasseOrdem, number> = { interno: 0, meio: 1, externo: 2 };
 
 function materialDePreco(
@@ -103,8 +114,9 @@ export function calcular(input: CalcInput): CalcResult {
     0,
   );
 
-  const aberturaL = round(la + somaPp * 2, 2);
-  const aberturaA = round(aa + somaPp * 2, 2);
+  const abertura = calcularMedidaAbertura(la, aa, somaPp);
+  const aberturaL = abertura.largura;
+  const aberturaA = abertura.altura;
   const areaM2 = round((aberturaL * aberturaA) / 10000);
 
   // Acumulado por PP

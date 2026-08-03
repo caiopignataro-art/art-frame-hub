@@ -13,6 +13,7 @@ import type { OrdemProducaoStatus } from "@/lib/constants/ordem-producao-status"
 import { getOrdemProducaoStatusLabel, getOrdemProducaoStatusStyle } from "@/lib/constants/ordem-producao-status";
 import { ProductionTable } from "@/components/erp/ProductionTable";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { productionKeys, productionCache } from "@/lib/services/production-cache";
 import { ProductionErrorAlert } from "@/components/production/ProductionErrorAlert";
 import {
@@ -391,45 +392,47 @@ function DetalheOrdemProducaoPage() {
         {/* Tabela Interativa */}
         <ProductionTable ordemData={opData} />
 
-        {/* Histórico Cronológico */}
-        <Card>
-          <CardHeader className="border-b border-border">
-            <CardTitle className="text-base font-semibold">Histórico de Eventos</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            {historico.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-4">Nenhum evento registrado no histórico.</p>
-            ) : (
-              <div className="relative border-l border-border pl-6 space-y-6">
-                {historico.map((log) => {
-                  const date = new Date(log.created_at);
-                  const formattedDate = date.toLocaleDateString("pt-BR");
-                  const formattedTime = date.toLocaleTimeString("pt-BR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  });
+        {/* Histórico Cronológico em Accordion (C-0005) */}
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="historico" className="border rounded-lg bg-card px-6">
+            <AccordionTrigger className="text-base font-semibold hover:no-underline">
+              Histórico de Eventos
+            </AccordionTrigger>
+            <AccordionContent className="pt-2 pb-6">
+              {historico.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-4">Nenhum evento registrado no histórico.</p>
+              ) : (
+                <div className="relative border-l border-border pl-6 space-y-6 mt-4">
+                  {historico.map((log) => {
+                    const date = new Date(log.created_at);
+                    const formattedDate = date.toLocaleDateString("pt-BR");
+                    const formattedTime = date.toLocaleTimeString("pt-BR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
 
-                  return (
-                    <div key={log.id} className="relative">
-                      {/* Timeline dot */}
-                      <span className="absolute -left-[31px] top-1 flex h-4 w-4 items-center justify-center rounded-full border border-primary bg-background">
-                        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                      </span>
-                      <div className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between">
-                        <div className="font-medium text-foreground">{log.descricao}</div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="font-semibold">{log.usuario || "sistema"}</span>
-                          <span>•</span>
-                          <span>{formattedDate} {formattedTime}</span>
+                    return (
+                      <div key={log.id} className="relative">
+                        {/* Timeline dot */}
+                        <span className="absolute -left-[31px] top-1 flex h-4 w-4 items-center justify-center rounded-full border border-primary bg-background">
+                          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                        </span>
+                        <div className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between">
+                          <div className="font-medium text-foreground">{log.descricao}</div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="font-semibold">{log.usuario || "sistema"}</span>
+                            <span>•</span>
+                            <span>{formattedDate} {formattedTime}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </div>
 
       <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>

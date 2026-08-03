@@ -171,13 +171,33 @@ export const ordemProducaoService = {
     ordemProducaoItemId: string,
     preparado: boolean
   ): Promise<ProductionOperationResult> {
-    const { data, error } = await supabase.rpc("marcar_item_preparado", {
+    const { data, error } = await supabase.rpc("rpc_concluir_item_producao", {
       p_ordem_producao_item_id: ordemProducaoItemId,
+      p_pronto: preparado,
+    });
+
+    if (error) {
+      throw new Error(`Erro ao concluir item na produção: ${error.message}`);
+    }
+
+    const payload = data as any;
+    return {
+      item: payload.item as ProductionItemState,
+      pedido: payload.pedido as PedidoOperationalState,
+    };
+  },
+
+  async marcarComponentePreparado(
+    componenteId: string,
+    preparado: boolean
+  ): Promise<ProductionOperationResult> {
+    const { data, error } = await supabase.rpc("rpc_marcar_componente_preparado", {
+      p_componente_id: componenteId,
       p_preparado: preparado,
     });
 
     if (error) {
-      throw new Error(`Erro ao marcar item como preparado: ${error.message}`);
+      throw new Error(`Erro ao marcar componente como preparado: ${error.message}`);
     }
 
     const payload = data as any;
