@@ -63,48 +63,61 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
   );
 }
 
-export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
+export function AppShell({
+  children,
+  title,
+  layoutMode = "default",
+}: {
+  children: ReactNode;
+  title?: string;
+  layoutMode?: "default" | "focus";
+}) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const isFocus = layoutMode === "focus";
 
   return (
     <div className="flex min-h-screen bg-muted/30">
       {/* Sidebar fixa (desktop ≥ lg) */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
-        <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6">
-          <Frame className="h-6 w-6 text-sidebar-primary" />
-          <span className="text-base font-semibold tracking-tight">Molduraria ERP</span>
-        </div>
-        <NavList pathname={pathname} />
-        <div className="border-t border-sidebar-border p-4 text-xs text-sidebar-foreground/60">
-          v0.2 · ambiente de desenvolvimento
-        </div>
-      </aside>
+      {!isFocus && (
+        <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
+          <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6">
+            <Frame className="h-6 w-6 text-sidebar-primary" />
+            <span className="text-base font-semibold tracking-tight">Molduraria ERP</span>
+          </div>
+          <NavList pathname={pathname} />
+          <div className="border-t border-sidebar-border p-4 text-xs text-sidebar-foreground/60">
+            v0.2 · ambiente de desenvolvimento
+          </div>
+        </aside>
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 items-center gap-3 border-b border-border bg-background px-4 sm:px-6">
           {/* Botão hambúrguer (tablet + celular) */}
-          <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden"
-                aria-label="Abrir menu de navegação"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 bg-sidebar p-0 text-sidebar-foreground">
-              <SheetHeader className="border-b border-sidebar-border px-6 py-4">
-                <SheetTitle className="flex items-center gap-2 text-base">
-                  <Frame className="h-5 w-5 text-sidebar-primary" />
-                  Molduraria ERP
-                </SheetTitle>
-              </SheetHeader>
-              <NavList pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
-            </SheetContent>
-          </Sheet>
+          {!isFocus && (
+            <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden"
+                  aria-label="Abrir menu de navegação"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 bg-sidebar p-0 text-sidebar-foreground">
+                <SheetHeader className="border-b border-sidebar-border px-6 py-4">
+                  <SheetTitle className="flex items-center gap-2 text-base">
+                    <Frame className="h-5 w-5 text-sidebar-primary" />
+                    Molduraria ERP
+                  </SheetTitle>
+                </SheetHeader>
+                <NavList pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
+              </SheetContent>
+            </Sheet>
+          )}
           <h1 className="truncate text-lg font-semibold tracking-tight">{title ?? "Molduraria ERP"}</h1>
         </header>
         <main className="flex-1 overflow-auto p-4 sm:p-6">{children}</main>

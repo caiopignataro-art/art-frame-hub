@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import type { OrdemProducaoStatus } from "@/lib/constants/ordem-producao-status";
 import { getOrdemProducaoStatusLabel, getOrdemProducaoStatusStyle } from "@/lib/constants/ordem-producao-status";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AppShell } from "@/components/layout/AppShell";
+import { ProducaoNavTabs } from "@/components/production/ProducaoNavTabs";
 import { productionKeys, productionCache } from "@/lib/services/production-cache";
 import { ProductionErrorAlert } from "@/components/production/ProductionErrorAlert";
 import { toast } from "sonner";
@@ -95,8 +97,10 @@ function OrdensProducaoPage() {
   });
 
   return (
-    <>
-      <PageHeader
+    <AppShell title="Produção">
+      <ProducaoNavTabs />
+      <div className="space-y-4">
+        <PageHeader
         title="Ordens de Produção"
         description="Gerenciamento de lotes de fabricação e ordens permanentes."
       />
@@ -317,6 +321,7 @@ function OrdensProducaoPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+      </div>
+    </AppShell>
   );
 }

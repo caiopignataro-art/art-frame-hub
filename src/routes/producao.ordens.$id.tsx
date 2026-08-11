@@ -88,7 +88,7 @@ function DetalheOrdemProducaoPage() {
 
   if (isLoading) {
     return (
-      <AppShell title="Produção">
+      <AppShell title="Produção" layoutMode="focus">
         <div className="space-y-6 animate-pulse" role="status" aria-busy="true" aria-label="Carregando detalhes da ordem de produção">
           {/* Back button skeleton */}
           <div className="flex items-center justify-between">
@@ -181,7 +181,7 @@ function DetalheOrdemProducaoPage() {
 
   if (isError) {
     return (
-      <AppShell title="Produção">
+      <AppShell title="Produção" layoutMode="focus">
         <div className="space-y-4">
           <Button asChild size="sm" variant="ghost">
             <Link to="/producao/ordens">
@@ -202,7 +202,7 @@ function DetalheOrdemProducaoPage() {
 
   if (!opData) {
     return (
-      <AppShell title="Produção">
+      <AppShell title="Produção" layoutMode="focus">
         <div className="space-y-4" role="alert">
           <Button asChild size="sm" variant="ghost">
             <Link to="/producao/ordens">
@@ -230,7 +230,7 @@ function DetalheOrdemProducaoPage() {
   const isPending = concluirOp.isPending || arquivarOp.isPending || cancelarOp.isPending;
 
   return (
-    <>
+    <AppShell title="Produção" layoutMode="focus">
       <div className="space-y-6">
         {/* Back and Action Buttons */}
         <div className="flex items-center justify-between">
@@ -466,6 +466,6 @@ function DetalheOrdemProducaoPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </AppShell>
   );
 }

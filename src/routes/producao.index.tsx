@@ -14,6 +14,8 @@ import { formatDate } from "@/lib/format";
 import { PEDIDO_FLUXO, type PedidoStatus } from "@/types/erp";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AppShell } from "@/components/layout/AppShell";
+import { ProducaoNavTabs } from "@/components/production/ProducaoNavTabs";
 import { productionKeys, productionCache } from "@/lib/services/production-cache";
 import { ProductionErrorAlert } from "@/components/production/ProductionErrorAlert";
 
@@ -307,8 +309,10 @@ function ProducaoIndexPage() {
   const statusAtivo = activeSelectionStatus;
 
   return (
-    <>
-      <PageHeader title="Fluxo de produção" description="Visão Kanban dos pedidos aprovados em produção." />
+    <AppShell title="Produção">
+      <ProducaoNavTabs />
+      <div className="space-y-4">
+        <PageHeader title="Fluxo de produção" description="Visão Kanban dos pedidos aprovados em produção." />
       
       {isError ? (
         <div className="mx-auto max-w-md py-12">
@@ -480,6 +484,7 @@ function ProducaoIndexPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+      </div>
+    </AppShell>
   );
 }
