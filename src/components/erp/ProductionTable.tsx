@@ -48,7 +48,8 @@ export type ProductionColumnKey =
   | "protecao_frontal"
   | "fundo"
   | "passe_partout"
-  | "mao_de_obra"
+  | "impressao"
+  | "servicos"
   | "identificacao"
   | "preparado"
   | "problemas";
@@ -75,7 +76,8 @@ export const productionColumns: ProductionColumn[] = [
   { key: "protecao_frontal", label: "Proteção Frontal", className: "min-w-[140px]", exportable: true, printable: true },
   { key: "fundo", label: "Fundo", className: "min-w-[120px]", exportable: true, printable: true },
   { key: "passe_partout", label: "Passe-partout", align: "center", className: "w-[120px] text-center", exportable: true, printable: true },
-  { key: "mao_de_obra", label: "Mão de Obra", className: "min-w-[140px]", exportable: true, printable: true },
+  { key: "impressao", label: "Impressão", className: "min-w-[140px]", exportable: true, printable: true },
+  { key: "servicos", label: "Serviços", className: "min-w-[140px]", exportable: true, printable: true },
   { key: "identificacao", label: "Identificação", className: "min-w-[160px]", exportable: true, printable: true },
   { key: "preparado", label: "Pronto", align: "center", className: "w-[100px] text-center font-mono", exportable: false, printable: true },
   { key: "problemas", label: "Problemas", align: "center", className: "w-[100px] text-center font-mono", exportable: false, printable: true },
@@ -806,26 +808,17 @@ export function ProductionTableCell({ columnKey, row, opId, disabled }: Producti
           </div>
         );
       }
-      case "mao_de_obra": {
-        const compCanvas = row.componentes?.find((c: any) => c.tipo === "CHASSI");
-        const compImp = row.componentes?.find((c: any) => c.tipo === "IMPRESSAO");
+      case "impressao": {
+        const comp = row.componentes?.find((c: any) => c.tipo === "IMPRESSAO");
         return (
-          <div className="space-y-1">
-            {compCanvas && (
-              <div className="flex items-center">
-                <PreparedComponentControl componente={compCanvas} opId={opId} disabled={disabled} />
-                <span className="text-xs text-muted-foreground mr-1">[Chassi]</span>
-              </div>
-            )}
-            {compImp && (
-              <div className="flex items-center">
-                <PreparedComponentControl componente={compImp} opId={opId} disabled={disabled} />
-                <span className="text-xs text-muted-foreground mr-1">[Impressão]</span>
-              </div>
-            )}
-            <div>{row.maoDeObra}</div>
+          <div className="flex items-center">
+            {comp && <PreparedComponentControl componente={comp} opId={opId} disabled={disabled} />}
+            <span>{row.impressao}</span>
           </div>
         );
+      }
+      case "servicos": {
+        return <div>{row.servicos}</div>;
       }
       case "identificacao":
         return row.identificacao;

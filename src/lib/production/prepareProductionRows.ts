@@ -1,4 +1,5 @@
 import type { OrdemProducao, PedidoComItens } from "@/types/erp";
+import type { MaterialCalculado } from "@/lib/calculadora/types";
 
 export type OperationalStatus = "PENDENTE" | "PREPARADO" | "PROBLEMA";
 
@@ -26,7 +27,8 @@ export interface ProductionRow {
   readonly protecaoFrontal: string;
   readonly fundo: string;
   readonly passePartout: string;
-  readonly maoDeObra: string;
+  readonly impressao: string;
+  readonly servicos: string;
   readonly identificacao: string;
   readonly preparado: boolean;
   readonly preparadoEm: string | null;
@@ -81,28 +83,36 @@ export function prepareProductionRows(ordemData: OrdemProducaoDetalhadaCompleta)
         moldura = moldurasInput.map((m: any) => m.codigo || m.descricao).join(" + ");
       }
 
-      // Extract medidas
-      const medidas = `${Number(item.largura_cm || 0)} × ${Number(item.altura_cm || 0)}`;
+      // Extract medidas (Abertura com fallback para Medida Final)
+      const medAberturaL = md?.calculo?.largura_abertura_cm;
+      const medAberturaA = md?.calculo?.altura_abertura_cm;
+      const medidas = medAberturaL && medAberturaA
+        ? `${Number(medAberturaL)} × ${Number(medAberturaA)}`
+        : `${Number(item.largura_cm || 0)} × ${Number(item.altura_cm || 0)}`;
 
-      // Extract protecaoFrontal
-      const protecaoFrontal =
-        md?.calculo?.materiais?.find((m: any) => m.origem === "protecao_frontal")?.descricao || "—";
+      // Classificação dos materiais em UMA ÚNICA PASSAGEM (O(N))
+      const materiais: MaterialCalculado[] = md?.calculo?.materiais ?? [];
+      let protecaoFrontal = "—";
+      let fundo = "—";
+      let impressao = "—";
+      const servicosList: string[] = [];
 
-      // Extract fundo
-      const fundo =
-        md?.calculo?.materiais?.find((m: any) => m.origem === "fundo")?.descricao || "—";
+      for (const m of materiais) {
+        if (m.origem === "protecao_frontal") {
+          protecaoFrontal = m.descricao;
+        } else if (m.origem === "fundo") {
+          fundo = m.descricao;
+        } else if (m.origem === "impressao") {
+          impressao = m.descricao;
+        } else if (m.origem === "servico") {
+          servicosList.push(m.descricao);
+        }
+      }
+
+      const servicos = servicosList.length > 0 ? servicosList.join(", ") : "—";
 
       // Extract passePartout
       const passePartout = md?.entrada?.passe_partouts?.length > 0 ? "Sim" : "Não";
-
-      // Extract maoDeObra
-      let maoDeObra = "—";
-      const servicos = md?.calculo?.materiais
-        ?.filter((m: any) => m.origem === "servico")
-        ?.map((m: any) => m.descricao);
-      if (servicos && servicos.length > 0) {
-        maoDeObra = servicos.join(", ");
-      }
 
       // Extract identificacao
       const identificacao = md?.entrada?.observacoes || item.descricao || "—";
@@ -122,7 +132,8 @@ export function prepareProductionRows(ordemData: OrdemProducaoDetalhadaCompleta)
         protecaoFrontal,
         fundo,
         passePartout,
-        maoDeObra,
+        impressao,
+        servicos,
         identificacao,
         preparado: prepVal,
         preparadoEm: opItem?.preparado_em ?? null,
