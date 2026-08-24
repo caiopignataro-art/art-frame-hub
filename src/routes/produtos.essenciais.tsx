@@ -73,7 +73,7 @@ function EssenciaisPage() {
     <>
       <PageHeader
         title="Produtos Essenciais"
-        description="Cadastro manual de Proteção Frontal, Fundo, Impressão e Chassi. Códigos de 4 dígitos gerados automaticamente."
+        description="Cadastro manual de Proteção Frontal, Fundo, Impressão, Chassi e Serviços. Códigos de 4 dígitos gerados automaticamente."
         actions={
           <Button onClick={openCriar}>
             <Plus className="mr-2 h-4 w-4" />

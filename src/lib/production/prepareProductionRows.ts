@@ -1,5 +1,6 @@
-import type { OrdemProducao, PedidoComItens } from "@/types/erp";
+import type { OrdemProducao, PedidoComItens, OrdemProducaoItemComponente } from "@/types/erp";
 import type { MaterialCalculado } from "@/lib/calculadora/types";
+import { formatTelefoneUltimos4Digitos } from "@/lib/format";
 
 export type OperationalStatus = "PENDENTE" | "PREPARADO" | "PROBLEMA";
 
@@ -28,7 +29,9 @@ export interface ProductionRow {
   readonly fundo: string;
   readonly passePartout: string;
   readonly impressao: string;
+  readonly chassi: string;
   readonly servicos: string;
+  readonly servicosList: readonly string[];
   readonly identificacao: string;
   readonly preparado: boolean;
   readonly preparadoEm: string | null;
@@ -39,12 +42,14 @@ export interface ProductionRow {
   readonly problemaEm: string | null;
   readonly problemaPor: string | null;
   readonly status: OperationalStatus;
-  readonly componentes: readonly any[];
+  readonly componentes: readonly OrdemProducaoItemComponente[];
 }
 
 export interface ProductionGroupedOrder {
   readonly pedidoId: string;
   readonly pedidoNumero: number;
+  readonly clienteTelefone: string;
+  readonly dataEntregaPrevista: string | null;
   readonly itens: readonly ProductionRow[];
   readonly totalItens: number;
   readonly pedidoPronto: boolean;
@@ -90,11 +95,12 @@ export function prepareProductionRows(ordemData: OrdemProducaoDetalhadaCompleta)
         ? `${Number(medAberturaL)} × ${Number(medAberturaA)}`
         : `${Number(item.largura_cm || 0)} × ${Number(item.altura_cm || 0)}`;
 
-      // Classificação dos materiais em UMA ÚNICA PASSAGEM (O(N))
+      // Classificação dos materiais em UMA ÚNICA PASSAGEM (O(N)), preservando ordem
       const materiais: MaterialCalculado[] = md?.calculo?.materiais ?? [];
       let protecaoFrontal = "—";
       let fundo = "—";
       let impressao = "—";
+      const chassisList: string[] = [];
       const servicosList: string[] = [];
 
       for (const m of materiais) {
@@ -104,11 +110,14 @@ export function prepareProductionRows(ordemData: OrdemProducaoDetalhadaCompleta)
           fundo = m.descricao;
         } else if (m.origem === "impressao") {
           impressao = m.descricao;
+        } else if (m.origem === "chassi") {
+          chassisList.push(m.descricao);
         } else if (m.origem === "servico") {
-          servicosList.push(m.descricao);
+          servicosList.push(m.descricao); // preserva a ordem original da calculadora
         }
       }
 
+      const chassi = chassisList.length > 0 ? chassisList.join(" + ") : "—";
       const servicos = servicosList.length > 0 ? servicosList.join(", ") : "—";
 
       // Extract passePartout
@@ -133,7 +142,9 @@ export function prepareProductionRows(ordemData: OrdemProducaoDetalhadaCompleta)
         fundo,
         passePartout,
         impressao,
+        chassi,
         servicos,
+        servicosList,
         identificacao,
         preparado: prepVal,
         preparadoEm: opItem?.preparado_em ?? null,
@@ -144,13 +155,19 @@ export function prepareProductionRows(ordemData: OrdemProducaoDetalhadaCompleta)
         problemaEm: opItem?.problema_em ?? null,
         problemaPor: opItem?.problema_por ?? null,
         status: getOperationalStatus({ preparado: prepVal, possui_problema: probVal }),
-        componentes: opItem?.componentes ?? [],
+        componentes: (opItem?.componentes ?? []) as OrdemProducaoItemComponente[],
       };
     });
+
+    const rawTel = pedido.cliente?.whatsapp ?? pedido.cliente?.telefone;
+    const clienteTelefone = formatTelefoneUltimos4Digitos(rawTel);
+    const dataEntregaPrevista = pedido.data_entrega_prevista ?? null;
 
     return {
       pedidoId: pedido.id,
       pedidoNumero: pedido.numero_pedido,
+      clienteTelefone,
+      dataEntregaPrevista,
       itens: mappedItens,
       totalItens: mappedItens.length,
       pedidoPronto: !!(pedido as any).pedido_pronto,

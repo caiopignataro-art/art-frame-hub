@@ -27,6 +27,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { formatDate } from "@/lib/format";
 import { productionKeys, productionCache } from "@/lib/services/production-cache";
 import {
   ordemProducaoService,
@@ -49,7 +51,7 @@ export type ProductionColumnKey =
   | "fundo"
   | "passe_partout"
   | "impressao"
-  | "servicos"
+  | "chassi"
   | "identificacao"
   | "preparado"
   | "problemas";
@@ -77,7 +79,7 @@ export const productionColumns: ProductionColumn[] = [
   { key: "fundo", label: "Fundo", className: "min-w-[120px]", exportable: true, printable: true },
   { key: "passe_partout", label: "Passe-partout", align: "center", className: "w-[120px] text-center", exportable: true, printable: true },
   { key: "impressao", label: "Impressão", className: "min-w-[140px]", exportable: true, printable: true },
-  { key: "servicos", label: "Serviços", className: "min-w-[140px]", exportable: true, printable: true },
+  { key: "chassi", label: "Chassi", className: "min-w-[140px]", exportable: true, printable: true },
   { key: "identificacao", label: "Identificação", className: "min-w-[160px]", exportable: true, printable: true },
   { key: "preparado", label: "Pronto", align: "center", className: "w-[100px] text-center font-mono", exportable: false, printable: true },
   { key: "problemas", label: "Problemas", align: "center", className: "w-[100px] text-center font-mono", exportable: false, printable: true },
@@ -669,11 +671,17 @@ export function ProductionTable({ ordemData }: ProductionTableProps) {
     <div className="space-y-6">
       {groupedOrders.map((groupedOrder) => (
         <Card key={groupedOrder.pedidoId} className="overflow-hidden border border-border shadow-sm">
-          {/* Cabeçalho do Bloco de Pedido (Ajuste 1 - Sem rowspan) */}
-          <div className="bg-muted/40 px-4 py-3 border-b flex justify-between items-center">
-            <div className="flex items-center gap-3">
+          {/* Cabeçalho do Bloco de Pedido */}
+          <div className="bg-muted/40 px-4 py-3 border-b flex flex-wrap justify-between items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <span className="font-semibold text-sm text-foreground">
                 Pedido #{groupedOrder.pedidoNumero}
+              </span>
+              <span className="text-xs text-muted-foreground font-mono">
+                · ID: {groupedOrder.clienteTelefone}
+              </span>
+              <span className="text-xs text-muted-foreground font-medium">
+                · PARA: {formatDate(groupedOrder.dataEntregaPrevista)}
               </span>
               <PedidoStatusBadge
                 pronto={groupedOrder.pedidoPronto}
@@ -724,6 +732,7 @@ export function ProductionTableHeader({ columns }: ProductionTableHeaderProps) {
   return (
     <TableHeader className="bg-muted/20">
       <TableRow className="hover:bg-transparent">
+        <TableHead className="w-8 p-0 text-center" aria-label="Expandir"></TableHead>
         {columns.map((col) => (
           <TableHead key={col.key} className={col.className}>
             {col.label}
@@ -742,18 +751,71 @@ interface ProductionTableRowProps {
 }
 
 export function ProductionTableRow({ row, columns, opId, disabled }: ProductionTableRowProps) {
+  const [expanded, setExpanded] = React.useState(false);
+
   return (
-    <TableRow className="hover:bg-muted/5 transition-colors">
-      {columns.map((col) => (
-        <ProductionTableCell
-          key={col.key}
-          columnKey={col.key}
-          row={row}
-          opId={opId}
-          disabled={disabled}
-        />
-      ))}
-    </TableRow>
+    <>
+      <TableRow className="hover:bg-muted/5 transition-colors">
+        <TableCell className="w-8 p-0 text-center align-middle">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            onClick={() => setExpanded((prev) => !prev)}
+            aria-expanded={expanded}
+            aria-label={expanded ? "Recolher informações complementares do item" : "Expandir informações complementares do item"}
+          >
+            {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          </Button>
+        </TableCell>
+        {columns.map((col) => (
+          <ProductionTableCell
+            key={col.key}
+            columnKey={col.key}
+            row={row}
+            opId={opId}
+            disabled={disabled}
+          />
+        ))}
+      </TableRow>
+
+      {expanded && (
+        <TableRow className="bg-muted/10 border-t-0 hover:bg-muted/15 transition-colors">
+          <TableCell className="p-0" />
+          <TableCell colSpan={columns.length} className="p-3">
+            <ItemInformacoesComplementares row={row} />
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
+}
+
+function ItemInformacoesComplementares({ row }: { row: ProductionRow }) {
+  return (
+    <div className="space-y-1.5 text-xs">
+      <div className="font-semibold text-muted-foreground uppercase tracking-wider text-[11px]">
+        Serviços
+      </div>
+      {row.servicosList && row.servicosList.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {row.servicosList.map((servico, idx) => (
+            <span
+              key={idx}
+              className="inline-flex items-center gap-1 rounded-md bg-background px-2.5 py-1 text-xs font-medium text-foreground border border-border/80 shadow-xs"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-primary/70" />
+              {servico}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="text-muted-foreground text-xs italic">
+          Nenhum serviço vinculado a este item.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -771,7 +833,7 @@ export function ProductionTableCell({ columnKey, row, opId, disabled }: Producti
       case "quantidade":
         return row.quantidade;
       case "moldura": {
-        const comp = row.componentes?.find((c: any) => c.tipo === "MOLDURA");
+        const comp = row.componentes?.find((c) => c.tipo === "MOLDURA");
         return (
           <div className="flex items-center">
             {comp && <PreparedComponentControl componente={comp} opId={opId} disabled={disabled} />}
@@ -782,7 +844,7 @@ export function ProductionTableCell({ columnKey, row, opId, disabled }: Producti
       case "medidas":
         return row.medidas;
       case "protecao_frontal": {
-        const comp = row.componentes?.find((c: any) => c.tipo === "VIDRO");
+        const comp = row.componentes?.find((c) => c.tipo === "VIDRO");
         return (
           <div className="flex items-center">
             {comp && <PreparedComponentControl componente={comp} opId={opId} disabled={disabled} />}
@@ -791,7 +853,7 @@ export function ProductionTableCell({ columnKey, row, opId, disabled }: Producti
         );
       }
       case "fundo": {
-        const comp = row.componentes?.find((c: any) => c.tipo === "FUNDO");
+        const comp = row.componentes?.find((c) => c.tipo === "FUNDO");
         return (
           <div className="flex items-center">
             {comp && <PreparedComponentControl componente={comp} opId={opId} disabled={disabled} />}
@@ -800,7 +862,7 @@ export function ProductionTableCell({ columnKey, row, opId, disabled }: Producti
         );
       }
       case "passe_partout": {
-        const comp = row.componentes?.find((c: any) => c.tipo === "PASSEPARTOUT");
+        const comp = row.componentes?.find((c) => c.tipo === "PASSEPARTOUT");
         return (
           <div className="flex items-center justify-center">
             {comp && <PreparedComponentControl componente={comp} opId={opId} disabled={disabled} />}
@@ -809,7 +871,7 @@ export function ProductionTableCell({ columnKey, row, opId, disabled }: Producti
         );
       }
       case "impressao": {
-        const comp = row.componentes?.find((c: any) => c.tipo === "IMPRESSAO");
+        const comp = row.componentes?.find((c) => c.tipo === "IMPRESSAO");
         return (
           <div className="flex items-center">
             {comp && <PreparedComponentControl componente={comp} opId={opId} disabled={disabled} />}
@@ -817,8 +879,14 @@ export function ProductionTableCell({ columnKey, row, opId, disabled }: Producti
           </div>
         );
       }
-      case "servicos": {
-        return <div>{row.servicos}</div>;
+      case "chassi": {
+        const comp = row.componentes?.find((c) => c.tipo === "CHASSI");
+        return (
+          <div className="flex items-center">
+            {comp && <PreparedComponentControl componente={comp} opId={opId} disabled={disabled} />}
+            <span>{row.chassi}</span>
+          </div>
+        );
       }
       case "identificacao":
         return row.identificacao;

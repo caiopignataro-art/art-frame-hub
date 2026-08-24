@@ -232,47 +232,13 @@ function DetalheOrdemProducaoPage() {
   return (
     <AppShell title="Produção" layoutMode="focus">
       <div className="space-y-6">
-        {/* Back and Action Buttons */}
+        {/* Back Button */}
         <div className="flex items-center justify-between">
           <Button asChild size="sm" variant="ghost">
             <Link to="/producao/ordens">
               <ArrowLeft className="mr-2 h-4 w-4" /> Voltar para a lista
             </Link>
           </Button>
-
-          <div className="flex gap-2">
-            {op.status === "aberta" && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
-                onClick={() => setConfirmAction("concluir")}
-                disabled={isPending}
-              >
-                <CheckCircle2 className="mr-2 h-4 w-4" /> Concluir OP
-              </Button>
-            )}
-            {op.status !== "cancelada" && op.status !== "arquivada" && (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setConfirmAction("arquivar")}
-                  disabled={isPending}
-                >
-                  <Archive className="mr-2 h-4 w-4" /> Arquivar OP
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => setConfirmAction("cancelar")}
-                  disabled={isPending}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" /> Cancelar OP
-                </Button>
-              </>
-            )}
-          </div>
         </div>
 
         {/* Cabeçalho */}

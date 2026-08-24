@@ -116,7 +116,7 @@ export const PRODUTO_TIPO_LABEL: Record<ProdutoTipo, string> = {
   fundo: "Fundo",
   impressao: "Impressão",
   chassi: "Chassi",
-  servico: "Serviço",
+  servico: "Serviços",
   moldura: "Moldura (legado)",
   vidro: "Vidro (legado)",
   paspatur: "Paspatur (legado)",
@@ -130,6 +130,7 @@ export const PRODUTO_CATEGORIAS_ESSENCIAIS = [
   "fundo",
   "impressao",
   "chassi",
+  "servico",
 ] as const satisfies readonly ProdutoTipo[];
 
 export type ProdutoCategoriaEssencial = (typeof PRODUTO_CATEGORIAS_ESSENCIAIS)[number];
@@ -156,6 +157,27 @@ export interface PedidoItemDraft {
 // ---------- Ordem de Produção ----------
 import type { OrdemProducaoStatus } from "@/lib/constants/ordem-producao-status";
 export type { OrdemProducaoStatus };
+
+export type OrdemProducaoComponenteTipo =
+  | "MOLDURA"
+  | "VIDRO"
+  | "FUNDO"
+  | "PASSEPARTOUT"
+  | "CHASSI"
+  | "IMPRESSAO";
+
+export interface OrdemProducaoItemComponente {
+  id: string;
+  ordem_producao_item_id: string;
+  tipo: OrdemProducaoComponenteTipo;
+  descricao: string;
+  ordem: number;
+  preparado: boolean;
+  preparado_em: string | null;
+  preparado_por: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface OrdemProducao {
   id: string;
