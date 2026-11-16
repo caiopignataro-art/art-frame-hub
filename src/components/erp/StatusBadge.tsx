@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
   ORCAMENTO_STATUS_LABEL,
   PEDIDO_STATUS_LABEL,
@@ -8,25 +8,27 @@ import {
   type PagamentoStatus,
 } from "@/types/erp";
 
-const ORC_VARIANT: Record<OrcamentoStatus, "default" | "secondary" | "outline" | "destructive"> = {
+type Variant = NonNullable<BadgeProps["variant"]>;
+
+const ORC_VARIANT: Record<OrcamentoStatus, Variant> = {
   rascunho: "secondary",
-  enviado: "outline",
-  aprovado: "default",
+  enviado: "info",
+  aprovado: "success",
   convertido: "default",
   recusado: "destructive",
-  expirado: "destructive",
+  expirado: "warning",
 };
-const PED_VARIANT: Record<PedidoStatus, "default" | "secondary" | "outline" | "destructive"> = {
+const PED_VARIANT: Record<PedidoStatus, Variant> = {
   orcamento: "secondary",
-  aprovado: "default",
-  em_producao: "outline",
-  pronto: "default",
+  aprovado: "info",
+  em_producao: "warning",
+  pronto: "success",
   entregue: "default",
 };
-const PAG_VARIANT: Record<PagamentoStatus, "default" | "secondary" | "outline" | "destructive"> = {
-  pendente: "secondary",
-  pago: "default",
-  parcial: "outline",
+const PAG_VARIANT: Record<PagamentoStatus, Variant> = {
+  pendente: "warning",
+  pago: "success",
+  parcial: "info",
   estornado: "destructive",
   cancelado: "destructive",
 };

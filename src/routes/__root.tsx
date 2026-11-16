@@ -17,18 +17,22 @@ import { Toaster } from "@/components/ui/sonner";
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+      <div className="max-w-md rounded-lg border border-border/80 bg-card p-8 text-center">
+        <span className="inline-flex rounded-md bg-muted px-2.5 py-1 font-mono text-xs font-semibold text-muted-foreground">
+          ERRO 404
+        </span>
+        <h1 className="mt-3 text-xl font-semibold tracking-tight text-foreground">
+          Página não encontrada
+        </h1>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          O endereço acessado não existe ou foi movido dentro do Art Frame Hub.
         </p>
         <div className="mt-6">
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            Voltar ao início
           </Link>
         </div>
       </div>
@@ -45,12 +49,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+      <div className="max-w-md rounded-lg border border-border/80 bg-card p-8 text-center">
+        <span className="inline-flex rounded-md bg-destructive/10 px-2.5 py-1 font-mono text-xs font-semibold text-destructive">
+          FALHA DE EXECUÇÃO
+        </span>
+        <h1 className="mt-3 text-xl font-semibold tracking-tight text-foreground">
+          Não foi possível carregar esta página
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          Ocorreu um erro inesperado ao processar a visualização. Tente atualizar ou retornar ao início.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -58,15 +65,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            Tentar novamente
           </button>
           <a
             href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-4 text-xs font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            Voltar ao início
           </a>
         </div>
       </div>
@@ -79,14 +86,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Molduraria ERP" },
+      { title: "Art Frame Hub — Molduraria ERP" },
       {
         name: "description",
         content:
-          "Sistema de gestão para molduraria — clientes, orçamentos, pedidos, produção e pagamentos.",
+          "Art Frame Hub — Plataforma ERP para gestão de molduraria, orçamentos, pedidos, estoque e produção.",
       },
-      { property: "og:title", content: "Molduraria ERP" },
-      { property: "og:description", content: "Sistema de gestão para molduraria." },
+      { property: "og:title", content: "Art Frame Hub — Molduraria ERP" },
+      { property: "og:description", content: "Plataforma de gestão para molduraria." },
       { property: "og:type", content: "website" },
     ],
     links: [

@@ -1,43 +1,25 @@
-import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { Boxes, ClipboardList, History, Scissors } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { cn } from "@/lib/utils";
+import { ModuleTabs, type ModuleTabItem } from "@/components/erp/ModuleTabs";
 
 export const Route = createFileRoute("/estoque")({
-  head: () => ({ meta: [{ title: "Estoque — Molduraria ERP" }] }),
+  head: () => ({ meta: [{ title: "Estoque — Art Frame Hub" }] }),
   component: EstoqueLayout,
 });
 
-const TABS = [
-  { to: "/estoque", label: "Dashboard", exact: true },
-  { to: "/estoque/retalhos", label: "Retalhos", exact: false },
-  { to: "/estoque/movimentacoes", label: "Movimentações", exact: false },
-  { to: "/estoque/ordens", label: "Ordens de Produção", exact: false },
-];
+const TABS: readonly ModuleTabItem[] = [
+  { to: "/estoque", label: "Dashboard de Perfis", exact: true, icon: Boxes },
+  { to: "/estoque/retalhos", label: "Retalhos", exact: false, icon: Scissors },
+  { to: "/estoque/movimentacoes", label: "Movimentações", exact: false, icon: History },
+  { to: "/estoque/ordens", label: "Consumo por OP", exact: false, icon: ClipboardList },
+] as const;
 
 function EstoqueLayout() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
-    <AppShell title="Estoque Inteligente">
-      <nav className="-mt-2 mb-4 flex gap-1 border-b border-border">
-        {TABS.map((t) => {
-          const active = t.exact ? pathname === t.to : pathname.startsWith(t.to);
-          return (
-            <Link
-              key={t.to}
-              to={t.to}
-              className={cn(
-                "border-b-2 px-4 py-2 text-sm font-medium transition-colors",
-                active
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t.label}
-            </Link>
-          );
-        })}
-      </nav>
-      <div className="space-y-4">
+    <AppShell title="Estoque">
+      <ModuleTabs tabs={TABS} />
+      <div className="space-y-5">
         <Outlet />
       </div>
     </AppShell>

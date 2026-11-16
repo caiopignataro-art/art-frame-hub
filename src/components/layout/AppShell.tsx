@@ -1,77 +1,311 @@
+import * as React from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Users,
-  ShoppingBag,
-  Hammer,
+  AlertTriangle,
+  Bell,
+  Boxes,
+  Calculator,
+  ChevronRight,
   CreditCard,
-  Package,
+  Frame,
+  Hammer,
   History,
   LayoutDashboard,
-  Frame,
-  Boxes,
-  Settings,
-  Menu,
-  LogOut,
   LogIn,
+  LogOut,
+  Package,
+  Search,
+  Settings,
   Shield,
+  ShoppingBag,
+  Users,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { RouteAccessGuard, useAuth } from "@/components/auth/AuthContextProvider";
+import { CommandPalette } from "@/components/layout/CommandPalette";
+import { produtosService } from "@/lib/services/produtos.service";
+import { PRODUTO_TIPO_LABEL } from "@/types/erp";
 import { Badge } from "@/components/ui/badge";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuAction,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
 
-const NAV = [
-  { to: "/", label: "Calculadora", icon: LayoutDashboard },
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/clientes", label: "Clientes", icon: Users },
-  { to: "/pedidos", label: "Pedidos", icon: ShoppingBag },
-  { to: "/producao", label: "Produção", icon: Hammer },
-  { to: "/estoque", label: "Estoque", icon: Boxes },
-  { to: "/pagamentos", label: "Pagamentos", icon: CreditCard },
-  { to: "/produtos", label: "Produtos", icon: Package },
-  { to: "/historico", label: "Histórico", icon: History },
-  { to: "/configuracoes", label: "Configurações", icon: Settings },
+interface NavSubItem {
+  to: string;
+  label: string;
+  exact?: boolean;
+}
+
+interface NavItem {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  exact?: boolean;
+  subItems?: readonly NavSubItem[];
+}
+
+interface NavGroup {
+  label: string;
+  items: readonly NavItem[];
+}
+
+const NAV_GROUPS: readonly NavGroup[] = [
+  {
+    label: "Visão Geral",
+    items: [
+      { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
+      { to: "/", label: "Calculadora", icon: Calculator, exact: true },
+    ],
+  },
+  {
+    label: "Comercial",
+    items: [
+      { to: "/clientes", label: "Clientes", icon: Users },
+      {
+        to: "/pedidos",
+        label: "Pedidos",
+        icon: ShoppingBag,
+        subItems: [
+          { to: "/pedidos", label: "Todos os pedidos", exact: true },
+          { to: "/pedidos/novo", label: "Novo pedido", exact: false },
+        ],
+      },
+    ],
+  },
+  {
+    label: "Catálogo",
+    items: [
+      {
+        to: "/produtos",
+        label: "Produtos",
+        icon: Package,
+        subItems: [
+          { to: "/produtos", label: "Catálogo", exact: true },
+          { to: "/produtos/essenciais", label: "Essenciais", exact: false },
+          { to: "/produtos/importacao", label: "Importação", exact: false },
+        ],
+      },
+    ],
+  },
+  {
+    label: "Operação",
+    items: [
+      {
+        to: "/producao",
+        label: "Produção",
+        icon: Hammer,
+        subItems: [
+          { to: "/producao", label: "Fluxo de Produção", exact: true },
+          { to: "/producao/ordens", label: "Ordens de Produção", exact: false },
+        ],
+      },
+      {
+        to: "/estoque",
+        label: "Estoque",
+        icon: Boxes,
+        subItems: [
+          { to: "/estoque", label: "Dashboard", exact: true },
+          { to: "/estoque/retalhos", label: "Retalhos", exact: false },
+          { to: "/estoque/movimentacoes", label: "Movimentações", exact: false },
+          { to: "/estoque/ordens", label: "Consumo por OP", exact: false },
+        ],
+      },
+    ],
+  },
+  {
+    label: "Financeiro",
+    items: [{ to: "/pagamentos", label: "Pagamentos", icon: CreditCard }],
+  },
+  {
+    label: "Gestão",
+    items: [
+      { to: "/historico", label: "Histórico", icon: History },
+      { to: "/configuracoes", label: "Configurações", icon: Settings },
+    ],
+  },
 ] as const;
 
-function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
-  const { canPath, auth } = useAuth();
+const ROUTE_LABELS: Record<string, { group?: string; label: string; parentTo?: string; parentLabel?: string }> = {
+  "/": { group: "Visão Geral", label: "Calculadora de Orçamento" },
+  "/dashboard": { group: "Visão Geral", label: "Dashboard" },
+  "/clientes": { group: "Comercial", label: "Clientes" },
+  "/pedidos": { group: "Comercial", label: "Pedidos" },
+  "/pedidos/novo": { group: "Comercial", parentTo: "/pedidos", parentLabel: "Pedidos", label: "Pedido" },
+  "/produtos": { group: "Catálogo", label: "Produtos", parentTo: "/produtos", parentLabel: "Produtos" },
+  "/produtos/essenciais": { group: "Catálogo", parentTo: "/produtos", parentLabel: "Produtos", label: "Essenciais" },
+  "/produtos/importacao": { group: "Catálogo", parentTo: "/produtos", parentLabel: "Produtos", label: "Importação" },
+  "/producao": { group: "Operação", label: "Fluxo de Produção", parentTo: "/producao", parentLabel: "Produção" },
+  "/producao/ordens": { group: "Operação", parentTo: "/producao", parentLabel: "Produção", label: "Ordens de Produção" },
+  "/estoque": { group: "Operação", label: "Estoque de Molduras", parentTo: "/estoque", parentLabel: "Estoque" },
+  "/estoque/retalhos": { group: "Operação", parentTo: "/estoque", parentLabel: "Estoque", label: "Retalhos" },
+  "/estoque/movimentacoes": { group: "Operação", parentTo: "/estoque", parentLabel: "Estoque", label: "Movimentações" },
+  "/estoque/ordens": { group: "Operação", parentTo: "/estoque", parentLabel: "Estoque", label: "Consumo por OP" },
+  "/pagamentos": { group: "Financeiro", label: "Pagamentos" },
+  "/historico": { group: "Gestão", label: "Histórico" },
+  "/configuracoes": { group: "Gestão", label: "Configurações" },
+};
 
-  const visibleItems = NAV.filter((item) => {
-    if (!auth.isAuthenticated) return true;
-    return canPath(item.to);
-  });
+function isPathActive(pathname: string, to: string, exact?: boolean) {
+  const normalized = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+  if (exact || to === "/") {
+    return normalized === to;
+  }
+  return normalized === to || normalized.startsWith(`${to}/`);
+}
+
+function AppSidebarNavigation({ pathname }: { pathname: string }) {
+  const { canPath, auth } = useAuth();
+  const { setOpenMobile, isMobile } = useSidebar();
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   return (
-    <nav className="flex-1 space-y-1 p-3">
-      {visibleItems.map((item) => {
-        const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
-        const Icon = item.icon;
+    <SidebarContent className="gap-1 px-1 py-2">
+      {NAV_GROUPS.map((group) => {
+        const visibleItems = group.items.filter((item) => {
+          if (!auth.isAuthenticated) return true;
+          return canPath(item.to);
+        });
+
+        if (visibleItems.length === 0) return null;
+
         return (
-          <Link
-            key={item.to}
-            to={item.to}
-            onClick={onNavigate}
-            className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              active
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-            )}
-          >
-            <Icon className="h-4 w-4" />
-            {item.label}
-          </Link>
+          <SidebarGroup key={group.label} className="py-1.5">
+            <SidebarGroupLabel className="h-6 px-2.5 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+              {group.label}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {visibleItems.map((item) => {
+                  const active = isPathActive(pathname, item.to, item.exact);
+                  const Icon = item.icon;
+                  const hasSub = Boolean(item.subItems && item.subItems.length > 0);
+
+                  if (!hasSub) {
+                    return (
+                      <SidebarMenuItem key={item.to}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={active}
+                          tooltip={item.label}
+                        >
+                          <Link to={item.to} onClick={handleLinkClick}>
+                            <Icon />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  }
+
+                  return (
+                    <Collapsible
+                      key={item.to}
+                      asChild
+                      defaultOpen={active}
+                      className="group/collapsible"
+                    >
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={active}
+                          tooltip={item.label}
+                        >
+                          <Link to={item.to} onClick={handleLinkClick}>
+                            <Icon />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuAction
+                            aria-label={`Expandir submenu de ${item.label}`}
+                            className="data-[state=open]:rotate-90"
+                          >
+                            <ChevronRight className="h-3.5 w-3.5 text-sidebar-foreground/60" />
+                          </SidebarMenuAction>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {item.subItems!.map((sub) => {
+                              const subActive = isPathActive(pathname, sub.to, sub.exact);
+                              return (
+                                <SidebarMenuSubItem key={sub.to}>
+                                  <SidebarMenuSubButton
+                                    asChild
+                                    size="sm"
+                                    isActive={subActive}
+                                  >
+                                    <Link to={sub.to} onClick={handleLinkClick}>
+                                      <span>{sub.label}</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              );
+                            })}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         );
       })}
-    </nav>
+    </SidebarContent>
   );
 }
 
-function SidebarUserFooter() {
-  const { auth, user, signOut } = useAuth();
+function AppSidebarFooter() {
+  const { auth, user, signOut, canPath } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -82,56 +316,340 @@ function SidebarUserFooter() {
 
   if (!auth.isAuthenticated) {
     return (
-      <div className="border-t border-sidebar-border p-4 space-y-2">
-        <div className="text-xs text-sidebar-foreground/60">Sessão não iniciada</div>
-        <Button asChild size="sm" variant="secondary" className="w-full justify-start">
-          <Link to="/login" search={{ redirect: undefined, expired: undefined }}>
-            <LogIn className="mr-2 h-3.5 w-3.5" /> Entrar no sistema
-          </Link>
-        </Button>
-      </div>
+      <SidebarFooter className="border-t border-sidebar-border p-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip="Entrar no sistema">
+              <Link to="/login" search={{ redirect: undefined, expired: undefined }}>
+                <LogIn />
+                <span>Entrar no sistema</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     );
   }
 
   const displayRoles = user?.roles?.map((r) => r.name) ?? auth.roles;
+  const initials = (auth.name || auth.email || "U")
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase())
+    .join("");
 
   return (
-    <div className="border-t border-sidebar-border p-4 space-y-2.5">
-      <div className="space-y-0.5">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-sidebar-foreground truncate">
-          <Shield className="h-3.5 w-3.5 shrink-0 text-sidebar-primary" />
-          <span className="truncate">{auth.name || auth.email}</span>
-        </div>
-        {auth.name && (
-          <div className="text-[11px] text-sidebar-foreground/60 truncate">{auth.email}</div>
-        )}
-      </div>
-
-      {displayRoles.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {displayRoles.slice(0, 3).map((roleName) => (
-            <Badge
-              key={roleName}
-              variant="secondary"
-              className="text-[10px] px-1.5 py-0 font-normal"
+    <SidebarFooter className="border-t border-sidebar-border p-2">
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <SidebarMenuButton
+                size="lg"
+                tooltip={auth.name || auth.email || "Conta"}
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              >
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-[11px] font-semibold text-sidebar-primary-foreground">
+                  {initials || "U"}
+                </div>
+                <div className="grid flex-1 text-left text-xs leading-tight group-data-[collapsible=icon]:hidden">
+                  <span className="truncate font-medium text-sidebar-foreground">
+                    {auth.name || auth.email}
+                  </span>
+                  <span className="truncate text-[11px] text-sidebar-foreground/60">
+                    {displayRoles[0] ?? auth.email}
+                  </span>
+                </div>
+              </SidebarMenuButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              side="top"
+              align="start"
+              className="w-60 rounded-lg"
             >
-              {roleName}
-            </Badge>
+              <DropdownMenuLabel className="p-2 font-normal">
+                <div className="flex flex-col space-y-1">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <Shield className="h-3.5 w-3.5 text-primary" />
+                    <span className="truncate">{auth.name || auth.email}</span>
+                  </div>
+                  {auth.email && (
+                    <span className="truncate text-[11px] text-muted-foreground">
+                      {auth.email}
+                    </span>
+                  )}
+                  {displayRoles.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {displayRoles.slice(0, 3).map((roleName) => (
+                        <Badge
+                          key={roleName}
+                          variant="secondary"
+                          className="px-1.5 py-0 text-[10px] font-normal"
+                        >
+                          {roleName}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {canPath("/configuracoes") && (
+                <DropdownMenuItem asChild>
+                  <Link to="/configuracoes" className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Configurações e Acessos
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                onClick={() => void handleLogout()}
+                className="cursor-pointer text-destructive focus:text-destructive"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Encerrar sessão
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarFooter>
+  );
+}
+
+function HeaderBreadcrumbs({ pathname, fallbackTitle }: { pathname: string; fallbackTitle?: string }) {
+  const normalized = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+  const matched = ROUTE_LABELS[normalized];
+
+  if (normalized.startsWith("/producao/ordens/")) {
+    return (
+      <Breadcrumb>
+        <BreadcrumbList className="text-xs sm:text-sm">
+          <BreadcrumbItem className="hidden sm:inline-flex">
+            <BreadcrumbLink asChild>
+              <Link to="/producao">Produção</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator className="hidden sm:inline-flex" />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/producao/ordens">Ordens de Produção</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage className="font-medium">
+              {fallbackTitle && fallbackTitle !== "Produção" ? fallbackTitle : "Detalhe da OP"}
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+    );
+  }
+
+  if (matched) {
+    const showParent = matched.parentTo && matched.parentTo !== normalized;
+    return (
+      <Breadcrumb>
+        <BreadcrumbList className="text-xs sm:text-sm">
+          {matched.group && (
+            <>
+              <BreadcrumbItem className="hidden md:inline-flex">
+                <span className="text-muted-foreground/80">{matched.group}</span>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator className="hidden md:inline-flex" />
+            </>
+          )}
+          {showParent && (
+            <>
+              <BreadcrumbItem className="hidden sm:inline-flex">
+                <BreadcrumbLink asChild>
+                  <Link to={matched.parentTo!}>{matched.parentLabel}</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator className="hidden sm:inline-flex" />
+            </>
+          )}
+          <BreadcrumbItem>
+            <BreadcrumbPage className="font-medium">
+              {normalized === "/pedidos/novo" && fallbackTitle ? fallbackTitle : matched.label}
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+    );
+  }
+
+  return (
+    <Breadcrumb>
+      <BreadcrumbList className="text-xs sm:text-sm">
+        <BreadcrumbItem>
+          <BreadcrumbPage className="font-medium">
+            {fallbackTitle ?? "Art Frame Hub"}
+          </BreadcrumbPage>
+        </BreadcrumbItem>
+      </BreadcrumbList>
+    </Breadcrumb>
+  );
+}
+
+function HeaderAlertsMenu() {
+  const { auth, canPath } = useAuth();
+  const canViewProdutos = !auth.isAuthenticated || canPath("/produtos");
+
+  const alertasQ = useQuery({
+    queryKey: ["alertas-essenciais"],
+    queryFn: () => produtosService.listAlertasEssenciais(),
+    enabled: canViewProdutos,
+    staleTime: 60_000,
+  });
+
+  const count = alertasQ.data?.length ?? 0;
+  if (!canViewProdutos || count === 0) return null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="relative h-8 w-8 text-muted-foreground hover:text-foreground"
+          aria-label={`${count} alerta(s) de estoque crítico`}
+        >
+          <Bell className="h-4 w-4" />
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+            {count}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuLabel className="flex items-center justify-between text-xs">
+          <span className="inline-flex items-center gap-1.5 font-semibold text-destructive">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Alertas de Estoque Essencial ({count})
+          </span>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <div className="max-h-60 overflow-y-auto py-1">
+          {(alertasQ.data ?? []).slice(0, 6).map((a) => (
+            <DropdownMenuItem key={a.produto.id} asChild>
+              <Link
+                to="/produtos/essenciais"
+                className="flex flex-col items-start gap-0.5 py-2 cursor-pointer"
+              >
+                <div className="flex w-full items-center justify-between gap-2 text-xs font-medium">
+                  <span className="truncate">{a.produto.nome}</span>
+                  <Badge variant="destructive" className="px-1.5 py-0 text-[10px]">
+                    {a.estoque_real} {a.produto.unidade_estoque ?? a.produto.unidade}
+                  </Badge>
+                </div>
+                <span className="text-[11px] text-muted-foreground">
+                  {PRODUTO_TIPO_LABEL[a.produto.tipo]} · Mínimo: {a.produto.estoque_minimo}
+                </span>
+              </Link>
+            </DropdownMenuItem>
           ))}
         </div>
-      )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link
+            to="/produtos/essenciais"
+            className="justify-center text-xs font-medium text-primary cursor-pointer"
+          >
+            Gerenciar produtos essenciais →
+          </Link>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
-      <Button
-        type="button"
-        size="sm"
-        variant="ghost"
-        onClick={() => void handleLogout()}
-        className="w-full justify-start h-8 px-2 text-xs text-sidebar-foreground/70 hover:text-sidebar-foreground"
-      >
-        <LogOut className="mr-2 h-3.5 w-3.5" />
-        Encerrar sessão
+function HeaderUserMenu() {
+  const { auth, user, signOut, canPath } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await signOut();
+    toast.success("Sessão encerrada com sucesso.");
+    await navigate({ to: "/login", search: { redirect: undefined, expired: undefined } });
+  };
+
+  if (!auth.isAuthenticated) {
+    return (
+      <Button asChild size="sm" variant="ghost" className="h-8 text-xs">
+        <Link to="/login" search={{ redirect: undefined, expired: undefined }}>
+          <LogIn className="mr-1.5 h-3.5 w-3.5" />
+          Entrar
+        </Link>
       </Button>
-    </div>
+    );
+  }
+
+  const displayRoles = user?.roles?.map((r) => r.name) ?? auth.roles;
+  const initials = (auth.name || auth.email || "U")
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase())
+    .join("");
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-2 px-2 text-xs font-normal text-foreground"
+        >
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
+            {initials || "U"}
+          </span>
+          <span className="hidden max-w-[140px] truncate font-medium md:inline">
+            {auth.name || auth.email}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="truncate text-xs font-semibold text-foreground">
+              {auth.name || auth.email}
+            </p>
+            {auth.email && (
+              <p className="truncate text-[11px] text-muted-foreground">{auth.email}</p>
+            )}
+            {displayRoles.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-1">
+                {displayRoles.slice(0, 3).map((r) => (
+                  <Badge key={r} variant="secondary" className="px-1.5 py-0 text-[10px] font-normal">
+                    {r}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {canPath("/configuracoes") && (
+          <DropdownMenuItem asChild>
+            <Link to="/configuracoes" className="cursor-pointer">
+              <Settings className="mr-2 h-4 w-4" />
+              Configurações
+            </Link>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem
+          onClick={() => void handleLogout()}
+          className="cursor-pointer text-destructive focus:text-destructive"
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Encerrar sessão
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -140,68 +658,104 @@ export function AppShell({
   title,
   layoutMode = "default",
 }: {
-  children: ReactNode;
+  children: React.ReactNode;
   title?: string;
   layoutMode?: "default" | "focus";
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = React.useState(false);
   const isFocus = layoutMode === "focus";
 
   return (
-    <div className="flex min-h-screen bg-muted/30">
-      {/* Sidebar fixa (desktop ≥ lg) */}
+    <SidebarProvider>
       {!isFocus && (
-        <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
-          <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6">
-            <Frame className="h-6 w-6 text-sidebar-primary" />
-            <span className="text-base font-semibold tracking-tight">Molduraria ERP</span>
-          </div>
-          <NavList pathname={pathname} />
-          <SidebarUserFooter />
-        </aside>
+        <Sidebar collapsible="icon">
+          <SidebarHeader className="h-14 justify-center border-b border-sidebar-border px-3">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  size="lg"
+                  asChild
+                  tooltip="ART FRAME HUB"
+                  className="hover:bg-transparent active:bg-transparent"
+                >
+                  <Link to="/">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+                      <Frame className="h-4 w-4" />
+                    </div>
+                    <div className="grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+                      <span className="truncate text-xs font-bold tracking-tight text-sidebar-foreground">
+                        ART FRAME HUB
+                      </span>
+                      <span className="truncate text-[10px] font-medium text-sidebar-foreground/60">
+                        Molduraria ERP
+                      </span>
+                    </div>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarHeader>
+
+          <AppSidebarNavigation pathname={pathname} />
+          <AppSidebarFooter />
+          <SidebarRail />
+        </Sidebar>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between gap-3 border-b border-border bg-background px-4 sm:px-6">
-          <div className="flex items-center gap-3 min-w-0">
-            {/* Botão hambúrguer (tablet + celular) */}
-            {!isFocus && (
-              <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="lg:hidden"
-                    aria-label="Abrir menu de navegação"
-                  >
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent
-                  side="left"
-                  className="w-72 bg-sidebar p-0 text-sidebar-foreground flex flex-col"
-                >
-                  <SheetHeader className="border-b border-sidebar-border px-6 py-4">
-                    <SheetTitle className="flex items-center gap-2 text-base">
-                      <Frame className="h-5 w-5 text-sidebar-primary" />
-                      Molduraria ERP
-                    </SheetTitle>
-                  </SheetHeader>
-                  <NavList pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
-                  <SidebarUserFooter />
-                </SheetContent>
-              </Sheet>
+      <SidebarInset className="min-w-0">
+        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border/80 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2.5">
+            {!isFocus ? (
+              <>
+                <SidebarTrigger className="-ml-1 h-8 w-8 text-muted-foreground hover:text-foreground" />
+                <Separator orientation="vertical" className="h-4" />
+              </>
+            ) : (
+              <Link
+                to="/"
+                className="flex items-center gap-2 text-xs font-semibold tracking-tight text-foreground"
+              >
+                <div className="flex h-6 w-6 items-center justify-center rounded bg-primary text-primary-foreground">
+                  <Frame className="h-3.5 w-3.5" />
+                </div>
+                <span className="hidden sm:inline">ART FRAME HUB</span>
+                <Separator orientation="vertical" className="mx-1 h-4" />
+              </Link>
             )}
-            <h1 className="truncate text-lg font-semibold tracking-tight">
-              {title ?? "Molduraria ERP"}
-            </h1>
+            <HeaderBreadcrumbs pathname={pathname} fallbackTitle={title} />
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setCommandOpen(true)}
+              className="h-8 gap-2 border-border/80 bg-muted/30 px-2.5 text-xs font-normal text-muted-foreground hover:bg-muted/60 hover:text-foreground sm:w-56 sm:justify-between"
+              aria-label="Pesquisar no sistema (Ctrl+K)"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Search className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Buscar ou navegar…</span>
+              </span>
+              <kbd className="pointer-events-none hidden h-5 select-none items-center gap-0.5 rounded border border-border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:inline-flex">
+                Ctrl K
+              </kbd>
+            </Button>
+            <HeaderAlertsMenu />
+            <HeaderUserMenu />
           </div>
         </header>
-        <main className="flex-1 overflow-auto p-4 sm:p-6">
-          <RouteAccessGuard>{children}</RouteAccessGuard>
-        </main>
-      </div>
-    </div>
+
+        <div className="flex-1 overflow-auto p-4 sm:p-6">
+          <div className={isFocus ? "mx-auto w-full max-w-[1600px]" : "mx-auto w-full max-w-[1440px]"}>
+            <RouteAccessGuard>{children}</RouteAccessGuard>
+          </div>
+        </div>
+      </SidebarInset>
+
+      <CommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
+    </SidebarProvider>
   );
 }
