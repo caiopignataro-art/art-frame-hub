@@ -136,6 +136,7 @@ function NovoPedidoPage() {
 
   // ---------- Cliente (autocomplete único) ----------
   const [cliente, setCliente] = React.useState<Cliente | null>(null);
+  const [clienteError, setClienteError] = React.useState(false);
   const [busca, setBusca] = React.useState("");
   const [openClienteBox, setOpenClienteBox] = React.useState(false);
   const clientesQ = useQuery({
@@ -146,6 +147,7 @@ function NovoPedidoPage() {
 
   const handleSavedCliente = (c: Cliente) => {
     setCliente(c);
+    setClienteError(false);
     qc.invalidateQueries({ queryKey: ["clientes"] });
   };
 
@@ -189,6 +191,7 @@ function NovoPedidoPage() {
     const p = pedidoEditQ.data;
     if (!p) return;
     setCliente(p.cliente ?? null);
+    if (p.cliente) setClienteError(false);
     setPedidoStatus(p.status);
     setNumeroPedido(p.numero_pedido);
     setDataPedido((p.data_pedido ?? new Date().toISOString()).slice(0, 10));
@@ -243,18 +246,39 @@ function NovoPedidoPage() {
     [modalidade, parcelas, subtotal, descontoPct, situacao, valorSinal],
   );
 
-  // ---------- Itens ----------
-  const removeItem = (idx: number) => setItens((arr) => arr.filter((_, i) => i !== idx));
-  const cloneItem = (idx: number) =>
+  // ---------- Itens (Permissões por Status) ----------
+  const podeEditarItens = !isEdit || pedidoStatus === "orcamento" || pedidoStatus === "aprovado";
+
+  const removeItem = (idx: number) => {
+    if (!podeEditarItens) {
+      toast.error("Edição de itens bloqueada para pedidos com este status.");
+      return;
+    }
+    setItens((arr) => arr.filter((_, i) => i !== idx));
+  };
+  const cloneItem = (idx: number) => {
+    if (!podeEditarItens) {
+      toast.error("Edição de itens bloqueada para pedidos com este status.");
+      return;
+    }
     setItens((arr) => {
       const clone: PedidoItemDraft = JSON.parse(JSON.stringify(arr[idx]));
       return [...arr.slice(0, idx + 1), clone, ...arr.slice(idx + 1)];
     });
+  };
   const startEditItem = (idx: number) => {
+    if (!podeEditarItens) {
+      toast.error("Edição de itens bloqueada para pedidos com este status.");
+      return;
+    }
     setEditingIndex(idx);
     setCalcOpen(true);
   };
   const handleAddItem = (item: PedidoItemDraft) => {
+    if (!podeEditarItens) {
+      toast.error("Edição de itens bloqueada para pedidos com este status.");
+      return;
+    }
     if (editingIndex != null) {
       const idx = editingIndex;
       setItens((arr) => arr.map((it, i) => (i === idx ? item : it)));
@@ -319,6 +343,12 @@ function NovoPedidoPage() {
   };
 
   const executarSalvar = async (finalStatus: import("@/types/erp").PedidoStatus, bypassOpCheck = false) => {
+    if (!cliente) {
+      setClienteError(true);
+      toast.error("Selecione um cliente para salvar o pedido.");
+      return;
+    }
+
     const formaPagamento = modalidadeToFormaPagamento(modalidade);
 
     if (isEdit && editId && pedidoEditQ.data?.ordem_producao_id && opQuery.data?.op.status === "aberta" && !bypassOpCheck) {
@@ -425,6 +455,11 @@ function NovoPedidoPage() {
   const handleSalvar = async (
     statusFinal: import("@/types/erp").PedidoStatus = "orcamento",
   ) => {
+    if (!cliente) {
+      setClienteError(true);
+      toast.error("Selecione um cliente para salvar o pedido.");
+      return;
+    }
     if (!canSalvar) {
       toast.error("Adicione pelo menos um item e informe a data prevista de entrega.");
       return;
@@ -491,27 +526,32 @@ function NovoPedidoPage() {
 
       <div>
         {/* Cliente */}
-        <Card>
+        <Card className={clienteError && !cliente ? "border-destructive ring-1 ring-destructive" : ""}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Cliente</CardTitle>
+            <CardTitle className="text-base flex items-center gap-1.5">
+              Cliente
+              <span className="text-xs text-destructive font-medium">*obrigatório</span>
+            </CardTitle>
             <Button size="sm" variant="ghost" onClick={() => setCadCliOpen(true)}>
               <UserPlus className="mr-2 h-4 w-4" /> Cadastro rápido
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <Label className="text-xs text-muted-foreground">Cliente existente</Label>
+              <Label className={`text-xs ${clienteError && !cliente ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                Cliente existente
+              </Label>
               <Popover open={openClienteBox} onOpenChange={setOpenClienteBox}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     role="combobox"
-                    className="w-full justify-between font-normal mt-1"
+                    className={`w-full justify-between font-normal mt-1 ${clienteError && !cliente ? "border-destructive text-destructive" : ""}`}
                   >
                     {cliente ? (
                       <span className="truncate">{cliente.nome}</span>
                     ) : (
-                      <span className="text-muted-foreground">
+                      <span className={clienteError && !cliente ? "text-destructive" : "text-muted-foreground"}>
                         <Search className="inline h-3.5 w-3.5 mr-2" />
                         Buscar por nome, WhatsApp ou CPF…
                       </span>
@@ -536,6 +576,7 @@ function NovoPedidoPage() {
                             value={c.id}
                             onSelect={() => {
                               setCliente(c);
+                              setClienteError(false);
                               setOpenClienteBox(false);
                             }}
                           >
@@ -553,6 +594,11 @@ function NovoPedidoPage() {
                   </Command>
                 </PopoverContent>
               </Popover>
+              {clienteError && !cliente && (
+                <p className="text-xs text-destructive mt-1 font-medium">
+                  O preenchimento do cliente é obrigatório para salvar o pedido.
+                </p>
+              )}
             </div>
 
             {cliente && (
@@ -590,17 +636,26 @@ function NovoPedidoPage() {
       {/* Itens */}
       <Card className="mt-4">
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">Itens do pedido</CardTitle>
-          <Button onClick={() => setCalcOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Adicionar item (calculadora)
-          </Button>
+          <div>
+            <CardTitle className="text-base">Itens do pedido</CardTitle>
+            {!podeEditarItens && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                Edição de itens bloqueada para pedidos com status "{pedidoStatus === "em_producao" ? "Em produção" : pedidoStatus === "pronto" ? "Pronto" : pedidoStatus}". Para alterar itens, retorne o pedido para Aprovado.
+              </p>
+            )}
+          </div>
+          {podeEditarItens && (
+            <Button onClick={() => setCalcOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Adicionar item (calculadora)
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">#</TableHead>
-                <TableHead>Códigos</TableHead>
+                <TableHead>Produtos</TableHead>
                 <TableHead>Medidas</TableHead>
                 <TableHead className="text-right">Qtd</TableHead>
                 <TableHead className="text-right">Unit.</TableHead>
@@ -617,37 +672,22 @@ function NovoPedidoPage() {
                 </TableRow>
               )}
               {itens.map((i, idx) => {
-                const imgs = ((i.metadados as any)?.entrada?.imagens ?? []) as string[];
-                const grupos = codigosPorCategoria(i);
+                const grupos = produtosPorCategoria(i);
                 return (
                   <TableRow key={idx}>
                     <TableCell>{idx + 1}</TableCell>
                     <TableCell className="max-w-md">
-                      <div className="flex items-start gap-2">
-                        {imgs.length > 0 && (
-                          <div className="flex -space-x-1 shrink-0">
-                            {imgs.slice(0, 3).map((src, ii) => (
-                              <img key={ii} src={src} alt="" className="h-8 w-8 rounded border-2 border-background object-cover" />
-                            ))}
-                            {imgs.length > 3 && (
-                              <span className="grid h-8 w-8 place-items-center rounded border-2 border-background bg-muted text-[10px] font-medium">
-                                +{imgs.length - 3}
-                              </span>
-                            )}
-                          </div>
+                      <div className="space-y-0.5 text-xs">
+                        {grupos.length === 0 ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : (
+                          grupos.map((g) => (
+                            <div key={g.label}>
+                              <span className="text-muted-foreground">{g.label}:</span>{" "}
+                              <span className="font-mono">{g.produtos}</span>
+                            </div>
+                          ))
                         )}
-                        <div className="space-y-0.5 text-xs">
-                          {grupos.length === 0 ? (
-                            <span className="text-muted-foreground">—</span>
-                          ) : (
-                            grupos.map((g) => (
-                              <div key={g.label}>
-                                <span className="text-muted-foreground">{g.label}:</span>{" "}
-                                <span className="font-mono">{g.codigos}</span>
-                              </div>
-                            ))
-                          )}
-                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -661,13 +701,34 @@ function NovoPedidoPage() {
                     <TableCell className="text-right">{formatBRL(i.valor_total)}</TableCell>
                     <TableCell>
                       <div className="flex gap-1 justify-end">
-                        <Button size="icon" variant="ghost" onClick={() => startEditItem(idx)} aria-label="Editar" title="Editar">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => podeEditarItens && startEditItem(idx)}
+                          aria-label="Editar"
+                          title={podeEditarItens ? "Editar" : "Edição bloqueada para este status"}
+                          disabled={!podeEditarItens}
+                        >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button size="icon" variant="ghost" onClick={() => cloneItem(idx)} aria-label="Clonar" title="Clonar">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => podeEditarItens && cloneItem(idx)}
+                          aria-label="Clonar"
+                          title={podeEditarItens ? "Clonar" : "Clonagem bloqueada para este status"}
+                          disabled={!podeEditarItens}
+                        >
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <Button size="icon" variant="ghost" onClick={() => removeItem(idx)} aria-label="Remover" title="Remover">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => podeEditarItens && removeItem(idx)}
+                          aria-label="Remover"
+                          title={podeEditarItens ? "Remover" : "Remoção bloqueada para este status"}
+                          disabled={!podeEditarItens}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -901,19 +962,59 @@ const CATEGORIA_LABEL: Record<string, string> = {
   servico: "Serviço",
 };
 
-function codigosPorCategoria(item: PedidoItemDraft): { label: string; codigos: string }[] {
-  const materiais = ((item.metadados as any)?.calculo?.materiais ?? []) as Array<{ origem: string; codigo: string | null; descricao: string }>;
+function formatarMaterialProduto(
+  codigo: string | null | undefined,
+  descricao: string | null | undefined,
+): string {
+  const cod = (codigo ?? "").trim();
+  let desc = (descricao ?? "").trim();
+
+  // Se a descrição iniciar com o próprio código (ex: "2016-49 — preta laca", "2016-49 - preta laca" ou "2016-49 preta laca")
+  if (cod && desc.toLowerCase().startsWith(cod.toLowerCase())) {
+    desc = desc.slice(cod.length).replace(/^[\s—\-–:]+/, "").trim();
+  }
+
+  // Abreviar / truncar nome/descrição em no máximo 10 caracteres visíveis (incluindo reticências)
+  let descAbreviada = "";
+  if (desc) {
+    descAbreviada = desc.length > 10 ? desc.slice(0, 9) + "…" : desc;
+  }
+
+  if (cod && descAbreviada) {
+    return `${cod} - ${descAbreviada}`;
+  }
+  if (cod) {
+    return cod;
+  }
+  return descAbreviada;
+}
+
+interface MetadadosItemPayload {
+  calculo?: {
+    materiais?: Array<{
+      origem: string;
+      codigo: string | null;
+      descricao: string;
+    }>;
+  };
+}
+
+function produtosPorCategoria(item: PedidoItemDraft): { label: string; produtos: string }[] {
+  const md = item.metadados as unknown as MetadadosItemPayload | null;
+  const materiais = md?.calculo?.materiais ?? [];
   const grouped = new Map<string, string[]>();
+
   for (const m of materiais) {
-    const code = m.codigo || m.descricao;
-    if (!code) continue;
+    const formatted = formatarMaterialProduto(m.codigo, m.descricao);
+    if (!formatted) continue;
     const arr = grouped.get(m.origem) ?? [];
-    if (!arr.includes(code)) arr.push(code);
+    if (!arr.includes(formatted)) arr.push(formatted);
     grouped.set(m.origem, arr);
   }
-  return Array.from(grouped.entries()).map(([origem, codes]) => ({
+
+  return Array.from(grouped.entries()).map(([origem, prods]) => ({
     label: CATEGORIA_LABEL[origem] ?? origem,
-    codigos: codes.join(", "),
+    produtos: prods.join(", "),
   }));
 }
 

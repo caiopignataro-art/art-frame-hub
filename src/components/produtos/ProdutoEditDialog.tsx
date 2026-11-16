@@ -119,10 +119,10 @@ export function ProdutoEditDialog({ produto, criandoTipo, open, onOpenChange }: 
       const t = criandoTipo ?? "outro";
       setForm({
         ...empty,
-        unidade_venda: t === "chassi" ? "metro_linear" : "m2",
+        unidade_venda: t === "servico" ? "un" : t === "chassi" ? "metro_linear" : "m2",
         unidade_estoque:
-          t === "chassi" ? "metro_linear" : t === "protecao_frontal" || t === "fundo" ? "chapas" : "m2",
-        unidade: t === "chassi" ? "metro_linear" : "m2",
+          t === "servico" ? "un" : t === "chassi" ? "metro_linear" : t === "protecao_frontal" || t === "fundo" ? "chapas" : "m2",
+        unidade: t === "servico" ? "un" : t === "chassi" ? "metro_linear" : "m2",
       });
     }
   }, [produto, criandoTipo, open]);

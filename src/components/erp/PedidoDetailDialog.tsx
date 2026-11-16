@@ -152,9 +152,19 @@ export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: strin
                 </Button>
               )}
               {p.status === "em_producao" && (
-                <Button size="sm" onClick={() => setStatus.mutate("pronto")} disabled={setStatus.isPending}>
-                  Marcar como pronto
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setStatus.mutate("aprovado")}
+                    disabled={setStatus.isPending}
+                  >
+                    Voltar para Aprovado
+                  </Button>
+                  <Button size="sm" onClick={() => setStatus.mutate("pronto")} disabled={setStatus.isPending}>
+                    Marcar como pronto
+                  </Button>
+                </>
               )}
               {p.status === "pronto" && (
                 <Button size="sm" onClick={() => setStatus.mutate("entregue")} disabled={setStatus.isPending}>

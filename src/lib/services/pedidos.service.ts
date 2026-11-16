@@ -1,9 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
+import { ordemProducaoService } from "./ordem-producao.service";
 import type {
   Pedido,
   PedidoComItens,
   PedidoInsert,
   PedidoUpdate,
+  PedidoItem,
   PedidoItemInsert,
   PedidoStatus,
   PedidoItemDraft,
@@ -58,8 +60,38 @@ export const pedidosService = {
     await this.setStatusLote(ids, "pronto");
   },
 
+  /**
+   * Retorna um pedido com status 'em_producao' para 'aprovado'.
+   * Se estiver vinculado a uma Ordem de Produção (OP), anula seletiva e atomicamente
+   * a participação deste pedido e de seus itens na OP via RPC, preservando os
+   * outros pedidos intactos. Se a OP ficar vazia, cancela a OP vazia.
+   */
+  async voltarParaAprovado(id: string, motivo: string = "Retorno de Em Produção para Aprovado"): Promise<void> {
+    const { data: p, error: pErr } = await supabase
+      .from("pedidos")
+      .select("id, status, ordem_producao_id")
+      .eq("id", id)
+      .single();
+    if (pErr) throw pErr;
+    if (!p) throw new Error("Pedido não encontrado.");
+
+    if (p.ordem_producao_id) {
+      const res = await ordemProducaoService.removerPedido({
+        pedidoId: id,
+        motivo,
+      });
+      if (res.op_ficou_vazia) {
+        await ordemProducaoService.cancelar(res.ordem_producao_id);
+      }
+    } else {
+      await this.update(id, { status: "aprovado" });
+    }
+  },
+
   async voltarParaAprovadoEmLote(ids: string[]): Promise<void> {
-    await this.setStatusLote(ids, "aprovado");
+    for (const id of ids) {
+      await this.voltarParaAprovado(id, "Retorno em lote de Em Produção para Aprovado");
+    }
   },
 
   async setStatusLote(ids: string[], status: PedidoStatus): Promise<void> {
@@ -100,6 +132,16 @@ export const pedidosService = {
   },
 
   async setStatus(id: string, status: PedidoStatus) {
+    if (status === "aprovado") {
+      const { data: p } = await supabase
+        .from("pedidos")
+        .select("status, ordem_producao_id")
+        .eq("id", id)
+        .maybeSingle();
+      if (p?.status === "em_producao" && p.ordem_producao_id) {
+        return this.voltarParaAprovado(id);
+      }
+    }
     return this.update(id, { status });
   },
 
@@ -141,6 +183,10 @@ export const pedidosService = {
     /** Snapshot financeiro (modalidade UI, parcelas, sinal, desconto). */
     pagamento?: import("@/lib/pagamento/modalidade").PagamentoSnapshot;
   }): Promise<Pedido> {
+    if (!opts.cliente_id || typeof opts.cliente_id !== "string" || opts.cliente_id.trim() === "") {
+      throw new Error("Cliente é obrigatório para salvar ou finalizar o pedido/orçamento.");
+    }
+
     const total =
       opts.pagamento?.total_final ??
       opts.itens.reduce((s, i) => s + Number(i.valor_total), 0);
@@ -252,17 +298,70 @@ export const pedidosService = {
       pagamento?: import("@/lib/pagamento/modalidade").PagamentoSnapshot;
     },
   ): Promise<Pedido> {
+    if (!opts.cliente_id || typeof opts.cliente_id !== "string" || opts.cliente_id.trim() === "") {
+      throw new Error("Cliente é obrigatório para salvar ou finalizar o pedido/orçamento.");
+    }
+
     const total =
       opts.pagamento?.total_final ??
       opts.itens.reduce((s, i) => s + Number(i.valor_total), 0);
 
-    // Recupera metadados atuais para preservar chaves fora de "pagamento"
+    // Recupera pedido e metadados atuais para validar status e integridade
     const { data: atual, error: eGet } = await supabase
       .from("pedidos")
-      .select("metadados")
+      .select("metadados, status, itens:pedido_itens(*)")
       .eq("id", id)
       .maybeSingle();
     if (eGet) throw eGet;
+    if (!atual) throw new Error("Pedido não encontrado.");
+
+    // Matriz de permissão: apenas 'orcamento' e 'aprovado' permitem alterar itens
+    const podeEditarItens = atual.status === "orcamento" || atual.status === "aprovado";
+    if (!podeEditarItens) {
+      const itensOriginais: PedidoItem[] = (atual.itens ?? []) as PedidoItem[];
+      const normalizarMetadados = (meta: unknown): string => {
+        if (!meta || typeof meta !== "object" || Object.keys(meta).length === 0) return "{}";
+        try {
+          const sortKeys = (obj: unknown): unknown => {
+            if (obj === null || typeof obj !== "object") return obj;
+            if (Array.isArray(obj)) return obj.map(sortKeys);
+            const record = obj as Record<string, unknown>;
+            return Object.keys(record)
+              .sort()
+              .reduce<Record<string, unknown>>((acc, key) => {
+                acc[key] = sortKeys(record[key]);
+                return acc;
+              }, {});
+          };
+          return JSON.stringify(sortKeys(meta));
+        } catch {
+          return "";
+        }
+      };
+
+      const alterouItens =
+        opts.itens.length !== itensOriginais.length ||
+        opts.itens.some((it: PedidoItemDraft, idx: number) => {
+          const orig = itensOriginais[idx];
+          if (!orig) return true;
+          return (
+            it.descricao !== orig.descricao ||
+            Number(it.quantidade) !== Number(orig.quantidade) ||
+            Number(it.largura_cm) !== Number(orig.largura_cm) ||
+            Number(it.altura_cm) !== Number(orig.altura_cm) ||
+            Number(it.valor_unitario) !== Number(orig.valor_unitario) ||
+            Number(it.valor_total) !== Number(orig.valor_total) ||
+            normalizarMetadados(it.metadados) !== normalizarMetadados(orig.metadados)
+          );
+        });
+
+      if (alterouItens) {
+        throw new Error(
+          `Edição de itens bloqueada: pedidos com status "${atual.status}" não permitem adicionar, remover ou modificar itens.`
+        );
+      }
+    }
+
     const metadados: Record<string, unknown> = { ...((atual?.metadados as any) ?? {}) };
     if (opts.pagamento) metadados.pagamento = opts.pagamento;
     else delete metadados.pagamento;
@@ -287,22 +386,24 @@ export const pedidosService = {
       .single();
     if (error) throw error;
 
-    // Substitui itens
-    const { error: dErr } = await supabase.from("pedido_itens").delete().eq("pedido_id", id);
-    if (dErr) throw dErr;
-    if (opts.itens.length > 0) {
-      const rows = opts.itens.map((i) => ({
-        pedido_id: id,
-        descricao: i.descricao,
-        quantidade: i.quantidade,
-        largura_cm: i.largura_cm,
-        altura_cm: i.altura_cm,
-        valor_unitario: i.valor_unitario,
-        valor_total: i.valor_total,
-        metadados: i.metadados,
-      }));
-      const { error: iErr } = await supabase.from("pedido_itens").insert(rows as any);
-      if (iErr) throw iErr;
+    // Substitui itens apenas se o status do pedido permitir edição de itens
+    if (podeEditarItens) {
+      const { error: dErr } = await supabase.from("pedido_itens").delete().eq("pedido_id", id);
+      if (dErr) throw dErr;
+      if (opts.itens.length > 0) {
+        const rows = opts.itens.map((i) => ({
+          pedido_id: id,
+          descricao: i.descricao,
+          quantidade: i.quantidade,
+          largura_cm: i.largura_cm,
+          altura_cm: i.altura_cm,
+          valor_unitario: i.valor_unitario,
+          valor_total: i.valor_total,
+          metadados: i.metadados,
+        }));
+        const { error: iErr } = await supabase.from("pedido_itens").insert(rows as any);
+        if (iErr) throw iErr;
+      }
     }
 
     // Substitui pagamentos

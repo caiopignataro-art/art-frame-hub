@@ -40,10 +40,31 @@ import type {
   MaterialOrigem,
   PassePartoutSelecionado,
   PasseOrdem,
+  MaterialCalculado,
 } from "@/lib/calculadora/types";
 import type { Produto, PedidoItemDraft } from "@/types/erp";
 import { formatBRL } from "@/lib/format";
 import { ProdutoAutocomplete } from "./ProdutoAutocomplete";
+
+interface MetadadosSnapshotPayload {
+  entrada?: {
+    largura_arte_cm?: number;
+    altura_arte_cm?: number;
+    molduras?: { produto_id: string }[];
+    passe_partouts?: { produto_id: string; medida_cm: number; ordem?: PasseOrdem }[];
+    protecao_id?: string | null;
+    fundo_id?: string | null;
+    impressao_id?: string | null;
+    chassi_id?: string | null;
+    servicos?: string[];
+    observacoes?: string | null;
+    imagens?: string[];
+    barra_cm?: number;
+  };
+  calculo?: {
+    materiais?: MaterialCalculado[];
+  };
+}
 
 const ORIGEM_LABEL: Record<MaterialOrigem, string> = {
   perfil_moldura: "Moldura",
@@ -105,6 +126,32 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel, initial
     queryFn: () => produtosService.list({ tipo: "servico", ativo: true }),
   });
 
+  // Identifica serviços históricos que não constam na lista de ativos
+  const missingServicoIds = React.useMemo(() => {
+    if (!initialItem) return [];
+    const enServicos = (initialItem.metadados as MetadadosSnapshotPayload | undefined)?.entrada?.servicos ?? [];
+    const activeSet = new Set((servicosQ.data ?? []).map((s) => s.id));
+    return enServicos.filter((id) => !activeSet.has(id));
+  }, [initialItem, servicosQ.data]);
+
+  const historicServicosQ = useQuery({
+    queryKey: ["produtos", "historicos", missingServicoIds],
+    queryFn: async () => {
+      if (missingServicoIds.length === 0) return [];
+      const loaded: Produto[] = [];
+      for (const id of missingServicoIds) {
+        try {
+          const p = await produtosService.get(id);
+          if (p) loaded.push(p);
+        } catch {
+          // fallback no snapshot atenderá caso falhe
+        }
+      }
+      return loaded;
+    },
+    enabled: missingServicoIds.length > 0 && !!servicosQ.data,
+  });
+
   const [quantidadeStr, setQuantidadeStr] = React.useState("");
   const [larguraStr, setLarguraStr] = React.useState("");
   const [alturaStr, setAlturaStr] = React.useState("");
@@ -139,7 +186,7 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel, initial
   const restoredRef = React.useRef(false);
   React.useEffect(() => {
     if (restoredRef.current || !initialItem) return;
-    const md = initialItem.metadados as any;
+    const md = initialItem.metadados as MetadadosSnapshotPayload | undefined;
     const en = md?.entrada;
     if (!en) { restoredRef.current = true; return; }
     const need = {
@@ -157,15 +204,15 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel, initial
     if (need.fund && !fundoQ.data) return;
     if (need.impr && !impressaoQ.data) return;
     if (need.chas && !chassiQ.data) return;
-    if (need.serv && !servicosQ.data) return;
+    if (need.serv && (!servicosQ.data || (missingServicoIds.length > 0 && !historicServicosQ.isFetched))) return;
 
     setQuantidadeStr(String(initialItem.quantidade ?? ""));
     setLarguraStr(String(en.largura_arte_cm ?? ""));
     setAlturaStr(String(en.altura_arte_cm ?? ""));
-    setMolduras(((en.molduras ?? []) as any[])
+    setMolduras((en.molduras ?? [])
       .map((m) => (perfilQ.data ?? []).find((p) => p.id === m.produto_id))
       .filter(Boolean) as Produto[]);
-    setPasses(((en.passe_partouts ?? []) as any[])
+    setPasses((en.passe_partouts ?? [])
       .map((pp) => {
         const produto = (passeQ.data ?? []).find((p) => p.id === pp.produto_id);
         return produto ? { produto, medida_cm: pp.medida_cm, ordem: pp.ordem ?? undefined } : null;
@@ -175,13 +222,54 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel, initial
     setFundo(en.fundo_id ? (fundoQ.data ?? []).find((p) => p.id === en.fundo_id) ?? null : null);
     setImpressao(en.impressao_id ? (impressaoQ.data ?? []).find((p) => p.id === en.impressao_id) ?? null : null);
     setChassi(en.chassi_id ? (chassiQ.data ?? []).find((p) => p.id === en.chassi_id) ?? null : null);
-    setServicos(((en.servicos ?? []) as string[])
-      .map((id) => (servicosQ.data ?? []).find((p) => p.id === id))
+
+    const allServicosMap = new Map<string, Produto>();
+    for (const s of servicosQ.data ?? []) allServicosMap.set(s.id, s);
+    for (const s of historicServicosQ.data ?? []) allServicosMap.set(s.id, s);
+    const materiaisCalculo = md?.calculo?.materiais ?? [];
+
+    setServicos((en.servicos ?? [])
+      .map((id) => {
+        const found = allServicosMap.get(id);
+        if (found) return found;
+        const mat = materiaisCalculo.find((m) => m.origem === "servico" && m.produto_id === id);
+        if (mat) {
+          return {
+            id,
+            codigo: mat.codigo ?? null,
+            nome: mat.descricao,
+            tipo: "servico",
+            unidade: mat.unidade ?? "un",
+            unidade_venda: mat.unidade ?? "un",
+            unidade_estoque: mat.unidade ?? "un",
+            preco_venda: Number(mat.preco_venda) || 0,
+            preco_custo: 0,
+            estoque: 0,
+            ativo: false,
+            created_at: "",
+            updated_at: "",
+          } as Produto;
+        }
+        return null;
+      })
       .filter(Boolean) as Produto[]);
+
     setObservacoes(en.observacoes ?? "");
     setImagens(en.imagens ?? []);
     restoredRef.current = true;
-  }, [initialItem, perfilQ.data, passeQ.data, protecaoQ.data, fundoQ.data, impressaoQ.data, chassiQ.data, servicosQ.data]);
+  }, [
+    initialItem,
+    perfilQ.data,
+    passeQ.data,
+    protecaoQ.data,
+    fundoQ.data,
+    impressaoQ.data,
+    chassiQ.data,
+    servicosQ.data,
+    historicServicosQ.data,
+    historicServicosQ.isFetched,
+    missingServicoIds,
+  ]);
 
 
   const input: CalcInput = React.useMemo(
@@ -493,7 +581,7 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel, initial
               <Label className="text-sm font-medium">Serviços</Label>
               <p className="text-xs text-muted-foreground mb-2">Seleção múltipla.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-md border p-3">
-                {(servicosQ.data ?? []).length === 0 && (
+                {(servicosQ.data ?? []).length === 0 && servicos.length === 0 && (
                   <EmptyHint text="Nenhum serviço cadastrado na base." />
                 )}
                 {(servicosQ.data ?? []).map((s) => {
@@ -510,6 +598,29 @@ export function Calculadora({ onAdd, cancelLabel = "Cancelar", onCancel, initial
                     </label>
                   );
                 })}
+                {/* Serviços históricos inativos já vinculados a este item */}
+                {servicos
+                  .filter((s) => !(servicosQ.data ?? []).some((act) => act.id === s.id))
+                  .map((s) => (
+                    <label
+                      key={s.id}
+                      className="flex items-center gap-2 text-sm bg-muted/40 p-1.5 rounded border border-dashed border-border"
+                    >
+                      <Checkbox
+                        checked={true}
+                        onCheckedChange={(v) => toggleServico(s, !!v)}
+                      />
+                      <span className="flex-1 text-muted-foreground">
+                        {s.codigo ? `[${s.codigo}] ` : ""}{s.nome}
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] ml-1.5 py-0 px-1 font-normal text-amber-600 dark:text-amber-400 border-amber-500/40"
+                        >
+                          Inativo no catálogo
+                        </Badge>
+                      </span>
+                    </label>
+                  ))}
               </div>
             </div>
 

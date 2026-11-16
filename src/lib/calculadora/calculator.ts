@@ -43,6 +43,7 @@ function materialDePreco(
   origem: MaterialOrigem,
   quantidadeUnitaria: number,
   quadros: number,
+  unidade: string,
 ): MaterialCalculado {
   const qty = round(quantidadeUnitaria * quadros);
   return {
@@ -50,7 +51,7 @@ function materialDePreco(
     codigo: produto.codigo,
     descricao: produto.nome,
     origem,
-    unidade: produto.unidade,
+    unidade,
     quantidade: qty,
     preco_venda: Number(produto.preco_venda),
     valor_total: round(qty * Number(produto.preco_venda), 2),
@@ -180,22 +181,22 @@ export function calcular(input: CalcInput): CalcResult {
 
   for (const m of molduras) {
     const produto = input.molduras.find((x) => x.produto.id === m.produto_id)!.produto;
-    materiais.push(materialDePreco(produto, "perfil_moldura", m.perimetro_cobrado_m, qtd));
+    materiais.push(materialDePreco(produto, "perfil_moldura", m.perimetro_cobrado_m, qtd, "m_linear"));
   }
   for (const pp of passesOrdenados) {
-    materiais.push(materialDePreco(pp.produto, "passe_partout", areaM2, qtd));
+    materiais.push(materialDePreco(pp.produto, "passe_partout", areaM2, qtd, "m2"));
   }
   if (input.protecao) {
-    materiais.push(materialDePreco(input.protecao, "protecao_frontal", areaM2, qtd));
+    materiais.push(materialDePreco(input.protecao, "protecao_frontal", areaM2, qtd, "m2"));
   }
   if (input.fundo) {
-    materiais.push(materialDePreco(input.fundo, "fundo", areaM2, qtd));
+    materiais.push(materialDePreco(input.fundo, "fundo", areaM2, qtd, "m2"));
   }
 
   // Impressão: usa área da ARTE (não abertura), preço_venda × m² × qtd
   if (input.impressao) {
     const areaArteM2 = round((la * aa) / 10000);
-    materiais.push(materialDePreco(input.impressao, "impressao", areaArteM2, qtd));
+    materiais.push(materialDePreco(input.impressao, "impressao", areaArteM2, qtd, "m2"));
   }
 
   // Chassi: até limite (default 4 m²) cobra perímetro linear (arte);
@@ -205,7 +206,7 @@ export function calcular(input: CalcInput): CalcResult {
     const limite = Number(input.chassi.preco_venda_limite_m2 ?? 4);
     const perimetroM = round(((la + aa) * 2) / 100, 4);
     if (areaArteM2 <= limite || !input.chassi.preco_venda_acima_m2) {
-      materiais.push(materialDePreco(input.chassi, "chassi", perimetroM, qtd));
+      materiais.push(materialDePreco(input.chassi, "chassi", perimetroM, qtd, "m_linear"));
     } else {
       const preco = Number(input.chassi.preco_venda_acima_m2);
       const quantidade = round(areaArteM2 * qtd);
@@ -223,7 +224,7 @@ export function calcular(input: CalcInput): CalcResult {
   }
 
   for (const s of input.servicos) {
-    materiais.push(materialDePreco(s, "servico", 1, qtd));
+    materiais.push(materialDePreco(s, "servico", 1, qtd, "un"));
   }
 
   const valor_total = round(materiais.reduce((s, m) => s + m.valor_total, 0), 2);
