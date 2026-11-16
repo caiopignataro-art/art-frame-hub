@@ -13,6 +13,7 @@ import { Route as ProdutosRouteImport } from './routes/produtos'
 import { Route as ProducaoRouteImport } from './routes/producao'
 import { Route as PedidosRouteImport } from './routes/pedidos'
 import { Route as PagamentosRouteImport } from './routes/pagamentos'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as HistoricoRouteImport } from './routes/historico'
 import { Route as EstoqueRouteImport } from './routes/estoque'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -50,6 +51,11 @@ const PedidosRoute = PedidosRouteImport.update({
 const PagamentosRoute = PagamentosRouteImport.update({
   id: '/pagamentos',
   path: '/pagamentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HistoricoRoute = HistoricoRouteImport.update({
@@ -150,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRouteWithChildren
   '/historico': typeof HistoricoRoute
+  '/login': typeof LoginRoute
   '/pagamentos': typeof PagamentosRoute
   '/pedidos': typeof PedidosRouteWithChildren
   '/producao': typeof ProducaoRouteWithChildren
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
   '/historico': typeof HistoricoRoute
+  '/login': typeof LoginRoute
   '/pagamentos': typeof PagamentosRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/ordens': typeof EstoqueOrdensRoute
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRouteWithChildren
   '/historico': typeof HistoricoRoute
+  '/login': typeof LoginRoute
   '/pagamentos': typeof PagamentosRoute
   '/pedidos': typeof PedidosRouteWithChildren
   '/producao': typeof ProducaoRouteWithChildren
@@ -221,6 +230,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/estoque'
     | '/historico'
+    | '/login'
     | '/pagamentos'
     | '/pedidos'
     | '/producao'
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/dashboard'
     | '/historico'
+    | '/login'
     | '/pagamentos'
     | '/estoque/movimentacoes'
     | '/estoque/ordens'
@@ -265,6 +276,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/estoque'
     | '/historico'
+    | '/login'
     | '/pagamentos'
     | '/pedidos'
     | '/producao'
@@ -290,6 +302,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   EstoqueRoute: typeof EstoqueRouteWithChildren
   HistoricoRoute: typeof HistoricoRoute
+  LoginRoute: typeof LoginRoute
   PagamentosRoute: typeof PagamentosRoute
   PedidosRoute: typeof PedidosRouteWithChildren
   ProducaoRoute: typeof ProducaoRouteWithChildren
@@ -324,6 +337,13 @@ declare module '@tanstack/react-router' {
       path: '/pagamentos'
       fullPath: '/pagamentos'
       preLoaderRoute: typeof PagamentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/historico': {
@@ -524,6 +544,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   EstoqueRoute: EstoqueRouteWithChildren,
   HistoricoRoute: HistoricoRoute,
+  LoginRoute: LoginRoute,
   PagamentosRoute: PagamentosRoute,
   PedidosRoute: PedidosRouteWithChildren,
   ProducaoRoute: ProducaoRouteWithChildren,
