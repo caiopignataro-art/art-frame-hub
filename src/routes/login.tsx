@@ -126,12 +126,12 @@ function LoginPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/30 px-4 py-12">
       <div className="w-full max-w-md space-y-6">
         <div className="flex flex-col items-center text-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <Frame className="h-6 w-6" />
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Frame className="h-5 w-5" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Molduraria ERP</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Art Frame Hub — Gestão Comercial, Estoque e Produção
+          <h1 className="text-xl font-bold tracking-tight text-foreground">ART FRAME HUB</h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Molduraria ERP — Gestão Comercial, Estoque e Produção
           </p>
         </div>
 

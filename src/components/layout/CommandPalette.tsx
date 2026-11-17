@@ -37,23 +37,125 @@ import { formatBRL, formatOPNumber } from "@/lib/format";
 import { PEDIDO_STATUS_LABEL, PRODUTO_CATEGORIAS_IMPORTACAO, type ProdutoTipo } from "@/types/erp";
 
 const NAV_COMMANDS = [
-  { to: "/", label: "Calculadora de Orçamento", group: "Visão Geral", icon: Calculator, keywords: "orcamento quadro moldura calculo" },
-  { to: "/dashboard", label: "Dashboard Executivo", group: "Visão Geral", icon: LayoutDashboard, keywords: "faturamento indicadores kpi metricas" },
-  { to: "/clientes", label: "Clientes", group: "Comercial", icon: Users, keywords: "cadastro contatos whatsapp cpf" },
-  { to: "/pedidos", label: "Pedidos", group: "Comercial", icon: ShoppingBag, keywords: "vendas orcamentos entregas" },
-  { to: "/pedidos/novo", label: "Novo Pedido", group: "Comercial", icon: Plus, keywords: "criar lancar venda" },
-  { to: "/produtos", label: "Produtos — Catálogo", group: "Catálogo", icon: Package, keywords: "molduras passe-partout precos" },
-  { to: "/produtos/essenciais", label: "Produtos — Essenciais", group: "Catálogo", icon: Layers, keywords: "vidro fundo chassi impressao servicos" },
-  { to: "/produtos/importacao", label: "Produtos — Importação XLSX", group: "Catálogo", icon: FileSpreadsheet, keywords: "planilha excel upload" },
-  { to: "/producao", label: "Produção — Fluxo Kanban", group: "Operação", icon: Hammer, keywords: "kanban fila fabrica" },
-  { to: "/producao/ordens", label: "Produção — Lotes de OP", group: "Operação", icon: ClipboardList, keywords: "ordens producao lotes" },
-  { to: "/estoque", label: "Estoque — Saldo de Perfis", group: "Operação", icon: Boxes, keywords: "barras molduras alerta minimo" },
-  { to: "/estoque/retalhos", label: "Estoque — Retalhos", group: "Operação", icon: Scissors, keywords: "sobras cortes" },
-  { to: "/estoque/movimentacoes", label: "Estoque — Movimentações", group: "Operação", icon: History, keywords: "reservas consumos estornos" },
-  { to: "/estoque/ordens", label: "Estoque — Consumo por OP", group: "Operação", icon: ClipboardList, keywords: "insumos ordens" },
-  { to: "/pagamentos", label: "Pagamentos e Recebíveis", group: "Financeiro", icon: CreditCard, keywords: "financeiro pix cartao sinal" },
-  { to: "/historico", label: "Histórico de Auditoria", group: "Gestão", icon: History, keywords: "logs alteracoes" },
-  { to: "/configuracoes", label: "Configurações e Acessos", group: "Gestão", icon: Settings, keywords: "usuarios perfis permissoes parametros" },
+  {
+    to: "/",
+    label: "Calculadora de Orçamento",
+    group: "Visão Geral",
+    icon: Calculator,
+    keywords: "orcamento quadro moldura calculo",
+  },
+  {
+    to: "/dashboard",
+    label: "Dashboard Executivo",
+    group: "Visão Geral",
+    icon: LayoutDashboard,
+    keywords: "faturamento indicadores kpi metricas",
+  },
+  {
+    to: "/clientes",
+    label: "Clientes",
+    group: "Comercial",
+    icon: Users,
+    keywords: "cadastro contatos whatsapp cpf",
+  },
+  {
+    to: "/pedidos",
+    label: "Pedidos",
+    group: "Comercial",
+    icon: ShoppingBag,
+    keywords: "vendas orcamentos entregas",
+  },
+  {
+    to: "/pedidos/novo",
+    label: "Novo Pedido",
+    group: "Comercial",
+    icon: Plus,
+    keywords: "criar lancar venda",
+  },
+  {
+    to: "/produtos",
+    label: "Produtos — Catálogo",
+    group: "Catálogo",
+    icon: Package,
+    keywords: "molduras passe-partout precos",
+  },
+  {
+    to: "/produtos/essenciais",
+    label: "Produtos — Essenciais",
+    group: "Catálogo",
+    icon: Layers,
+    keywords: "vidro fundo chassi impressao servicos",
+  },
+  {
+    to: "/produtos/importacao",
+    label: "Produtos — Importação XLSX",
+    group: "Catálogo",
+    icon: FileSpreadsheet,
+    keywords: "planilha excel upload",
+  },
+  {
+    to: "/producao",
+    label: "Produção — Fluxo Kanban",
+    group: "Operação",
+    icon: Hammer,
+    keywords: "kanban fila fabrica",
+  },
+  {
+    to: "/producao/ordens",
+    label: "Produção — Lotes de OP",
+    group: "Operação",
+    icon: ClipboardList,
+    keywords: "ordens producao lotes",
+  },
+  {
+    to: "/estoque",
+    label: "Estoque — Saldo de Perfis",
+    group: "Operação",
+    icon: Boxes,
+    keywords: "barras molduras alerta minimo",
+  },
+  {
+    to: "/estoque/retalhos",
+    label: "Estoque — Retalhos",
+    group: "Operação",
+    icon: Scissors,
+    keywords: "sobras cortes",
+  },
+  {
+    to: "/estoque/movimentacoes",
+    label: "Estoque — Movimentações",
+    group: "Operação",
+    icon: History,
+    keywords: "reservas consumos estornos",
+  },
+  {
+    to: "/estoque/ordens",
+    label: "Estoque — Consumo por OP",
+    group: "Operação",
+    icon: ClipboardList,
+    keywords: "insumos ordens",
+  },
+  {
+    to: "/pagamentos",
+    label: "Pagamentos e Recebíveis",
+    group: "Financeiro",
+    icon: CreditCard,
+    keywords: "financeiro pix cartao sinal",
+  },
+  {
+    to: "/historico",
+    label: "Histórico de Auditoria",
+    group: "Gestão",
+    icon: History,
+    keywords: "logs alteracoes",
+  },
+  {
+    to: "/configuracoes",
+    label: "Configurações e Acessos",
+    group: "Gestão",
+    icon: Settings,
+    keywords: "usuarios perfis permissoes parametros",
+  },
 ] as const;
 
 export function CommandPalette({
@@ -199,9 +301,7 @@ export function CommandPalette({
                   <span className="font-mono text-xs font-semibold">
                     {formatOPNumber(op.numero)}
                   </span>
-                  <span className="text-xs text-muted-foreground">
-                    {op.qtd_pedidos} pedido(s)
-                  </span>
+                  <span className="text-xs text-muted-foreground">{op.qtd_pedidos} pedido(s)</span>
                   <span className="ml-auto text-[11px] uppercase text-muted-foreground">
                     {op.status}
                   </span>
@@ -258,9 +358,7 @@ export function CommandPalette({
                   >
                     <Package className="mr-2 h-4 w-4 text-muted-foreground" />
                     {pr.codigo && (
-                      <span className="font-mono text-xs text-muted-foreground">
-                        [{pr.codigo}]
-                      </span>
+                      <span className="font-mono text-xs text-muted-foreground">[{pr.codigo}]</span>
                     )}
                     <span className="truncate">{pr.nome}</span>
                     <span className="ml-auto text-xs tabular-nums text-muted-foreground">

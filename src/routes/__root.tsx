@@ -57,7 +57,8 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           Não foi possível carregar esta página
         </h1>
         <p className="mt-1.5 text-xs text-muted-foreground">
-          Ocorreu um erro inesperado ao processar a visualização. Tente atualizar ou retornar ao início.
+          Ocorreu um erro inesperado ao processar a visualização. Tente atualizar ou retornar ao
+          início.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button

@@ -6,15 +6,29 @@ import { CheckCircle2, MessageCircle, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PedidoStatusBadge } from "@/components/erp/StatusBadge";
+import { Badge } from "@/components/ui/badge";
+import { PedidoStatusBadge, PagamentoStatusBadge } from "@/components/erp/StatusBadge";
 import { pedidosService } from "@/lib/services/pedidos.service";
 import { historicoService } from "@/lib/services/historico.service";
 import { whatsappService } from "@/lib/services/whatsapp.service";
 import { formatBRL, formatDate, formatDateTime } from "@/lib/format";
-import { PEDIDO_FLUXO, PEDIDO_STATUS_LABEL, type PedidoStatus } from "@/types/erp";
+import {
+  FORMA_PAGAMENTO_LABEL,
+  PEDIDO_FLUXO,
+  PEDIDO_STATUS_LABEL,
+  type FormaPagamento,
+  type PagamentoStatus,
+  type PedidoStatus,
+} from "@/types/erp";
 import { gerarPedidoPDF, gerarMensagemWhatsapp, whatsappUrl } from "@/lib/pdf/pedidoPDF";
 
-export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: string | null; onOpenChange: (open: boolean) => void }) {
+export function PedidoDetailDialog({
+  pedidoId,
+  onOpenChange,
+}: {
+  pedidoId: string | null;
+  onOpenChange: (open: boolean) => void;
+}) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const open = !!pedidoId;
@@ -82,7 +96,6 @@ export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: strin
         cliente: p.cliente,
         itens: p.itens ?? [],
       });
-      // baixa o PDF localmente para o usuário anexar no WhatsApp
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -103,27 +116,62 @@ export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: strin
       await pedidosService.marcarWhatsappEnviado(p.id);
       qc.invalidateQueries({ queryKey: ["pedido", pedidoId] });
       toast.success("PDF baixado e WhatsApp aberto.");
-    } catch (e: any) {
-      toast.error(e?.message ?? "Falha ao gerar PDF");
+    } catch (e: unknown) {
+      toast.error((e as Error)?.message ?? "Falha ao gerar PDF");
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {p ? <span className="inline-flex items-center gap-2">Pedido #{p.numero_pedido} <PedidoStatusBadge status={p.status} /></span> : "Pedido"}
+            {p ? (
+              <span className="inline-flex items-center gap-2.5">
+                <span className="font-mono text-lg font-bold">Pedido #{p.numero_pedido}</span>
+                <PedidoStatusBadge status={p.status} />
+              </span>
+            ) : (
+              "Detalhes do Pedido"
+            )}
           </DialogTitle>
         </DialogHeader>
 
         {p && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div><span className="text-muted-foreground">Cliente:</span> {p.cliente?.nome ?? "—"}</div>
-              <div><span className="text-muted-foreground">Valor:</span> {formatBRL(p.valor_total)}</div>
-              <div><span className="text-muted-foreground">Entrega prevista:</span> {formatDate(p.data_entrega_prevista)}</div>
-              <div><span className="text-muted-foreground">Entregue em:</span> {formatDate(p.data_entrega_realizada)}</div>
+            <div className="grid grid-cols-2 gap-3 rounded-lg border border-border/80 bg-muted/30 p-3.5 text-xs sm:grid-cols-4">
+              <div>
+                <span className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Cliente
+                </span>
+                <span className="mt-0.5 block font-medium text-foreground truncate">
+                  {p.cliente?.nome ?? "—"}
+                </span>
+              </div>
+              <div>
+                <span className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Valor Total
+                </span>
+                <span className="mt-0.5 block font-mono font-semibold tabular-nums text-foreground">
+                  {formatBRL(p.valor_total)}
+                </span>
+              </div>
+              <div>
+                <span className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Entrega Prevista
+                </span>
+                <span className="mt-0.5 block font-medium text-foreground">
+                  {formatDate(p.data_entrega_prevista)}
+                </span>
+              </div>
+              <div>
+                <span className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Entregue em
+                </span>
+                <span className="mt-0.5 block font-medium text-foreground">
+                  {formatDate(p.data_entrega_realizada)}
+                </span>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -132,22 +180,32 @@ export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: strin
                 variant="outline"
                 onClick={() => {
                   onOpenChange(false);
-                  navigate({ to: "/pedidos/novo", search: { id: p.id } });
+                  void navigate({ to: "/pedidos/novo", search: { id: p.id } });
                 }}
               >
-                <Pencil className="mr-1 h-4 w-4" /> Editar
+                <Pencil className="h-3.5 w-3.5" />
+                Editar pedido
               </Button>
-              <Button size="sm" onClick={handleEnviarWhats} variant="default">
-                <MessageCircle className="mr-1 h-4 w-4" />
+              <Button size="sm" onClick={() => void handleEnviarWhats()} variant="secondary">
+                <MessageCircle className="h-3.5 w-3.5" />
                 {p.whatsapp_enviado ? "Reenviar via WhatsApp" : "Enviar pedido via WhatsApp"}
               </Button>
               {p.status === "orcamento" && (
-                <Button size="sm" onClick={() => setStatus.mutate("aprovado")} disabled={setStatus.isPending}>
-                  <CheckCircle2 className="mr-1 h-4 w-4" /> Aprovar pedido
+                <Button
+                  size="sm"
+                  onClick={() => setStatus.mutate("aprovado")}
+                  disabled={setStatus.isPending}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Aprovar pedido
                 </Button>
               )}
               {p.status === "aprovado" && (
-                <Button size="sm" onClick={() => setStatus.mutate("em_producao")} disabled={setStatus.isPending}>
+                <Button
+                  size="sm"
+                  onClick={() => setStatus.mutate("em_producao")}
+                  disabled={setStatus.isPending}
+                >
                   Iniciar produção
                 </Button>
               )}
@@ -161,24 +219,43 @@ export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: strin
                   >
                     Voltar para Aprovado
                   </Button>
-                  <Button size="sm" onClick={() => setStatus.mutate("pronto")} disabled={setStatus.isPending}>
+                  <Button
+                    size="sm"
+                    onClick={() => setStatus.mutate("pronto")}
+                    disabled={setStatus.isPending}
+                  >
                     Marcar como pronto
                   </Button>
                 </>
               )}
               {p.status === "pronto" && (
-                <Button size="sm" onClick={() => setStatus.mutate("entregue")} disabled={setStatus.isPending}>
+                <Button
+                  size="sm"
+                  onClick={() => setStatus.mutate("entregue")}
+                  disabled={setStatus.isPending}
+                >
                   Marcar como entregue
                 </Button>
               )}
             </div>
 
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Linha do tempo</CardTitle></CardHeader>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Progresso Operacional
+                </CardTitle>
+              </CardHeader>
               <CardContent>
-                <ol className="flex flex-wrap gap-2 text-xs">
+                <ol className="flex flex-wrap gap-1.5 text-xs">
                   {PEDIDO_FLUXO.map((s, idx) => (
-                    <li key={s} className={`rounded-full px-3 py-1 ${idx <= statusAtualIdx ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                    <li
+                      key={s}
+                      className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+                        idx <= statusAtualIdx
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
                       {idx + 1}. {PEDIDO_STATUS_LABEL[s]}
                     </li>
                   ))}
@@ -187,21 +264,35 @@ export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: strin
             </Card>
 
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Itens ({p.itens?.length ?? 0})</CardTitle></CardHeader>
-              <CardContent className="space-y-2 text-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Itens ({p.itens?.length ?? 0})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-xs sm:text-sm">
                 {(p.itens ?? []).map((i) => {
-                  const imgs = (((i as any).metadados)?.entrada?.imagens ?? []) as string[];
+                  const md = i.metadados as { entrada?: { imagens?: string[] } } | null | undefined;
+                  const imgs = md?.entrada?.imagens ?? [];
                   return (
-                    <div key={i.id} className="border-b border-border/50 pb-2 last:border-0">
+                    <div
+                      key={i.id}
+                      className="border-b border-border/60 pb-2 last:border-0 last:pb-0"
+                    >
                       <div className="flex justify-between gap-2">
-                        <span className="truncate">{i.descricao}</span>
-                        <span className="shrink-0">{Number(i.quantidade)} · {formatBRL(i.valor_total)}</span>
+                        <span className="font-medium text-foreground">{i.descricao}</span>
+                        <span className="shrink-0 font-mono text-xs tabular-nums">
+                          {Number(i.quantidade)}× · <strong>{formatBRL(i.valor_total)}</strong>
+                        </span>
                       </div>
                       {imgs.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {imgs.map((src, ii) => (
                             <a key={ii} href={src} target="_blank" rel="noreferrer">
-                              <img src={src} alt={`Foto ${ii + 1}`} className="h-14 w-14 rounded border object-cover" />
+                              <img
+                                src={src}
+                                alt={`Foto ${ii + 1}`}
+                                className="h-14 w-14 rounded-md border object-cover"
+                              />
                             </a>
                           ))}
                         </div>
@@ -209,46 +300,92 @@ export function PedidoDetailDialog({ pedidoId, onOpenChange }: { pedidoId: strin
                     </div>
                   );
                 })}
-                {(!p.itens || p.itens.length === 0) && <p className="text-xs text-muted-foreground">Sem itens.</p>}
+                {(!p.itens || p.itens.length === 0) && (
+                  <p className="text-xs text-muted-foreground">Sem itens registrados.</p>
+                )}
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Pagamentos</CardTitle></CardHeader>
-              <CardContent className="space-y-1 text-sm">
-                {(p.pagamentos ?? []).map((pg) => (
-                  <div key={pg.id} className="flex justify-between border-b border-border/50 pb-1 last:border-0">
-                    <span>{pg.forma_pagamento} · {pg.status}</span>
-                    <span>{formatBRL(pg.valor)} — {formatDate(pg.data_pagamento)}</span>
-                  </div>
-                ))}
-                {(!p.pagamentos || p.pagamentos.length === 0) && <p className="text-xs text-muted-foreground">Sem pagamentos.</p>}
-              </CardContent>
-            </Card>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Pagamentos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-1.5 text-xs">
+                  {(p.pagamentos ?? []).map((pg) => (
+                    <div
+                      key={pg.id}
+                      className="flex items-center justify-between border-b border-border/60 pb-1.5 last:border-0"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">
+                          {FORMA_PAGAMENTO_LABEL[pg.forma_pagamento as FormaPagamento] ??
+                            pg.forma_pagamento}
+                        </span>
+                        <PagamentoStatusBadge status={pg.status as PagamentoStatus} />
+                      </div>
+                      <span className="font-mono tabular-nums">
+                        {formatBRL(pg.valor)} · {formatDate(pg.data_pagamento)}
+                      </span>
+                    </div>
+                  ))}
+                  {(!p.pagamentos || p.pagamentos.length === 0) && (
+                    <p className="text-xs text-muted-foreground">Sem pagamentos registrados.</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Notificações WhatsApp
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-1.5 text-xs">
+                  {(whats.data ?? []).map((w) => (
+                    <div
+                      key={w.id}
+                      className="flex flex-col border-b border-border/60 pb-1.5 last:border-0"
+                    >
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>{formatDateTime(w.created_at)}</span>
+                        <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
+                          {w.status}
+                        </Badge>
+                      </div>
+                      <span className="mt-0.5 line-clamp-2 text-foreground">{w.mensagem}</span>
+                    </div>
+                  ))}
+                  {(whats.data ?? []).length === 0 && (
+                    <p className="text-muted-foreground">Nenhuma mensagem enfileirada.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Histórico</CardTitle></CardHeader>
-              <CardContent className="space-y-1 text-xs">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Histórico de Eventos
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5 text-xs">
                 {(historico.data ?? []).map((h) => (
-                  <div key={h.id} className="flex gap-2">
-                    <span className="text-muted-foreground w-32 shrink-0">{formatDateTime(h.created_at)}</span>
-                    <span>{h.descricao}</span>
+                  <div
+                    key={h.id}
+                    className="flex gap-3 border-b border-border/40 pb-1 last:border-0"
+                  >
+                    <span className="w-32 shrink-0 font-mono text-[11px] text-muted-foreground">
+                      {formatDateTime(h.created_at)}
+                    </span>
+                    <span className="text-foreground">{h.descricao}</span>
                   </div>
                 ))}
-                {(historico.data ?? []).length === 0 && <p className="text-muted-foreground">Sem eventos.</p>}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Notificações WhatsApp</CardTitle></CardHeader>
-              <CardContent className="space-y-1 text-xs">
-                {(whats.data ?? []).map((w) => (
-                  <div key={w.id} className="flex flex-col border-b border-border/50 pb-1 last:border-0">
-                    <span className="text-muted-foreground">{formatDateTime(w.created_at)} · {w.evento} · {w.status}</span>
-                    <span>{w.mensagem}</span>
-                  </div>
-                ))}
-                {(whats.data ?? []).length === 0 && <p className="text-muted-foreground">Nenhuma mensagem enfileirada.</p>}
+                {(historico.data ?? []).length === 0 && (
+                  <p className="text-muted-foreground">Sem eventos registrados.</p>
+                )}
               </CardContent>
             </Card>
           </div>

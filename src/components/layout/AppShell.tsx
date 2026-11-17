@@ -37,11 +37,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -168,21 +164,74 @@ const NAV_GROUPS: readonly NavGroup[] = [
   },
 ] as const;
 
-const ROUTE_LABELS: Record<string, { group?: string; label: string; parentTo?: string; parentLabel?: string }> = {
+const ROUTE_LABELS: Record<
+  string,
+  { group?: string; label: string; parentTo?: string; parentLabel?: string }
+> = {
   "/": { group: "Visão Geral", label: "Calculadora de Orçamento" },
   "/dashboard": { group: "Visão Geral", label: "Dashboard" },
   "/clientes": { group: "Comercial", label: "Clientes" },
   "/pedidos": { group: "Comercial", label: "Pedidos" },
-  "/pedidos/novo": { group: "Comercial", parentTo: "/pedidos", parentLabel: "Pedidos", label: "Pedido" },
-  "/produtos": { group: "Catálogo", label: "Produtos", parentTo: "/produtos", parentLabel: "Produtos" },
-  "/produtos/essenciais": { group: "Catálogo", parentTo: "/produtos", parentLabel: "Produtos", label: "Essenciais" },
-  "/produtos/importacao": { group: "Catálogo", parentTo: "/produtos", parentLabel: "Produtos", label: "Importação" },
-  "/producao": { group: "Operação", label: "Fluxo de Produção", parentTo: "/producao", parentLabel: "Produção" },
-  "/producao/ordens": { group: "Operação", parentTo: "/producao", parentLabel: "Produção", label: "Ordens de Produção" },
-  "/estoque": { group: "Operação", label: "Estoque de Molduras", parentTo: "/estoque", parentLabel: "Estoque" },
-  "/estoque/retalhos": { group: "Operação", parentTo: "/estoque", parentLabel: "Estoque", label: "Retalhos" },
-  "/estoque/movimentacoes": { group: "Operação", parentTo: "/estoque", parentLabel: "Estoque", label: "Movimentações" },
-  "/estoque/ordens": { group: "Operação", parentTo: "/estoque", parentLabel: "Estoque", label: "Consumo por OP" },
+  "/pedidos/novo": {
+    group: "Comercial",
+    parentTo: "/pedidos",
+    parentLabel: "Pedidos",
+    label: "Pedido",
+  },
+  "/produtos": {
+    group: "Catálogo",
+    label: "Produtos",
+    parentTo: "/produtos",
+    parentLabel: "Produtos",
+  },
+  "/produtos/essenciais": {
+    group: "Catálogo",
+    parentTo: "/produtos",
+    parentLabel: "Produtos",
+    label: "Essenciais",
+  },
+  "/produtos/importacao": {
+    group: "Catálogo",
+    parentTo: "/produtos",
+    parentLabel: "Produtos",
+    label: "Importação",
+  },
+  "/producao": {
+    group: "Operação",
+    label: "Fluxo de Produção",
+    parentTo: "/producao",
+    parentLabel: "Produção",
+  },
+  "/producao/ordens": {
+    group: "Operação",
+    parentTo: "/producao",
+    parentLabel: "Produção",
+    label: "Ordens de Produção",
+  },
+  "/estoque": {
+    group: "Operação",
+    label: "Estoque de Molduras",
+    parentTo: "/estoque",
+    parentLabel: "Estoque",
+  },
+  "/estoque/retalhos": {
+    group: "Operação",
+    parentTo: "/estoque",
+    parentLabel: "Estoque",
+    label: "Retalhos",
+  },
+  "/estoque/movimentacoes": {
+    group: "Operação",
+    parentTo: "/estoque",
+    parentLabel: "Estoque",
+    label: "Movimentações",
+  },
+  "/estoque/ordens": {
+    group: "Operação",
+    parentTo: "/estoque",
+    parentLabel: "Estoque",
+    label: "Consumo por OP",
+  },
   "/pagamentos": { group: "Financeiro", label: "Pagamentos" },
   "/historico": { group: "Gestão", label: "Histórico" },
   "/configuracoes": { group: "Gestão", label: "Configurações" },
@@ -231,11 +280,7 @@ function AppSidebarNavigation({ pathname }: { pathname: string }) {
                   if (!hasSub) {
                     return (
                       <SidebarMenuItem key={item.to}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={active}
-                          tooltip={item.label}
-                        >
+                        <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
                           <Link to={item.to} onClick={handleLinkClick}>
                             <Icon />
                             <span>{item.label}</span>
@@ -253,11 +298,7 @@ function AppSidebarNavigation({ pathname }: { pathname: string }) {
                       className="group/collapsible"
                     >
                       <SidebarMenuItem>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={active}
-                          tooltip={item.label}
-                        >
+                        <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
                           <Link to={item.to} onClick={handleLinkClick}>
                             <Icon />
                             <span>{item.label}</span>
@@ -277,11 +318,7 @@ function AppSidebarNavigation({ pathname }: { pathname: string }) {
                               const subActive = isPathActive(pathname, sub.to, sub.exact);
                               return (
                                 <SidebarMenuSubItem key={sub.to}>
-                                  <SidebarMenuSubButton
-                                    asChild
-                                    size="sm"
-                                    isActive={subActive}
-                                  >
+                                  <SidebarMenuSubButton asChild size="sm" isActive={subActive}>
                                     <Link to={sub.to} onClick={handleLinkClick}>
                                       <span>{sub.label}</span>
                                     </Link>
@@ -363,11 +400,7 @@ function AppSidebarFooter() {
                 </div>
               </SidebarMenuButton>
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-              side="top"
-              align="start"
-              className="w-60 rounded-lg"
-            >
+            <DropdownMenuContent side="top" align="start" className="w-60 rounded-lg">
               <DropdownMenuLabel className="p-2 font-normal">
                 <div className="flex flex-col space-y-1">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
@@ -375,9 +408,7 @@ function AppSidebarFooter() {
                     <span className="truncate">{auth.name || auth.email}</span>
                   </div>
                   {auth.email && (
-                    <span className="truncate text-[11px] text-muted-foreground">
-                      {auth.email}
-                    </span>
+                    <span className="truncate text-[11px] text-muted-foreground">{auth.email}</span>
                   )}
                   {displayRoles.length > 0 && (
                     <div className="flex flex-wrap gap-1 pt-1">
@@ -418,7 +449,13 @@ function AppSidebarFooter() {
   );
 }
 
-function HeaderBreadcrumbs({ pathname, fallbackTitle }: { pathname: string; fallbackTitle?: string }) {
+function HeaderBreadcrumbs({
+  pathname,
+  fallbackTitle,
+}: {
+  pathname: string;
+  fallbackTitle?: string;
+}) {
   const normalized = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
   const matched = ROUTE_LABELS[normalized];
 
@@ -624,7 +661,11 @@ function HeaderUserMenu() {
             {displayRoles.length > 0 && (
               <div className="flex flex-wrap gap-1 pt-1">
                 {displayRoles.slice(0, 3).map((r) => (
-                  <Badge key={r} variant="secondary" className="px-1.5 py-0 text-[10px] font-normal">
+                  <Badge
+                    key={r}
+                    variant="secondary"
+                    className="px-1.5 py-0 text-[10px] font-normal"
+                  >
                     {r}
                   </Badge>
                 ))}
@@ -749,7 +790,9 @@ export function AppShell({
         </header>
 
         <div className="flex-1 overflow-auto p-4 sm:p-6">
-          <div className={isFocus ? "mx-auto w-full max-w-[1600px]" : "mx-auto w-full max-w-[1440px]"}>
+          <div
+            className={isFocus ? "mx-auto w-full max-w-[1600px]" : "mx-auto w-full max-w-[1440px]"}
+          >
             <RouteAccessGuard>{children}</RouteAccessGuard>
           </div>
         </div>

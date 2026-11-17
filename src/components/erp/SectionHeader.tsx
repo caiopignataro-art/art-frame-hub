@@ -8,24 +8,12 @@ export interface SectionHeaderProps {
   className?: string;
 }
 
-export function SectionHeader({
-  title,
-  description,
-  action,
-  className,
-}: SectionHeaderProps) {
+export function SectionHeader({ title, description, action, className }: SectionHeaderProps) {
   return (
-    <div
-      className={cn(
-        "flex flex-wrap items-center justify-between gap-2",
-        className,
-      )}
-    >
+    <div className={cn("flex flex-wrap items-center justify-between gap-2", className)}>
       <div className="space-y-0.5">
         <h3 className="text-sm font-semibold tracking-tight text-foreground">{title}</h3>
-        {description && (
-          <p className="text-xs text-muted-foreground">{description}</p>
-        )}
+        {description && <p className="text-xs text-muted-foreground">{description}</p>}
       </div>
       {action && <div className="flex items-center gap-2">{action}</div>}
     </div>

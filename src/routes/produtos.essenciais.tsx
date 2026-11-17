@@ -2,15 +2,24 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Edit, AlertTriangle } from "lucide-react";
+import { AlertTriangle, Edit, Layers, Plus } from "lucide-react";
 import { PageHeader } from "@/components/erp/PageHeader";
-import { Card } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/erp/EmptyState";
+import { TableLoadingRows } from "@/components/erp/LoadingState";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { produtosService } from "@/lib/services/produtos.service";
 import {
   PRODUTO_TIPO_LABEL,
@@ -23,7 +32,7 @@ import { ProdutoEditDialog } from "@/components/produtos/ProdutoEditDialog";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/produtos/essenciais")({
-  head: () => ({ meta: [{ title: "Produtos Essenciais — Molduraria ERP" }] }),
+  head: () => ({ meta: [{ title: "Produtos Essenciais — Art Frame Hub" }] }),
   component: EssenciaisPage,
 });
 
@@ -39,9 +48,20 @@ function EssenciaisPage() {
   });
 
   const rows = useMemo(
-    () => (data ?? []).filter((p) => p.tipo === tab).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
+    () =>
+      (data ?? [])
+        .filter((p) => p.tipo === tab)
+        .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
     [data, tab],
   );
+
+  const countByCat = useMemo(() => {
+    const map = new Map<ProdutoCategoriaEssencial, number>();
+    for (const c of PRODUTO_CATEGORIAS_ESSENCIAIS) {
+      map.set(c, (data ?? []).filter((p) => p.tipo === c).length);
+    }
+    return map;
+  }, [data]);
 
   const alertas = useMemo(
     () =>
@@ -73,42 +93,58 @@ function EssenciaisPage() {
     <>
       <PageHeader
         title="Produtos Essenciais"
-        description="Cadastro manual de Proteção Frontal, Fundo, Impressão, Chassi e Serviços. Códigos de 4 dígitos gerados automaticamente."
+        description="Cadastro de Proteção Frontal, Fundo, Impressão, Chassi e Serviços com código automático de 4 dígitos."
         actions={
-          <Button onClick={openCriar}>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo produto
+          <Button size="sm" onClick={openCriar}>
+            <Plus className="h-4 w-4" />
+            Novo {PRODUTO_TIPO_LABEL[tab].toLowerCase()}
           </Button>
         }
       />
 
-      <div className="mb-4 flex gap-1 border-b border-border overflow-x-auto">
-        {PRODUTO_CATEGORIAS_ESSENCIAIS.map((c) => (
-          <button
-            key={c}
-            onClick={() => setTab(c)}
-            className={cn(
-              "border-b-2 px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors",
-              tab === c
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {PRODUTO_TIPO_LABEL[c]}
-          </button>
-        ))}
+      {/* Seletor de categoria essencial */}
+      <div className="mb-4 flex flex-wrap gap-1.5 rounded-lg border border-border/80 bg-muted/40 p-1">
+        {PRODUTO_CATEGORIAS_ESSENCIAIS.map((c) => {
+          const active = tab === c;
+          const cnt = countByCat.get(c) ?? 0;
+          return (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setTab(c)}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+                active
+                  ? "bg-background text-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <span>{PRODUTO_TIPO_LABEL[c]}</span>
+              <span
+                className={cn(
+                  "rounded-full px-1.5 py-0 text-[10px] font-mono tabular-nums",
+                  active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+                )}
+              >
+                {cnt}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {alertas.length > 0 && (
-        <Alert variant="destructive" className="mb-4">
+        <Alert variant="destructive" className="mb-4 border-destructive/30 bg-destructive/5">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>🔴 Estoque crítico</AlertTitle>
+          <AlertTitle className="text-xs font-semibold">
+            Estoque crítico em {PRODUTO_TIPO_LABEL[tab]} ({alertas.length})
+          </AlertTitle>
           <AlertDescription>
-            <ul className="mt-1 space-y-0.5 text-sm">
+            <ul className="mt-1 space-y-0.5 text-xs">
               {alertas.map((p) => (
                 <li key={p.id}>
-                  <strong>{p.nome}</strong> — {Number(p.estoque)} {p.unidade_estoque ?? p.unidade} restante(s) (mínimo{" "}
-                  {Number(p.estoque_minimo)})
+                  <strong>{p.nome}</strong> — {Number(p.estoque)} {p.unidade_estoque ?? p.unidade}{" "}
+                  restante(s) (mínimo {Number(p.estoque_minimo)})
                 </li>
               ))}
             </ul>
@@ -122,15 +158,15 @@ function EssenciaisPage() {
             <TableRow>
               <TableHead>Código</TableHead>
               <TableHead>Nome</TableHead>
-              <TableHead>Un. venda</TableHead>
-              <TableHead>Un. estoque</TableHead>
-              <TableHead className="text-right">Preço compra</TableHead>
-              <TableHead className="text-right">Preço venda</TableHead>
+              <TableHead>Un. Venda</TableHead>
+              <TableHead>Un. Estoque</TableHead>
+              <TableHead className="text-right">Custo</TableHead>
+              <TableHead className="text-right">Venda</TableHead>
               {tab === "chassi" && <TableHead className="text-right">Acima limite/m²</TableHead>}
               {(tab === "protecao_frontal" || tab === "fundo") && (
                 <TableHead className="text-right">Chapa</TableHead>
               )}
-              <TableHead className="text-right">Estoque real</TableHead>
+              <TableHead className="text-right">Estoque Real</TableHead>
               <TableHead className="text-right">Mín.</TableHead>
               <TableHead>Fornecedor</TableHead>
               <TableHead>Ativo</TableHead>
@@ -138,68 +174,108 @@ function EssenciaisPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && (
-              <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground">Carregando…</TableCell></TableRow>
-            )}
+            {isLoading && <TableLoadingRows columns={13} rows={5} />}
+
             {!isLoading && rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={13} className="text-center text-muted-foreground py-8">
-                  Nenhum produto cadastrado. Clique em <strong>Novo produto</strong> para começar.
+                <TableCell colSpan={13} className="p-0">
+                  <EmptyState
+                    icon={Layers}
+                    title={`Nenhum item em ${PRODUTO_TIPO_LABEL[tab]}`}
+                    description="Cadastre itens essenciais para disponibilizá-los imediatamente na calculadora de orçamento."
+                    action={
+                      <Button size="sm" onClick={openCriar}>
+                        <Plus className="h-4 w-4" />
+                        Novo produto
+                      </Button>
+                    }
+                  />
                 </TableCell>
               </TableRow>
             )}
-            {rows.map((p) => {
-              const critico =
-                p.ativo &&
-                Number(p.estoque_minimo ?? 0) > 0 &&
-                Number(p.estoque) <= Number(p.estoque_minimo);
-              return (
-                <TableRow key={p.id} className={critico ? "bg-destructive/5" : undefined}>
-                  <TableCell className="font-mono text-xs">{p.codigo ?? "—"}</TableCell>
-                  <TableCell className="font-medium">
-                    {critico && <span className="mr-1">🔴</span>}
-                    {p.nome}
-                  </TableCell>
-                  <TableCell className="text-xs">{p.unidade_venda ?? p.unidade}</TableCell>
-                  <TableCell className="text-xs">{p.unidade_estoque ?? "—"}</TableCell>
-                  <TableCell className="text-right">{formatBRL(p.preco_custo)}</TableCell>
-                  <TableCell className="text-right">{formatBRL(p.preco_venda)}</TableCell>
-                  {tab === "chassi" && (
+
+            {!isLoading &&
+              rows.map((p) => {
+                const critico =
+                  p.ativo &&
+                  Number(p.estoque_minimo ?? 0) > 0 &&
+                  Number(p.estoque) <= Number(p.estoque_minimo);
+                return (
+                  <TableRow key={p.id} className={critico ? "bg-destructive/[0.04]" : undefined}>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {p.codigo ?? "—"}
+                    </TableCell>
+                    <TableCell className="font-medium text-foreground">
+                      <div className="flex items-center gap-2">
+                        <span>{p.nome}</span>
+                        {critico && (
+                          <Badge variant="destructive" className="px-1.5 py-0 text-[10px]">
+                            Baixo
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {p.unidade_venda ?? p.unidade}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {p.unidade_estoque ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-xs tabular-nums text-muted-foreground">
+                      {formatBRL(p.preco_custo)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-xs font-medium tabular-nums">
+                      {formatBRL(p.preco_venda)}
+                    </TableCell>
+                    {tab === "chassi" && (
+                      <TableCell className="text-right font-mono text-xs tabular-nums">
+                        {p.preco_venda_acima_m2 != null ? formatBRL(p.preco_venda_acima_m2) : "—"}
+                      </TableCell>
+                    )}
+                    {(tab === "protecao_frontal" || tab === "fundo") && (
+                      <TableCell className="text-right font-mono text-xs text-muted-foreground">
+                        {p.chapa_largura_cm && p.chapa_altura_cm
+                          ? `${p.chapa_largura_cm}×${p.chapa_altura_cm} cm`
+                          : "—"}
+                      </TableCell>
+                    )}
+                    <TableCell className="text-right font-mono text-xs tabular-nums">
+                      <InlineNumber
+                        value={Number(p.estoque)}
+                        onSave={(v) => inlineMutation.mutate({ id: p.id, patch: { estoque: v } })}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-xs tabular-nums text-muted-foreground">
+                      {Number(p.estoque_minimo ?? 0)}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {p.fornecedor ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={p.ativo}
+                        onCheckedChange={(v) =>
+                          inlineMutation.mutate({ id: p.id, patch: { ativo: v } })
+                        }
+                      />
+                    </TableCell>
                     <TableCell className="text-right">
-                      {p.preco_venda_acima_m2 != null ? formatBRL(p.preco_venda_acima_m2) : "—"}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => {
+                          setCriando(false);
+                          setEditing(p);
+                        }}
+                      >
+                        <Edit className="mr-1 h-3.5 w-3.5" />
+                        Editar
+                      </Button>
                     </TableCell>
-                  )}
-                  {(tab === "protecao_frontal" || tab === "fundo") && (
-                    <TableCell className="text-right text-xs">
-                      {p.chapa_largura_cm && p.chapa_altura_cm
-                        ? `${p.chapa_largura_cm}×${p.chapa_altura_cm} cm`
-                        : "—"}
-                    </TableCell>
-                  )}
-                  <TableCell className="text-right">
-                    <InlineNumber
-                      value={Number(p.estoque)}
-                      onSave={(v) => inlineMutation.mutate({ id: p.id, patch: { estoque: v } })}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right text-xs text-muted-foreground">
-                    {Number(p.estoque_minimo ?? 0)}
-                  </TableCell>
-                  <TableCell className="text-xs">{p.fornecedor ?? "—"}</TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={p.ativo}
-                      onCheckedChange={(v) => inlineMutation.mutate({ id: p.id, patch: { ativo: v } })}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" onClick={() => { setCriando(false); setEditing(p); }}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+                  </TableRow>
+                );
+              })}
           </TableBody>
         </Table>
       </Card>
@@ -219,20 +295,19 @@ function EssenciaisPage() {
   );
 }
 
-function InlineNumber({
-  value,
-  onSave,
-}: {
-  value: number;
-  onSave: (v: number) => void;
-}) {
+function InlineNumber({ value, onSave }: { value: number; onSave: (v: number) => void }) {
   const [edit, setEdit] = useState(false);
   const [v, setV] = useState(String(value));
   if (!edit) {
     return (
       <button
-        className="hover:underline text-sm"
-        onClick={() => { setV(String(value)); setEdit(true); }}
+        type="button"
+        title="Clique para editar"
+        className="rounded px-1.5 py-0.5 transition-colors hover:bg-muted"
+        onClick={() => {
+          setV(String(value));
+          setEdit(true);
+        }}
       >
         {value}
       </button>
@@ -243,10 +318,14 @@ function InlineNumber({
       autoFocus
       type="number"
       step="0.001"
-      className="h-7 w-24 text-right text-sm"
+      className="ml-auto h-7 w-24 text-right font-mono text-xs"
       value={v}
       onChange={(e) => setV(e.target.value)}
-      onBlur={() => { setEdit(false); const n = Number(v); if (!isNaN(n) && n !== value) onSave(n); }}
+      onBlur={() => {
+        setEdit(false);
+        const n = Number(v);
+        if (!isNaN(n) && n !== value) onSave(n);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         if (e.key === "Escape") setEdit(false);

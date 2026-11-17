@@ -2,11 +2,21 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowUpDown, Download, Edit, Wand2 } from "lucide-react";
+import { ArrowUpDown, Download, Edit, Package, Wand2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { PageHeader } from "@/components/erp/PageHeader";
+import { PageToolbar } from "@/components/erp/PageToolbar";
+import { EmptyState } from "@/components/erp/EmptyState";
+import { TableLoadingRows } from "@/components/erp/LoadingState";
 import { Card } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +36,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { produtosService } from "@/lib/services/produtos.service";
-import { PRODUTO_TIPO_LABEL, PRODUTO_CATEGORIAS_IMPORTACAO, type Produto, type ProdutoTipo } from "@/types/erp";
+import {
+  PRODUTO_TIPO_LABEL,
+  PRODUTO_CATEGORIAS_IMPORTACAO,
+  type Produto,
+  type ProdutoTipo,
+} from "@/types/erp";
 import { formatBRL } from "@/lib/format";
 import { ProdutoEditDialog } from "@/components/produtos/ProdutoEditDialog";
 import { BulkPriceDialog } from "@/components/produtos/BulkPriceDialog";
@@ -36,12 +51,14 @@ export const Route = createFileRoute("/produtos/")({
 });
 
 type SortKey =
-  | "codigo" | "nome" | "tipo" | "fabricante"
-  | "preco_custo" | "preco_venda" | "estoque" | "ativo";
+  "codigo" | "nome" | "tipo" | "fabricante" | "preco_custo" | "preco_venda" | "estoque" | "ativo";
 
 function ProdutosPage() {
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["produtos"], queryFn: () => produtosService.list() });
+  const { data, isLoading } = useQuery({
+    queryKey: ["produtos"],
+    queryFn: () => produtosService.list(),
+  });
 
   const [search, setSearch] = useState("");
   const [filtroCat, setFiltroCat] = useState<string>("todas");
@@ -54,13 +71,15 @@ function ProdutosPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
 
   const fabricantes = useMemo(
-    () => Array.from(new Set((data ?? []).map((p) => p.fabricante).filter(Boolean) as string[])).sort(),
+    () =>
+      Array.from(new Set((data ?? []).map((p) => p.fabricante).filter(Boolean) as string[])).sort(),
     [data],
   );
 
   const filtered = useMemo(() => {
-    // Catálogo mostra apenas Molduras e Passe-partout (importadas via XLSX)
-    let rows = (data ?? []).filter((p) => (PRODUTO_CATEGORIAS_IMPORTACAO as readonly ProdutoTipo[]).includes(p.tipo));
+    let rows = (data ?? []).filter((p) =>
+      (PRODUTO_CATEGORIAS_IMPORTACAO as readonly ProdutoTipo[]).includes(p.tipo),
+    );
     const q = search.trim().toLowerCase();
     if (q) {
       rows = rows.filter(
@@ -72,7 +91,8 @@ function ProdutosPage() {
     }
     if (filtroCat !== "todas") rows = rows.filter((p) => p.tipo === filtroCat);
     if (filtroFab !== "todos") rows = rows.filter((p) => p.fabricante === filtroFab);
-    if (filtroStatus !== "todos") rows = rows.filter((p) => (filtroStatus === "ativo" ? p.ativo : !p.ativo));
+    if (filtroStatus !== "todos")
+      rows = rows.filter((p) => (filtroStatus === "ativo" ? p.ativo : !p.ativo));
 
     const dir = sortAsc ? 1 : -1;
     rows = [...rows].sort((a, b) => {
@@ -109,7 +129,6 @@ function ProdutosPage() {
     setSelected(next);
   };
 
-  // Inline edit
   const inlineMutation = useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: Partial<Produto> }) =>
       produtosService.update(id, patch),
@@ -117,7 +136,6 @@ function ProdutosPage() {
     onError: (err) => toast.error(`Erro: ${(err as Error).message}`),
   });
 
-  // Export
   const exportar = (formato: "xlsx" | "csv", escopo: "todos" | "filtrados" | "selecionados") => {
     let rows: Produto[] = [];
     if (escopo === "todos") rows = data ?? [];
@@ -153,66 +171,103 @@ function ProdutosPage() {
   return (
     <>
       <PageHeader
-        title="Produtos"
-        description="Gerencie o catálogo importado: edição individual, atualização em massa e exportação."
+        title="Catálogo de Produtos"
+        description="Gerencie perfis de moldura e passe-partout importados: edição inline, reajuste em massa e exportação."
+        badge={
+          <Badge variant="secondary" className="font-mono text-xs tabular-nums">
+            {filtered.length}
+          </Badge>
+        }
         actions={
           <>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline"><Download className="mr-2 h-4 w-4" />Exportar</Button>
+                <Button size="sm" variant="outline">
+                  <Download className="h-3.5 w-3.5" />
+                  Exportar
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => exportar("xlsx", "todos")}>XLSX — todos</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => exportar("xlsx", "filtrados")}>XLSX — filtrados</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => exportar("xlsx", "selecionados")} disabled={selected.size === 0}>
-                  XLSX — selecionados ({selected.size})
+                <DropdownMenuItem onClick={() => exportar("xlsx", "todos")}>
+                  XLSX — Todos
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => exportar("csv", "filtrados")}>CSV — filtrados</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportar("xlsx", "filtrados")}>
+                  XLSX — Filtrados ({filtered.length})
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => exportar("xlsx", "selecionados")}
+                  disabled={selected.size === 0}
+                >
+                  XLSX — Selecionados ({selected.size})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportar("csv", "filtrados")}>
+                  CSV — Filtrados ({filtered.length})
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button onClick={() => setBulkOpen(true)}>
-              <Wand2 className="mr-2 h-4 w-4" />Atualização em massa
+            <Button size="sm" onClick={() => setBulkOpen(true)}>
+              <Wand2 className="h-3.5 w-3.5" />
+              Atualização em massa
             </Button>
           </>
         }
       />
 
-      <Card className="mb-4 p-4">
-        <div className="grid gap-3 md:grid-cols-4">
-          <Input
-            placeholder="Buscar por código, nome ou descrição…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <Select value={filtroCat} onValueChange={setFiltroCat}>
-            <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todas (Molduras + Passe-partout)</SelectItem>
-              {(PRODUTO_CATEGORIAS_IMPORTACAO as readonly ProdutoTipo[]).map((t) => (
-                <SelectItem key={t} value={t}>{PRODUTO_TIPO_LABEL[t]}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filtroFab} onValueChange={setFiltroFab}>
-            <SelectTrigger><SelectValue placeholder="Fabricante" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os fabricantes</SelectItem>
-              {fabricantes.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-            <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os status</SelectItem>
-              <SelectItem value="ativo">Ativo</SelectItem>
-              <SelectItem value="inativo">Inativo</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <p className="mt-3 text-xs text-muted-foreground">
-          {filtered.length} produto(s) exibido(s) · {selected.size} selecionado(s)
-        </p>
-      </Card>
+      <PageToolbar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Buscar por código, nome ou descrição…"
+        meta={
+          <span>
+            <strong className="text-foreground">{filtered.length}</strong> exibido(s)
+            {selected.size > 0 && (
+              <>
+                {" · "}
+                <strong className="text-primary">{selected.size}</strong> selecionado(s)
+              </>
+            )}
+          </span>
+        }
+      >
+        <Select value={filtroCat} onValueChange={setFiltroCat}>
+          <SelectTrigger className="h-8 w-full text-xs sm:w-52">
+            <SelectValue placeholder="Categoria" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas as categorias</SelectItem>
+            {(PRODUTO_CATEGORIAS_IMPORTACAO as readonly ProdutoTipo[]).map((t) => (
+              <SelectItem key={t} value={t}>
+                {PRODUTO_TIPO_LABEL[t]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filtroFab} onValueChange={setFiltroFab}>
+          <SelectTrigger className="h-8 w-full text-xs sm:w-44">
+            <SelectValue placeholder="Fabricante" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os fabricantes</SelectItem>
+            {fabricantes.map((f) => (
+              <SelectItem key={f} value={f}>
+                {f}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+          <SelectTrigger className="h-8 w-full text-xs sm:w-36">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os status</SelectItem>
+            <SelectItem value="ativo">Ativos</SelectItem>
+            <SelectItem value="inativo">Inativos</SelectItem>
+          </SelectContent>
+        </Select>
+      </PageToolbar>
 
       <Card className="overflow-hidden">
         <Table>
@@ -221,65 +276,155 @@ function ProdutosPage() {
               <TableHead className="w-10">
                 <Checkbox checked={allChecked} onCheckedChange={toggleAll} />
               </TableHead>
-              <SortHead label="Código" k="codigo" sortKey={sortKey} sortAsc={sortAsc} onClick={toggleSort} />
-              <SortHead label="Descrição" k="nome" sortKey={sortKey} sortAsc={sortAsc} onClick={toggleSort} />
-              <SortHead label="Categoria" k="tipo" sortKey={sortKey} sortAsc={sortAsc} onClick={toggleSort} />
-              <SortHead label="Fábrica" k="fabricante" sortKey={sortKey} sortAsc={sortAsc} onClick={toggleSort} />
-              <SortHead label="Preço Compra" k="preco_custo" sortKey={sortKey} sortAsc={sortAsc} onClick={toggleSort} align="right" />
-              <SortHead label="Preço Venda" k="preco_venda" sortKey={sortKey} sortAsc={sortAsc} onClick={toggleSort} align="right" />
-              <SortHead label="Qtd." k="estoque" sortKey={sortKey} sortAsc={sortAsc} onClick={toggleSort} align="right" />
-              <SortHead label="Status" k="ativo" sortKey={sortKey} sortAsc={sortAsc} onClick={toggleSort} />
+              <SortHead
+                label="Código"
+                k="codigo"
+                sortKey={sortKey}
+                sortAsc={sortAsc}
+                onClick={toggleSort}
+              />
+              <SortHead
+                label="Descrição"
+                k="nome"
+                sortKey={sortKey}
+                sortAsc={sortAsc}
+                onClick={toggleSort}
+              />
+              <SortHead
+                label="Categoria"
+                k="tipo"
+                sortKey={sortKey}
+                sortAsc={sortAsc}
+                onClick={toggleSort}
+              />
+              <SortHead
+                label="Fábrica"
+                k="fabricante"
+                sortKey={sortKey}
+                sortAsc={sortAsc}
+                onClick={toggleSort}
+              />
+              <SortHead
+                label="Custo"
+                k="preco_custo"
+                sortKey={sortKey}
+                sortAsc={sortAsc}
+                onClick={toggleSort}
+                align="right"
+              />
+              <SortHead
+                label="Venda"
+                k="preco_venda"
+                sortKey={sortKey}
+                sortAsc={sortAsc}
+                onClick={toggleSort}
+                align="right"
+              />
+              <SortHead
+                label="Estoque"
+                k="estoque"
+                sortKey={sortKey}
+                sortAsc={sortAsc}
+                onClick={toggleSort}
+                align="right"
+              />
+              <SortHead
+                label="Ativo"
+                k="ativo"
+                sortKey={sortKey}
+                sortAsc={sortAsc}
+                onClick={toggleSort}
+              />
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && (
-              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">Carregando…</TableCell></TableRow>
-            )}
-            {filtered.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell><Checkbox checked={selected.has(p.id)} onCheckedChange={() => toggleOne(p.id)} /></TableCell>
-                <TableCell className="font-mono text-xs">{p.codigo ?? "—"}</TableCell>
-                <TableCell className="font-medium">{p.descricao ?? p.nome}</TableCell>
-                <TableCell><Badge variant="outline">{PRODUTO_TIPO_LABEL[p.tipo]}</Badge></TableCell>
-                <TableCell>{p.fabricante ?? "—"}</TableCell>
-                <TableCell className="text-right">{formatBRL(p.preco_custo)}</TableCell>
-                <TableCell className="text-right">
-                  <InlineNumber
-                    value={Number(p.preco_venda)}
-                    onSave={(v) => inlineMutation.mutate({ id: p.id, patch: { preco_venda: v } })}
-                    format={formatBRL}
+            {isLoading && <TableLoadingRows columns={10} rows={8} />}
+
+            {!isLoading &&
+              filtered.map((p) => (
+                <TableRow key={p.id} data-state={selected.has(p.id) ? "selected" : undefined}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selected.has(p.id)}
+                      onCheckedChange={() => toggleOne(p.id)}
+                    />
+                  </TableCell>
+                  <TableCell className="font-mono text-xs font-medium text-muted-foreground">
+                    {p.codigo ?? "—"}
+                  </TableCell>
+                  <TableCell className="font-medium text-foreground">
+                    {p.descricao ?? p.nome}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={p.tipo === "perfil_moldura" ? "secondary" : "outline"}
+                      className="text-[11px] font-normal"
+                    >
+                      {PRODUTO_TIPO_LABEL[p.tipo]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {p.fabricante ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-xs tabular-nums text-muted-foreground">
+                    {formatBRL(p.preco_custo)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-xs font-medium tabular-nums">
+                    <InlineNumber
+                      value={Number(p.preco_venda)}
+                      onSave={(v) => inlineMutation.mutate({ id: p.id, patch: { preco_venda: v } })}
+                      format={formatBRL}
+                    />
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-xs tabular-nums">
+                    <InlineNumber
+                      value={Number(p.estoque)}
+                      onSave={(v) => inlineMutation.mutate({ id: p.id, patch: { estoque: v } })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={p.ativo}
+                      onCheckedChange={(v) =>
+                        inlineMutation.mutate({ id: p.id, patch: { ativo: v } })
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setEditing(p)}
+                    >
+                      <Edit className="mr-1 h-3.5 w-3.5" />
+                      Editar
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+
+            {!isLoading && filtered.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={10} className="p-0">
+                  <EmptyState
+                    icon={Package}
+                    title="Nenhum produto encontrado"
+                    description="Ajuste os filtros de busca ou importe uma planilha XLSX na aba Importação."
                   />
-                </TableCell>
-                <TableCell className="text-right">
-                  <InlineNumber
-                    value={Number(p.estoque)}
-                    onSave={(v) => inlineMutation.mutate({ id: p.id, patch: { estoque: v } })}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Switch
-                    checked={p.ativo}
-                    onCheckedChange={(v) => inlineMutation.mutate({ id: p.id, patch: { ativo: v } })}
-                  />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button size="sm" variant="ghost" onClick={() => setEditing(p)}>
-                    <Edit className="mr-1 h-4 w-4" />Editar
-                  </Button>
                 </TableCell>
               </TableRow>
-            ))}
-            {!isLoading && filtered.length === 0 && (
-              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">
-                Nenhum produto encontrado.
-              </TableCell></TableRow>
             )}
           </TableBody>
         </Table>
       </Card>
 
-      <ProdutoEditDialog produto={editing} open={!!editing} onOpenChange={(o) => !o && setEditing(null)} />
+      <ProdutoEditDialog
+        produto={editing}
+        open={!!editing}
+        onOpenChange={(o) => !o && setEditing(null)}
+      />
       <BulkPriceDialog
         open={bulkOpen}
         onOpenChange={setBulkOpen}
@@ -291,10 +436,19 @@ function ProdutosPage() {
 }
 
 function SortHead({
-  label, k, sortKey, sortAsc, onClick, align,
+  label,
+  k,
+  sortKey,
+  sortAsc,
+  onClick,
+  align,
 }: {
-  label: string; k: SortKey; sortKey: SortKey; sortAsc: boolean;
-  onClick: (k: SortKey) => void; align?: "right";
+  label: string;
+  k: SortKey;
+  sortKey: SortKey;
+  sortAsc: boolean;
+  onClick: (k: SortKey) => void;
+  align?: "right";
 }) {
   const active = sortKey === k;
   return (
@@ -302,18 +456,22 @@ function SortHead({
       <button
         type="button"
         onClick={() => onClick(k)}
-        className={`inline-flex items-center gap-1 hover:text-foreground ${active ? "text-foreground" : ""}`}
+        className={`inline-flex items-center gap-1 transition-colors hover:text-foreground ${
+          active ? "font-semibold text-foreground" : ""
+        }`}
       >
         {label}
         <ArrowUpDown className={`h-3 w-3 ${active ? "opacity-100" : "opacity-40"}`} />
-        {active && <span className="text-xs">{sortAsc ? "↑" : "↓"}</span>}
+        {active && <span className="text-[10px]">{sortAsc ? "↑" : "↓"}</span>}
       </button>
     </TableHead>
   );
 }
 
 function InlineNumber({
-  value, onSave, format,
+  value,
+  onSave,
+  format,
 }: {
   value: number;
   onSave: (v: number) => void;
@@ -326,8 +484,12 @@ function InlineNumber({
     return (
       <button
         type="button"
-        className="rounded px-1 py-0.5 hover:bg-muted"
-        onClick={() => { setDraft(String(value)); setEditing(true); }}
+        title="Clique para editar"
+        className="rounded px-1.5 py-0.5 transition-colors hover:bg-muted"
+        onClick={() => {
+          setDraft(String(value));
+          setEditing(true);
+        }}
       >
         {format ? format(value) : value}
       </button>
@@ -350,7 +512,7 @@ function InlineNumber({
         if (e.key === "Enter") commit();
         if (e.key === "Escape") setEditing(false);
       }}
-      className="h-8 w-24 text-right"
+      className="ml-auto h-7 w-24 text-right font-mono text-xs"
     />
   );
 }

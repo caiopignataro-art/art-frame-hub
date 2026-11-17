@@ -126,11 +126,7 @@ function ClientesPage() {
                 const phone = c.whatsapp ?? c.telefone;
 
                 return (
-                  <TableRow
-                    key={c.id}
-                    className="group cursor-pointer"
-                    onClick={() => openEdit(c)}
-                  >
+                  <TableRow key={c.id} className="group cursor-pointer" onClick={() => openEdit(c)}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted font-mono text-xs font-semibold text-muted-foreground">
@@ -170,10 +166,7 @@ function ClientesPage() {
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       {c.cpf_cnpj ?? "—"}
                     </TableCell>
-                    <TableCell
-                      className="text-right"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <Button
                         size="sm"
                         variant="ghost"

@@ -2,23 +2,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { Calendar, Search, X } from "lucide-react";
 import { PageHeader } from "@/components/erp/PageHeader";
+import { PageToolbar } from "@/components/erp/PageToolbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { X } from "lucide-react";
-import { pedidosService } from "@/lib/services/pedidos.service";
-import { ordemProducaoService } from "@/lib/services/ordem-producao.service";
-import { PedidoDetailDialog } from "@/components/erp/PedidoDetailDialog";
-import { formatDate } from "@/lib/format";
-import { PEDIDO_FLUXO, type PedidoStatus } from "@/types/erp";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AppShell } from "@/components/layout/AppShell";
-import { ProducaoNavTabs } from "@/components/production/ProducaoNavTabs";
-import { productionKeys, productionCache } from "@/lib/services/production-cache";
-import { ProductionErrorAlert } from "@/components/production/ProductionErrorAlert";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,19 +20,50 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { pedidosService } from "@/lib/services/pedidos.service";
+import { ordemProducaoService } from "@/lib/services/ordem-producao.service";
+import { PedidoDetailDialog } from "@/components/erp/PedidoDetailDialog";
+import { formatBRL, formatDate } from "@/lib/format";
+import type { PedidoStatus } from "@/types/erp";
+import { cn } from "@/lib/utils";
+import { productionKeys, productionCache } from "@/lib/services/production-cache";
+import { ProductionErrorAlert } from "@/components/production/ProductionErrorAlert";
 
 export const Route = createFileRoute("/producao/")({
   component: ProducaoIndexPage,
 });
 
-const COLUMNS: { status: PedidoStatus; label: string }[] = [
-  { status: "orcamento", label: "Orçamento" },
-  { status: "aprovado", label: "Aprovado" },
-  { status: "em_producao", label: "Em produção" },
-  { status: "pronto", label: "Pronto" },
+const COLUMNS: {
+  status: PedidoStatus;
+  label: string;
+  dotClass: string;
+  headerBg: string;
+}[] = [
+  {
+    status: "orcamento",
+    label: "Orçamento",
+    dotClass: "bg-slate-400",
+    headerBg: "border-t-2 border-t-slate-400/70",
+  },
+  {
+    status: "aprovado",
+    label: "Aprovado",
+    dotClass: "bg-blue-500",
+    headerBg: "border-t-2 border-t-blue-500/80",
+  },
+  {
+    status: "em_producao",
+    label: "Em Produção",
+    dotClass: "bg-amber-500",
+    headerBg: "border-t-2 border-t-amber-500/80",
+  },
+  {
+    status: "pronto",
+    label: "Pronto",
+    dotClass: "bg-emerald-500",
+    headerBg: "border-t-2 border-t-emerald-500/80",
+  },
 ];
-
-
 
 interface ActionDefinition {
   label: string;
@@ -53,8 +75,19 @@ interface ActionDefinition {
 
 const KANBAN_ACTIONS_CONFIG: Record<PedidoStatus, ActionDefinition[]> = {
   orcamento: [
-    { label: "Aprovar", variant: "default", minSelection: 1, maxSelection: 1, actionKey: "aprovar" },
-    { label: "Arquivar selecionados", variant: "destructive", minSelection: 1, actionKey: "arquivar" },
+    {
+      label: "Aprovar",
+      variant: "default",
+      minSelection: 1,
+      maxSelection: 1,
+      actionKey: "aprovar",
+    },
+    {
+      label: "Arquivar selecionados",
+      variant: "destructive",
+      minSelection: 1,
+      actionKey: "arquivar",
+    },
   ],
   aprovado: [
     { label: "Iniciar produção", variant: "default", minSelection: 1, actionKey: "produzir" },
@@ -78,6 +111,7 @@ function ProducaoIndexPage() {
     queryFn: () => pedidosService.list(),
     staleTime: 15000,
   });
+  const [busca, setBusca] = useState("");
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [selecao, setSelecao] = useState<SelecaoPorColuna>({});
   const [activeSelectionStatus, setActiveSelectionStatus] = useState<PedidoStatus | null>(null);
@@ -90,13 +124,21 @@ function ProducaoIndexPage() {
     onConfirm: () => void;
   } | null>(null);
 
-  const pedidos = data ?? [];
+  const pedidos = useMemo(() => {
+    const raw = data ?? [];
+    const q = busca.trim().toLowerCase();
+    if (!q) return raw;
+    return raw.filter(
+      (p) =>
+        String(p.numero_pedido).includes(q) || (p.cliente?.nome ?? "").toLowerCase().includes(q),
+    );
+  }, [data, busca]);
 
   const statusPorId = useMemo(() => {
     const m = new Map<string, PedidoStatus>();
-    for (const p of pedidos) m.set(p.id, p.status);
+    for (const p of data ?? []) m.set(p.id, p.status);
     return m;
-  }, [pedidos]);
+  }, [data]);
 
   useEffect(() => {
     setSelecao((prev) => {
@@ -161,7 +203,9 @@ function ProducaoIndexPage() {
       const validos = ids.filter((id) => statusPorId.get(id) === "em_producao");
       const descartados = ids.length - validos.length;
       if (descartados > 0) {
-        toast.info(`${descartados} pedido(s) não estão mais no status Em Produção e foram ignorados.`);
+        toast.info(
+          `${descartados} pedido(s) não estão mais no status Em Produção e foram ignorados.`,
+        );
       }
       if (validos.length === 0) {
         throw new Error("Nenhum pedido válido restante para finalizar.");
@@ -181,7 +225,9 @@ function ProducaoIndexPage() {
       const validos = ids.filter((id) => statusPorId.get(id) === "em_producao");
       const descartados = ids.length - validos.length;
       if (descartados > 0) {
-        toast.info(`${descartados} pedido(s) não estão mais no status Em Produção e foram ignorados.`);
+        toast.info(
+          `${descartados} pedido(s) não estão mais no status Em Produção e foram ignorados.`,
+        );
       }
       if (validos.length === 0) {
         throw new Error("Nenhum pedido válido restante para retornar.");
@@ -201,7 +247,9 @@ function ProducaoIndexPage() {
       const validos = ids.filter((id) => statusPorId.get(id) === "aprovado");
       const descartados = ids.length - validos.length;
       if (descartados > 0) {
-        toast.info(`${descartados} pedido(s) não estão mais com status Aprovado e foram ignorados.`);
+        toast.info(
+          `${descartados} pedido(s) não estão mais com status Aprovado e foram ignorados.`,
+        );
       }
       if (validos.length === 0) {
         throw new Error("Nenhum pedido válido restante para produzir.");
@@ -212,7 +260,7 @@ function ProducaoIndexPage() {
       toast.success("Ordem de Produção criada com sucesso!");
       limparSelecaoColuna("aprovado");
       productionCache.invalidateAfterOPCreated(qc);
-      navigate({ to: "/producao/ordens/$id", params: { id: opId } });
+      void navigate({ to: "/producao/ordens/$id", params: { id: opId } });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -222,7 +270,9 @@ function ProducaoIndexPage() {
       const validos = ids.filter((id) => statusPorId.get(id) === "aprovado");
       const descartados = ids.length - validos.length;
       if (descartados > 0) {
-        toast.info(`${descartados} pedido(s) não estão mais com status Aprovado e foram ignorados.`);
+        toast.info(
+          `${descartados} pedido(s) não estão mais com status Aprovado e foram ignorados.`,
+        );
       }
       if (validos.length === 0) {
         throw new Error("Nenhum pedido válido restante para retornar.");
@@ -239,11 +289,15 @@ function ProducaoIndexPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const handleActionClick = (action: ActionDefinition, status: PedidoStatus, selecionados: Set<string>) => {
+  const handleActionClick = (
+    action: ActionDefinition,
+    status: PedidoStatus,
+    selecionados: Set<string>,
+  ) => {
     const ids = Array.from(selecionados);
     if (action.actionKey === "aprovar") {
       if (ids.length === 1) {
-        setSelecionado(ids[0]);
+        setSelecionado(ids[0]!);
       }
     } else if (action.actionKey === "arquivar") {
       setConfirmDialogConfig({
@@ -296,9 +350,8 @@ function ProducaoIndexPage() {
   };
 
   useEffect(() => {
-    const statusComSelecao = (Object.keys(selecao) as PedidoStatus[]).find(
-      (s) => (selecao[s]?.size ?? 0) > 0,
-    ) ?? null;
+    const statusComSelecao =
+      (Object.keys(selecao) as PedidoStatus[]).find((s) => (selecao[s]?.size ?? 0) > 0) ?? null;
     setActiveSelectionStatus((prev) => {
       if (statusComSelecao === null) return null;
       if (prev !== null && (selecao[prev]?.size ?? 0) > 0) return prev;
@@ -309,11 +362,28 @@ function ProducaoIndexPage() {
   const statusAtivo = activeSelectionStatus;
 
   return (
-    <AppShell title="Produção">
-      <ProducaoNavTabs />
-      <div className="space-y-4">
-        <PageHeader title="Fluxo de produção" description="Visão Kanban dos pedidos aprovados em produção." />
-      
+    <div className="space-y-4">
+      <PageHeader
+        title="Fluxo de Produção (Kanban)"
+        description="Gerencie o avanço operacional dos pedidos, gere lotes de Ordens de Produção e acompanhe prazos de entrega."
+      />
+
+      <PageToolbar
+        search={busca}
+        onSearchChange={setBusca}
+        searchPlaceholder="Filtrar cartões por nº do pedido ou cliente…"
+        meta={
+          statusAtivo ? (
+            <span className="text-primary font-medium">
+              Seleção ativa na coluna{" "}
+              <strong>{COLUMNS.find((c) => c.status === statusAtivo)?.label ?? statusAtivo}</strong>
+            </span>
+          ) : (
+            <span>Selecione um ou mais pedidos de uma coluna para ações em lote</span>
+          )
+        }
+      />
+
       {isError ? (
         <div className="mx-auto max-w-md py-12">
           <ProductionErrorAlert
@@ -323,10 +393,10 @@ function ProducaoIndexPage() {
           />
         </div>
       ) : isLoading ? (
-        <div 
-          className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 animate-pulse" 
-          role="status" 
-          aria-busy="true" 
+        <div
+          className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 animate-pulse"
+          role="status"
+          aria-busy="true"
           aria-label="Carregando fluxo de produção"
         >
           {COLUMNS.map((col) => (
@@ -348,7 +418,6 @@ function ProducaoIndexPage() {
                         <Skeleton className="h-3 w-1/2" />
                       </div>
                     </div>
-                    <Skeleton className="h-8 w-full" />
                   </div>
                 ))}
               </CardContent>
@@ -356,7 +425,7 @@ function ProducaoIndexPage() {
           ))}
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 items-start">
           {COLUMNS.map((col) => {
             const items = pedidos.filter((p) => p.status === col.status);
             const selecionados = selecao[col.status] ?? new Set<string>();
@@ -365,21 +434,36 @@ function ProducaoIndexPage() {
             const configActions = KANBAN_ACTIONS_CONFIG[col.status] ?? [];
 
             return (
-              <Card key={col.status}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-sm">
-                    <span>{col.label}</span>
-                    <span className="rounded-full bg-muted px-2 text-xs text-muted-foreground">{items.length}</span>
+              <Card
+                key={col.status}
+                className={cn(
+                  "flex flex-col bg-muted/25 border-border/80",
+                  col.headerBg,
+                  bloqueado && "opacity-60",
+                )}
+              >
+                <CardHeader className="px-3.5 py-3 border-b border-border/60 bg-card/60">
+                  <CardTitle className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-foreground">
+                    <span className="inline-flex items-center gap-2">
+                      <span className={cn("h-2 w-2 rounded-full", col.dotClass)} />
+                      {col.label}
+                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="px-1.5 py-0 font-mono text-[11px] tabular-nums"
+                    >
+                      {items.length}
+                    </Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="space-y-2 p-2.5">
                   {qtdSelecionados > 0 && (
                     <div
-                      className="flex flex-col gap-2 rounded-md border border-primary/40 bg-primary/5 p-2 text-xs"
+                      className="flex flex-col gap-2 rounded-md border border-primary/35 bg-primary/5 p-2.5 text-xs"
                       role="toolbar"
                       aria-label={`Ações para ${col.label}`}
                     >
-                      <div className="flex items-center justify-between font-medium">
+                      <div className="flex items-center justify-between font-medium text-foreground">
                         <span>
                           {qtdSelecionados} selecionado{qtdSelecionados > 1 ? "s" : ""}
                         </span>
@@ -390,22 +474,23 @@ function ProducaoIndexPage() {
                           onClick={() => limparSelecaoColuna(col.status)}
                           aria-label="Cancelar seleção"
                         >
-                          <X className="h-3 w-3" />
+                          <X className="h-3.5 w-3.5" />
                         </Button>
                       </div>
 
                       {configActions.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-1 border-t border-primary/20">
+                        <div className="flex flex-wrap gap-1.5 border-t border-primary/20 pt-2">
                           {configActions.map((act) => {
                             const disableBtn =
                               qtdSelecionados < act.minSelection ||
-                              (act.maxSelection !== undefined && qtdSelecionados > act.maxSelection);
+                              (act.maxSelection !== undefined &&
+                                qtdSelecionados > act.maxSelection);
                             return (
                               <Button
                                 key={act.actionKey}
                                 size="sm"
                                 variant={act.variant ?? "default"}
-                                className="h-7 text-[10px] px-2 py-0"
+                                className="h-7 px-2.5 py-0 text-[11px]"
                                 disabled={disableBtn || arquivarLote.isPending}
                                 onClick={() => handleActionClick(act, col.status, selecionados)}
                               >
@@ -417,20 +502,27 @@ function ProducaoIndexPage() {
                       )}
                     </div>
                   )}
+
                   {items.length === 0 && (
-                    <p className="text-xs text-muted-foreground py-4 text-center border border-dashed rounded-md border-border/60">
-                      Nenhum pedido neste status.
-                    </p>
+                    <div className="rounded-md border border-dashed border-border/70 bg-background/40 py-8 text-center text-xs text-muted-foreground">
+                      Nenhum pedido neste estágio.
+                    </div>
                   )}
+
                   {items.map((p) => {
                     const checked = selecionados.has(p.id);
                     return (
                       <div
                         key={p.id}
-                        className="rounded-md border border-border bg-card p-3 text-sm"
+                        className={cn(
+                          "group rounded-md border bg-card p-3 text-sm transition-all hover:border-ring/50",
+                          checked
+                            ? "border-primary bg-primary/[0.03] ring-1 ring-primary/20"
+                            : "border-border/80",
+                        )}
                         data-selected={checked || undefined}
                       >
-                        <div className="flex items-start gap-2">
+                        <div className="flex items-start gap-2.5">
                           <Checkbox
                             checked={checked}
                             onCheckedChange={() => toggleSelecao(col.status, p.id)}
@@ -444,10 +536,26 @@ function ProducaoIndexPage() {
                                 : undefined
                             }
                           />
-                          <button className="text-left flex-1" onClick={() => setSelecionado(p.id)}>
-                            <div className="font-mono text-xs text-muted-foreground">#{p.numero_pedido}</div>
-                            <div className="font-medium">{p.cliente?.nome ?? "—"}</div>
-                            <div className="text-xs text-muted-foreground">Entrega: {formatDate(p.data_entrega_prevista)}</div>
+                          <button
+                            type="button"
+                            className="min-w-0 flex-1 text-left"
+                            onClick={() => setSelecionado(p.id)}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-mono text-xs font-semibold text-primary">
+                                #{p.numero_pedido}
+                              </span>
+                              <span className="font-mono text-xs font-medium tabular-nums text-muted-foreground">
+                                {formatBRL(p.valor_total)}
+                              </span>
+                            </div>
+                            <div className="mt-1 truncate font-medium text-foreground">
+                              {p.cliente?.nome ?? "—"}
+                            </div>
+                            <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                              <Calendar className="h-3 w-3 shrink-0" />
+                              <span>Entrega: {formatDate(p.data_entrega_prevista)}</span>
+                            </div>
                           </button>
                         </div>
                       </div>
@@ -471,9 +579,15 @@ function ProducaoIndexPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmDialogConfig(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setConfirmDialogConfig(null)}>
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
-              className={confirmDialogConfig?.actionVariant === "destructive" ? "bg-destructive hover:bg-destructive/95" : undefined}
+              className={
+                confirmDialogConfig?.actionVariant === "destructive"
+                  ? "bg-destructive hover:bg-destructive/95"
+                  : undefined
+              }
               onClick={() => {
                 confirmDialogConfig?.onConfirm();
                 setConfirmDialogOpen(false);
@@ -484,7 +598,6 @@ function ProducaoIndexPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      </div>
-    </AppShell>
+    </div>
   );
 }

@@ -1,15 +1,7 @@
 import type * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -30,13 +22,7 @@ import { ErrorState } from "@/components/erp/ErrorState";
 import { KpiGridSkeleton } from "@/components/erp/LoadingState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { dashboardService } from "@/lib/services/dashboard.service";
 import { produtosService } from "@/lib/services/produtos.service";
@@ -63,10 +49,7 @@ function DashboardPage() {
     (acc, item) => acc + item.valor,
     0,
   );
-  const maxClienteTotal = Math.max(
-    1,
-    ...(data?.clientesRecorrentes.map((c) => c.total) ?? [1]),
-  );
+  const maxClienteTotal = Math.max(1, ...(data?.clientesRecorrentes.map((c) => c.total) ?? [1]));
   const maxProdutoQtd = Math.max(
     1,
     ...(data?.produtosMaisUsados.map((p) => Number(p.quantidade)) ?? [1]),
@@ -175,9 +158,7 @@ function DashboardPage() {
                     <CardTitle className="text-sm font-semibold">
                       Evolução de Faturamento (Últimos 6 meses)
                     </CardTitle>
-                    <CardDescription>
-                      Série histórica mensal de pedidos emitidos
-                    </CardDescription>
+                    <CardDescription>Série histórica mensal de pedidos emitidos</CardDescription>
                   </div>
                   <div className="text-right">
                     <span className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -219,9 +200,7 @@ function DashboardPage() {
                             fontSize: 11,
                           }}
                           tickFormatter={(val: number) =>
-                            val >= 1000
-                              ? `R$ ${(val / 1000).toFixed(0)}k`
-                              : `R$ ${val}`
+                            val >= 1000 ? `R$ ${(val / 1000).toFixed(0)}k` : `R$ ${val}`
                           }
                         />
                         <Tooltip
@@ -269,9 +248,7 @@ function DashboardPage() {
                       />
                       Alertas de Estoque
                     </CardTitle>
-                    <CardDescription>
-                      Insumos essenciais abaixo do mínimo
-                    </CardDescription>
+                    <CardDescription>Insumos essenciais abaixo do mínimo</CardDescription>
                   </div>
                   <Badge variant={alertas.length > 0 ? "destructive" : "success"}>
                     {alertas.length > 0 ? `${alertas.length} crítico(s)` : "Regular"}
@@ -297,8 +274,7 @@ function DashboardPage() {
                               {a.produto.nome}
                             </div>
                             <div className="text-[11px] text-muted-foreground">
-                              {PRODUTO_TIPO_LABEL[a.produto.tipo]} · Mín:{" "}
-                              {a.produto.estoque_minimo}
+                              {PRODUTO_TIPO_LABEL[a.produto.tipo]} · Mín: {a.produto.estoque_minimo}
                             </div>
                           </div>
                           <div className="shrink-0 text-right font-mono font-semibold tabular-nums text-destructive">
@@ -317,7 +293,12 @@ function DashboardPage() {
                     </div>
                   )}
 
-                  <Button asChild variant="outline" size="sm" className="w-full justify-between text-xs">
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-between text-xs"
+                  >
                     <Link to="/produtos/essenciais">
                       <span>Gerenciar produtos essenciais</span>
                       <ArrowUpRight className="h-3.5 w-3.5" />
@@ -371,7 +352,10 @@ function DashboardPage() {
                                 </span>
                               </div>
                               <div className="flex shrink-0 items-center gap-2 text-xs tabular-nums">
-                                <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-normal">
+                                <Badge
+                                  variant="secondary"
+                                  className="px-1.5 py-0 text-[10px] font-normal"
+                                >
                                   {c.pedidos} {c.pedidos === 1 ? "pedido" : "pedidos"}
                                 </Badge>
                                 <span className="font-mono font-semibold text-foreground">

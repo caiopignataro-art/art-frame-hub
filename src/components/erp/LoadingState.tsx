@@ -2,13 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
-export function TableLoadingRows({
-  columns,
-  rows = 5,
-}: {
-  columns: number;
-  rows?: number;
-}) {
+export function TableLoadingRows({ columns, rows = 5 }: { columns: number; rows?: number }) {
   return (
     <>
       {Array.from({ length: rows }).map((_, rowIdx) => (
@@ -35,9 +29,7 @@ export function TableLoadingRows({
 export function KpiGridSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div
-      className={`grid gap-4 sm:grid-cols-2 ${
-        count === 5 ? "lg:grid-cols-5" : "lg:grid-cols-4"
-      }`}
+      className={`grid gap-4 sm:grid-cols-2 ${count === 5 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}
     >
       {Array.from({ length: count }).map((_, i) => (
         <Card key={i}>

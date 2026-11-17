@@ -49,9 +49,7 @@ export function ModuleTabs({
               <span
                 className={cn(
                   "rounded-full px-1.5 py-0.2 text-[10px] font-semibold tabular-nums",
-                  active
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground",
+                  active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
                 )}
               >
                 {t.badge}

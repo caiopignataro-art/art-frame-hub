@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Boxes, CreditCard, Database, KeyRound, Lock, Save, Sliders, Users } from "lucide-react";
 import { AuthAuditLogPanel } from "@/components/admin/AuthAuditLogPanel";
 import { PermissionsMatrixPanel } from "@/components/admin/PermissionsMatrixPanel";
 import { RolesManagementPanel } from "@/components/admin/RolesManagementPanel";
@@ -10,7 +11,14 @@ import { useAuth } from "@/components/auth/AuthContextProvider";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,7 +27,7 @@ import { configuracoesService } from "@/lib/services/configuracoes.service";
 import { CONFIG_KEYS } from "@/types/estoque";
 
 export const Route = createFileRoute("/configuracoes")({
-  head: () => ({ meta: [{ title: "Configurações e Acessos — Molduraria ERP" }] }),
+  head: () => ({ meta: [{ title: "Configurações e Acessos — Art Frame Hub" }] }),
   component: ConfiguracoesPage,
 });
 
@@ -92,75 +100,123 @@ function ConfiguracoesPage() {
   });
 
   return (
-    <AppShell title="Configurações e Controle de Acesso">
+    <AppShell title="Configurações">
       <PageHeader
-        title="Configurações e Gestão de Acessos"
-        description="Parâmetros operacionais do ERP, administração de usuários, perfis e permissões granulares."
+        title="Configurações e Governança de Acessos"
+        description="Parâmetros operacionais do ERP, administração de usuários corporativos, perfis RBAC e trilha de auditoria."
       />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="flex flex-wrap h-auto gap-1">
-          {canManageConfigs && <TabsTrigger value="parametros">Parâmetros do Sistema</TabsTrigger>}
-          {canManageUsers && <TabsTrigger value="usuarios">Usuários</TabsTrigger>}
-          {canManageRoles && <TabsTrigger value="perfis">Perfis de Acesso</TabsTrigger>}
-          {canManageRoles && <TabsTrigger value="permissoes">Matriz de Permissões</TabsTrigger>}
-          {canManageUsers && <TabsTrigger value="auditoria">Auditoria & Arquitetura</TabsTrigger>}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
+        <TabsList className="flex h-auto flex-wrap justify-start gap-1 bg-muted/50 p-1">
+          {canManageConfigs && (
+            <TabsTrigger value="parametros" className="gap-1.5 text-xs sm:text-sm">
+              <Sliders className="h-3.5 w-3.5" />
+              Parâmetros do Sistema
+            </TabsTrigger>
+          )}
+          {canManageUsers && (
+            <TabsTrigger value="usuarios" className="gap-1.5 text-xs sm:text-sm">
+              <Users className="h-3.5 w-3.5" />
+              Usuários
+            </TabsTrigger>
+          )}
+          {canManageRoles && (
+            <TabsTrigger value="perfis" className="gap-1.5 text-xs sm:text-sm">
+              <Lock className="h-3.5 w-3.5" />
+              Perfis de Acesso
+            </TabsTrigger>
+          )}
+          {canManageRoles && (
+            <TabsTrigger value="permissoes" className="gap-1.5 text-xs sm:text-sm">
+              <KeyRound className="h-3.5 w-3.5" />
+              Matriz de Permissões
+            </TabsTrigger>
+          )}
+          {canManageUsers && (
+            <TabsTrigger value="auditoria" className="gap-1.5 text-xs sm:text-sm">
+              <Database className="h-3.5 w-3.5" />
+              Auditoria & Arquitetura
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {canManageConfigs && (
           <TabsContent value="parametros" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Estoque de molduras</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Field
-                    label="Comprimento da barra (cm)"
-                    value={barra}
-                    onChange={setBarra}
-                    hint="Padrão de mercado: 270 cm. Aplica-se a todos os perfis."
-                  />
-                  <Field
-                    label="Perda de corte (%)"
-                    value={perda}
-                    onChange={setPerda}
-                    hint="Acréscimo no consumo de moldura para cobrir perdas no corte."
-                  />
-                  <Field
-                    label="Estoque mínimo padrão (barras)"
-                    value={minDefault}
-                    onChange={setMinDefault}
-                    hint="Usado para alertas quando o perfil não tem mínimo próprio."
-                  />
-                  <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
-                    {salvar.isPending ? "Salvando..." : "Salvar configurações"}
+            <div className="grid gap-5 md:grid-cols-2">
+              <Card className="flex flex-col justify-between">
+                <div>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                      <Boxes className="h-4 w-4 text-primary" />
+                      Engenharia e Estoque de Molduras
+                    </CardTitle>
+                    <CardDescription>
+                      Regras técnicas aplicadas no cálculo de barras, cortes e alertas de reposição.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Field
+                      label="Comprimento padrão da barra (cm)"
+                      value={barra}
+                      onChange={setBarra}
+                      hint="Padrão de mercado: 270 cm. Utilizado na otimização de corte da calculadora e estoque."
+                    />
+                    <Field
+                      label="Margem de perda de corte (%)"
+                      value={perda}
+                      onChange={setPerda}
+                      hint="Acréscimo técnico sobre o consumo linear de moldura para cobrir chanfros e perdas."
+                    />
+                    <Field
+                      label="Estoque mínimo padrão (barras)"
+                      value={minDefault}
+                      onChange={setMinDefault}
+                      hint="Limiar padrão para alertas quando o perfil não possui estoque mínimo individual."
+                    />
+                  </CardContent>
+                </div>
+                <CardFooter className="border-t border-border/60 pt-4">
+                  <Button size="sm" onClick={() => salvar.mutate()} disabled={salvar.isPending}>
+                    <Save className="h-3.5 w-3.5" />
+                    {salvar.isPending ? "Salvando…" : "Salvar configurações"}
                   </Button>
-                </CardContent>
+                </CardFooter>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Pagamentos</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Field
-                    label="Quantidade máxima de parcelas"
-                    value={maxParcelas}
-                    onChange={(v) => {
-                      const n = Math.max(1, Math.min(12, Number(v) || 1));
-                      setMaxParcelas(String(n));
-                    }}
-                    hint="Entre 1 e 12. Define o limite de parcelas no Crédito Parcelado (padrão: 6)."
-                  />
+              <Card className="flex flex-col justify-between">
+                <div>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                      <CreditCard className="h-4 w-4 text-primary" />
+                      Regras Comerciais e Pagamentos
+                    </CardTitle>
+                    <CardDescription>
+                      Parâmetros financeiros aplicados na emissão e aprovação de pedidos.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Field
+                      label="Quantidade máxima de parcelas (Crédito)"
+                      value={maxParcelas}
+                      onChange={(v) => {
+                        const n = Math.max(1, Math.min(12, Number(v) || 1));
+                        setMaxParcelas(String(n));
+                      }}
+                      hint="Valor permitido entre 1 e 12. Define o limite de parcelamento na tela de pedidos (padrão: 6x)."
+                    />
+                  </CardContent>
+                </div>
+                <CardFooter className="border-t border-border/60 pt-4">
                   <Button
+                    size="sm"
+                    variant="outline"
                     onClick={() => salvar.mutate()}
                     disabled={salvar.isPending}
-                    variant="outline"
                   >
-                    {salvar.isPending ? "Salvando..." : "Salvar configurações"}
+                    <Save className="h-3.5 w-3.5" />
+                    {salvar.isPending ? "Salvando…" : "Salvar configurações"}
                   </Button>
-                </CardContent>
+                </CardFooter>
               </Card>
             </div>
           </TabsContent>
@@ -214,10 +270,15 @@ function Field({
   hint?: string;
 }) {
   return (
-    <div className="space-y-1">
-      <Label>{label}</Label>
-      <Input type="number" value={value} onChange={(e) => onChange(e.target.value)} />
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    <div className="space-y-1.5">
+      <Label className="text-xs font-medium text-foreground">{label}</Label>
+      <Input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="font-mono text-sm"
+      />
+      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
