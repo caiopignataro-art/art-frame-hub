@@ -72,8 +72,11 @@ describe("3. Testes de Integração Read-Only (Supabase Real — Sem Escrita)", 
       headers,
     });
 
-    // 200 indica que a versão inicial do commit d3611ab (com GRANT SELECT TO anon) já existe no remoto;
-    // 401/403 indica o estado endurecido após aplicar a versão revisada da migration (REVOKE ALL ... FROM anon).
+    // 200 indica que a versão inicial do commit d3611ab (com GRANT SELECT TO anon) ainda está ativa no remoto;
+    // 401/403 indica o estado endurecido após aplicar a migration incremental `20261116234500_fase_a_rbac_hardening.sql`.
+    console.info(
+      `[read-only] GET /rest/v1/roles?select=code,is_system&limit=10 -> HTTP ${rolesRes.status}`,
+    );
     expect([200, 401, 403]).toContain(rolesRes.status);
 
     if (rolesRes.status === 200) {

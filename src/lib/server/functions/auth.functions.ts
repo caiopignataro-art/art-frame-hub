@@ -99,6 +99,24 @@ export const signInServerFn = createServerFn({ method: "POST", strict: false })
       email: rawSession.identity.email,
     });
 
+    if (!internalUser) {
+      try {
+        await repos.auth.linkAndTouchIdentity({
+          appUserId: "",
+          provider: rawSession.identity.provider,
+          providerSubject: rawSession.identity.providerSubject,
+          selfService: true,
+        });
+        internalUser = await repos.auth.findUserByIdentityOrEmail({
+          provider: rawSession.identity.provider,
+          providerSubject: rawSession.identity.providerSubject,
+          email: rawSession.identity.email,
+        });
+      } catch {
+        // Identidade ainda não vinculada ou não elegível para auto-vínculo
+      }
+    }
+
     if (internalUser) {
       if (internalUser.status === "inactive" || internalUser.status === "suspended") {
         await repos.auth.writeAuditLog({

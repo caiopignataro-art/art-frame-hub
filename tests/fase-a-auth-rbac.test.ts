@@ -356,6 +356,31 @@ describe("2. Testes Estáticos / Estruturais (Migration SQL, Catálogo RBAC e En
     );
   });
 
+  test("migration incremental 20261116234500 aplica endurecimento final sem recriar tabelas", () => {
+    const incrementalSql = fs.readFileSync(
+      path.join(ROOT_DIR, "supabase", "migrations", "20261116234500_fase_a_rbac_hardening.sql"),
+      "utf8",
+    );
+
+    const sqlWithoutComments = incrementalSql.replace(/--.*$/gm, "");
+    expect(sqlWithoutComments).not.toMatch(/\bCREATE\s+TABLE\b/i);
+    expect(sqlWithoutComments).not.toMatch(/\bDROP\s+TABLE\b/i);
+    expect(sqlWithoutComments).not.toContain("OR NOT public.has_any_active_admin()");
+    expect(incrementalSql).toContain("ai.provider = v_provider");
+    expect(incrementalSql).toContain("ai.provider_subject = v_sub");
+    expect(incrementalSql).toContain("v_email_verified IS TRUE");
+    expect(incrementalSql).toContain("actor_user_id = public.current_app_user_id()");
+    expect(incrementalSql).toContain(
+      "REVOKE ALL ON FUNCTION public.app_user_has_permission(UUID, TEXT) FROM PUBLIC;",
+    );
+    expect(incrementalSql).not.toMatch(
+      /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.app_user_has_permission\(UUID,\s*TEXT\)\s+TO\s+(anon|authenticated)/i,
+    );
+    expect(incrementalSql).toContain(
+      "REVOKE ALL ON public.app_users, public.auth_identities, public.roles, public.permissions, public.user_roles, public.role_permissions, public.auth_audit_log FROM anon;",
+    );
+  });
+
   test("Server Functions somam exatamente 21 endpoints distribuídos nos 5 arquivos da Fase A", () => {
     const fnDir = path.join(ROOT_DIR, "src", "lib", "server", "functions");
     const fnFiles = fs

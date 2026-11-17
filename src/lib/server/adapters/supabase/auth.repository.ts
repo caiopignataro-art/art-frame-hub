@@ -116,6 +116,10 @@ export class SupabaseAuthRepository implements AuthRepository {
       if (rpcErr && !isMissingFunctionError(rpcErr)) {
         throw mapSupabaseError(rpcErr, "Erro ao vincular identidade do provedor de autenticação.");
       }
+
+      if (!params.appUserId) {
+        throw mapSupabaseError(rpcErr, "Identidade interna não encontrada para vínculo.");
+      }
     }
 
     const now = new Date().toISOString();
