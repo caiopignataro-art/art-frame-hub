@@ -11,6 +11,7 @@ import {
   History,
   LayoutDashboard,
   Layers,
+  Loader2,
   Package,
   Plus,
   Scissors,
@@ -28,11 +29,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { clientesService } from "@/lib/services/clientes.service";
-import { pedidosService } from "@/lib/services/pedidos.service";
-import { produtosService } from "@/lib/services/produtos.service";
-import { ordemProducaoService } from "@/lib/services/ordem-producao.service";
-import { productionKeys } from "@/lib/services/production-cache";
+import { commandSearchService } from "@/lib/services/command-search.service";
 import { formatBRL, formatOPNumber } from "@/lib/format";
 import { PEDIDO_STATUS_LABEL, PRODUTO_CATEGORIAS_IMPORTACAO, type ProdutoTipo } from "@/types/erp";
 
@@ -158,6 +155,9 @@ const NAV_COMMANDS = [
   },
 ] as const;
 
+const SEARCH_DEBOUNCE_MS = 250;
+const SEARCH_LIMIT = 8;
+
 export function CommandPalette({
   open,
   onOpenChange,
@@ -166,7 +166,9 @@ export function CommandPalette({
   onOpenChange: (open: boolean) => void;
 }) {
   const navigate = useNavigate();
-  const { auth, canPath } = useAuth();
+  const { auth, isLoading, authRequired, can, canPath } = useAuth();
+  const [search, setSearch] = React.useState("");
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -179,47 +181,64 @@ export function CommandPalette({
     return () => window.removeEventListener("keydown", down);
   }, [open, onOpenChange]);
 
-  const canViewPedidos = !auth.isAuthenticated || canPath("/pedidos");
-  const canViewClientes = !auth.isAuthenticated || canPath("/clientes");
-  const canViewProdutos = !auth.isAuthenticated || canPath("/produtos");
-  const canViewProducao = !auth.isAuthenticated || canPath("/producao");
+  React.useEffect(() => {
+    if (!open) {
+      setSearch("");
+      setDebouncedSearch("");
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [search, open]);
+
+  const isSessionReady = !isLoading && (!authRequired || (auth.isAuthenticated && auth.isActive));
+
+  const canViewPedidos = isSessionReady && can("pedidos.view");
+  const canViewClientes = isSessionReady && can("clientes.view");
+  const canViewProdutos = isSessionReady && can("produtos.view");
+  const canViewProducao = isSessionReady && can("producao.view");
 
   const pedidosQ = useQuery({
-    queryKey: ["pedidos"],
-    queryFn: () => pedidosService.list(),
+    queryKey: ["command-palette", "pedidos", debouncedSearch],
+    queryFn: () =>
+      commandSearchService.searchPedidos({ query: debouncedSearch, limit: SEARCH_LIMIT }),
     enabled: open && canViewPedidos,
     staleTime: 30_000,
   });
 
   const clientesQ = useQuery({
-    queryKey: ["clientes"],
-    queryFn: () => clientesService.list(),
+    queryKey: ["command-palette", "clientes", debouncedSearch],
+    queryFn: () =>
+      commandSearchService.searchClientes({ query: debouncedSearch, limit: SEARCH_LIMIT }),
     enabled: open && canViewClientes,
     staleTime: 30_000,
   });
 
   const produtosQ = useQuery({
-    queryKey: ["produtos"],
-    queryFn: () => produtosService.list(),
+    queryKey: ["command-palette", "produtos", debouncedSearch],
+    queryFn: () =>
+      commandSearchService.searchProdutos({ query: debouncedSearch, limit: SEARCH_LIMIT }),
     enabled: open && canViewProdutos,
     staleTime: 30_000,
   });
 
   const opsQ = useQuery({
-    queryKey: productionKeys.ordens,
-    queryFn: () => ordemProducaoService.list(),
+    queryKey: ["command-palette", "ordens-producao", debouncedSearch],
+    queryFn: () =>
+      commandSearchService.searchOrdensProducao({ query: debouncedSearch, limit: SEARCH_LIMIT }),
     enabled: open && canViewProducao,
     staleTime: 30_000,
   });
 
-  const visibleNav = React.useMemo(
-    () =>
-      NAV_COMMANDS.filter((item) => {
-        if (!auth.isAuthenticated) return true;
-        return canPath(item.to);
-      }),
-    [auth.isAuthenticated, canPath],
-  );
+  const visibleNav = React.useMemo(() => {
+    if (!isSessionReady) return [];
+    return NAV_COMMANDS.filter((item) => canPath(item.to));
+  }, [isSessionReady, canPath]);
+
+  const isSearching =
+    pedidosQ.isFetching || clientesQ.isFetching || produtosQ.isFetching || opsQ.isFetching;
 
   const runCommand = (cb: () => void) => {
     onOpenChange(false);
@@ -228,43 +247,59 @@ export function CommandPalette({
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <CommandInput placeholder="Buscar módulos, pedidos, clientes, produtos ou OPs…" />
+      <CommandInput
+        value={search}
+        onValueChange={setSearch}
+        placeholder="Buscar módulos, pedidos (#), clientes, código de produto ou OPs…"
+      />
       <CommandList className="max-h-[380px]">
-        <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
+        {isSearching && (
+          <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span>Buscando registros…</span>
+          </div>
+        )}
+        <CommandEmpty>
+          {!isSessionReady
+            ? "Autentique-se para acessar módulos e registros do ERP."
+            : "Nenhum resultado encontrado."}
+        </CommandEmpty>
 
-        <CommandGroup heading="Módulos e Navegação Rápida">
-          {visibleNav.map((item) => {
-            const Icon = item.icon;
-            return (
-              <CommandItem
-                key={item.to}
-                value={`${item.label} ${item.group} ${item.keywords}`}
-                onSelect={() =>
-                  runCommand(() => {
-                    if (item.to === "/pedidos/novo") {
-                      void navigate({ to: "/pedidos/novo", search: {} });
-                    } else {
-                      void navigate({ to: item.to });
-                    }
-                  })
-                }
-              >
-                <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                <span>{item.label}</span>
-                <span className="ml-auto text-[11px] text-muted-foreground">{item.group}</span>
-              </CommandItem>
-            );
-          })}
-        </CommandGroup>
+        {visibleNav.length > 0 && (
+          <CommandGroup heading="Módulos e Navegação Rápida">
+            {visibleNav.map((item) => {
+              const Icon = item.icon;
+              return (
+                <CommandItem
+                  key={item.to}
+                  value={`${item.label} ${item.group} ${item.keywords}`}
+                  onSelect={() =>
+                    runCommand(() => {
+                      if (item.to === "/pedidos/novo") {
+                        void navigate({ to: "/pedidos/novo", search: {} });
+                      } else {
+                        void navigate({ to: item.to });
+                      }
+                    })
+                  }
+                >
+                  <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <span>{item.label}</span>
+                  <span className="ml-auto text-[11px] text-muted-foreground">{item.group}</span>
+                </CommandItem>
+              );
+            })}
+          </CommandGroup>
+        )}
 
         {canViewPedidos && (pedidosQ.data?.length ?? 0) > 0 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Pedidos Recentes">
-              {(pedidosQ.data ?? []).slice(0, 8).map((p) => (
+            <CommandGroup heading={debouncedSearch ? "Pedidos Encontrados" : "Pedidos Recentes"}>
+              {(pedidosQ.data ?? []).map((p) => (
                 <CommandItem
                   key={p.id}
-                  value={`pedido #${p.numero_pedido} ${p.cliente?.nome ?? ""} ${PEDIDO_STATUS_LABEL[p.status]}`}
+                  value={`pedido #${p.numero_pedido} ${p.numero_pedido} ${p.cliente?.nome ?? ""} ${PEDIDO_STATUS_LABEL[p.status]}`}
                   onSelect={() =>
                     runCommand(() => {
                       void navigate({ to: "/pedidos/novo", search: { id: p.id } });
@@ -287,7 +322,7 @@ export function CommandPalette({
           <>
             <CommandSeparator />
             <CommandGroup heading="Ordens de Produção">
-              {(opsQ.data ?? []).slice(0, 6).map((op) => (
+              {(opsQ.data ?? []).map((op) => (
                 <CommandItem
                   key={op.id}
                   value={`op ordem producao ${formatOPNumber(op.numero)} ${op.numero} ${op.status}`}
@@ -315,10 +350,10 @@ export function CommandPalette({
           <>
             <CommandSeparator />
             <CommandGroup heading="Clientes">
-              {(clientesQ.data ?? []).slice(0, 8).map((c) => (
+              {(clientesQ.data ?? []).map((c) => (
                 <CommandItem
                   key={c.id}
-                  value={`cliente ${c.nome} ${c.whatsapp ?? ""} ${c.cpf_cnpj ?? ""} ${c.email ?? ""}`}
+                  value={`cliente ${c.nome} ${c.whatsapp ?? ""} ${c.telefone ?? ""} ${c.cpf_cnpj ?? ""} ${c.email ?? ""}`}
                   onSelect={() =>
                     runCommand(() => {
                       void navigate({ to: "/clientes" });
@@ -340,7 +375,7 @@ export function CommandPalette({
           <>
             <CommandSeparator />
             <CommandGroup heading="Produtos">
-              {(produtosQ.data ?? []).slice(0, 8).map((pr) => {
+              {(produtosQ.data ?? []).map((pr) => {
                 const isImportado = (
                   PRODUTO_CATEGORIAS_IMPORTACAO as readonly ProdutoTipo[]
                 ).includes(pr.tipo);

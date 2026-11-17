@@ -70,14 +70,17 @@ const SidebarProvider = React.forwardRef<
     const [openMobile, setOpenMobile] = React.useState(false);
 
     // This is the internal state of the sidebar.
-    // We use openProp and setOpenProp for control from outside the component.
-    const [_open, _setOpen] = React.useState(() => {
-      if (typeof document !== "undefined") {
-        const match = document.cookie.match(new RegExp(`(^| )${SIDEBAR_COOKIE_NAME}=([^;]+)`));
-        if (match) return match[2] === "true";
+    // Initialize consistently with defaultOpen for SSR/hydration parity, then sync cookie on mount.
+    const [_open, _setOpen] = React.useState(defaultOpen);
+
+    React.useEffect(() => {
+      if (openProp !== undefined) return;
+      const match = document.cookie.match(new RegExp(`(^| )${SIDEBAR_COOKIE_NAME}=([^;]+)`));
+      if (match) {
+        _setOpen(match[2] === "true");
       }
-      return defaultOpen;
-    });
+    }, [openProp]);
+
     const open = openProp ?? _open;
     const setOpen = React.useCallback(
       (value: boolean | ((value: boolean) => boolean)) => {
@@ -89,7 +92,7 @@ const SidebarProvider = React.forwardRef<
         }
 
         // This sets the cookie to keep the sidebar state.
-        document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+        document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}; SameSite=Lax`;
       },
       [setOpenProp, open],
     );

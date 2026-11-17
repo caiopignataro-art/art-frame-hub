@@ -246,7 +246,7 @@ function isPathActive(pathname: string, to: string, exact?: boolean) {
 }
 
 function AppSidebarNavigation({ pathname }: { pathname: string }) {
-  const { canPath, auth } = useAuth();
+  const { canPath, auth, isLoading, authRequired } = useAuth();
   const { setOpenMobile, isMobile } = useSidebar();
 
   const handleLinkClick = () => {
@@ -255,13 +255,25 @@ function AppSidebarNavigation({ pathname }: { pathname: string }) {
     }
   };
 
+  const isSessionReady = !isLoading && (!authRequired || (auth.isAuthenticated && auth.isActive));
+
+  if (!isSessionReady) {
+    return <SidebarContent className="gap-1 px-1 py-2" />;
+  }
+
   return (
     <SidebarContent className="gap-1 px-1 py-2">
       {NAV_GROUPS.map((group) => {
-        const visibleItems = group.items.filter((item) => {
-          if (!auth.isAuthenticated) return true;
-          return canPath(item.to);
-        });
+        const visibleItems = group.items
+          .map((item) => {
+            if (item.subItems && item.subItems.length > 0) {
+              const visibleSubItems = item.subItems.filter((sub) => canPath(sub.to));
+              if (visibleSubItems.length === 0) return null;
+              return { ...item, visibleSubItems };
+            }
+            return canPath(item.to) ? { ...item, visibleSubItems: undefined } : null;
+          })
+          .filter((item): item is NonNullable<typeof item> => item !== null);
 
         if (visibleItems.length === 0) return null;
 
@@ -275,13 +287,17 @@ function AppSidebarNavigation({ pathname }: { pathname: string }) {
                 {visibleItems.map((item) => {
                   const active = isPathActive(pathname, item.to, item.exact);
                   const Icon = item.icon;
-                  const hasSub = Boolean(item.subItems && item.subItems.length > 0);
+                  const visibleSubItems = item.visibleSubItems;
+                  const hasSub = Boolean(visibleSubItems && visibleSubItems.length > 0);
+                  const targetTo = canPath(item.to)
+                    ? item.to
+                    : (visibleSubItems?.[0]?.to ?? item.to);
 
                   if (!hasSub) {
                     return (
                       <SidebarMenuItem key={item.to}>
                         <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                          <Link to={item.to} onClick={handleLinkClick}>
+                          <Link to={targetTo} onClick={handleLinkClick}>
                             <Icon />
                             <span>{item.label}</span>
                           </Link>
@@ -299,7 +315,7 @@ function AppSidebarNavigation({ pathname }: { pathname: string }) {
                     >
                       <SidebarMenuItem>
                         <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                          <Link to={item.to} onClick={handleLinkClick}>
+                          <Link to={targetTo} onClick={handleLinkClick}>
                             <Icon />
                             <span>{item.label}</span>
                           </Link>
@@ -314,7 +330,7 @@ function AppSidebarNavigation({ pathname }: { pathname: string }) {
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                           <SidebarMenuSub>
-                            {item.subItems!.map((sub) => {
+                            {visibleSubItems!.map((sub) => {
                               const subActive = isPathActive(pathname, sub.to, sub.exact);
                               return (
                                 <SidebarMenuSubItem key={sub.to}>
@@ -532,8 +548,9 @@ function HeaderBreadcrumbs({
 }
 
 function HeaderAlertsMenu() {
-  const { auth, canPath } = useAuth();
-  const canViewProdutos = !auth.isAuthenticated || canPath("/produtos");
+  const { auth, isLoading, authRequired, can } = useAuth();
+  const isSessionReady = !isLoading && (!authRequired || (auth.isAuthenticated && auth.isActive));
+  const canViewProdutos = isSessionReady && can("produtos.view");
 
   const alertasQ = useQuery({
     queryKey: ["alertas-essenciais"],

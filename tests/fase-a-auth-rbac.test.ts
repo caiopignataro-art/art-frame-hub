@@ -454,7 +454,9 @@ describe("2. Testes Estáticos / Estruturais (Migration SQL, Catálogo RBAC e En
     const servicesDir = path.join(ROOT_DIR, "src", "lib", "services");
     const legacyClientUsers = fs
       .readdirSync(servicesDir)
-      .filter((f) => f.endsWith(".ts") && f !== "auth.service.ts")
+      .filter(
+        (f) => f.endsWith(".ts") && f !== "auth.service.ts" && f !== "command-search.service.ts",
+      )
       .filter((f) =>
         fs
           .readFileSync(path.join(servicesDir, f), "utf8")

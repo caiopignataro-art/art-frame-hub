@@ -99,34 +99,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const can = React.useCallback(
     (permission: PermissionCode): boolean => {
+      if (sessionQuery.isLoading) return false;
       if (!authRequired && !auth.isAuthenticated) return true;
       return canExecute(auth, permission);
     },
-    [auth, authRequired],
+    [auth, authRequired, sessionQuery.isLoading],
   );
 
   const canAny = React.useCallback(
     (permissions: readonly PermissionCode[]): boolean => {
+      if (sessionQuery.isLoading) return false;
       if (!authRequired && !auth.isAuthenticated) return true;
       return canExecuteAny(auth, permissions);
     },
-    [auth, authRequired],
+    [auth, authRequired, sessionQuery.isLoading],
   );
 
   const canModule = React.useCallback(
     (module: PermissionModule): boolean => {
+      if (sessionQuery.isLoading) return false;
       if (!authRequired && !auth.isAuthenticated) return true;
       return canAccessModule(auth, module);
     },
-    [auth, authRequired],
+    [auth, authRequired, sessionQuery.isLoading],
   );
 
   const canPath = React.useCallback(
     (pathname: string): boolean => {
+      if (pathname === "/login") return true;
+      if (sessionQuery.isLoading) return false;
       if (!authRequired && !auth.isAuthenticated) return true;
       return canAccessPathname(auth, pathname);
     },
-    [auth, authRequired],
+    [auth, authRequired, sessionQuery.isLoading],
   );
 
   const value = React.useMemo<AuthContextValue>(
