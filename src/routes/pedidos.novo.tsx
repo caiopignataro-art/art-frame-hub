@@ -246,7 +246,7 @@ function NovoPedidoPage() {
     setSituacao(snap?.situacao ?? "aberto");
     setValorSinal(Number(snap?.valor_sinal ?? 0));
     const itensDraft: PedidoItemDraft[] = (p.itens ?? []).map((i) => ({
-      descricao: i.descricao,
+      descricao: i.descricao ?? "",
       quantidade: Number(i.quantidade),
       largura_cm: Number(i.largura_cm),
       altura_cm: Number(i.altura_cm),
@@ -356,7 +356,7 @@ function NovoPedidoPage() {
     if (!isEdit || !pedidoEditQ.data) return false;
     const p = pedidoEditQ.data;
     const originalItens: PedidoItemDraft[] = (p.itens ?? []).map((i) => ({
-      descricao: i.descricao,
+      descricao: i.descricao ?? "",
       quantidade: Number(i.quantidade),
       largura_cm: Number(i.largura_cm),
       altura_cm: Number(i.altura_cm),

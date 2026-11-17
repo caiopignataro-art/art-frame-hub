@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/server/errors/app-error";
 import { mapSupabaseError } from "@/lib/server/errors/supabase-error.mapper";
-import type { AuthRepository } from "@/lib/server/repositories/auth.repository";
+import type {
+  AuthRepository,
+  BootstrapFirstAdminParams,
+} from "@/lib/server/repositories/auth.repository";
 import type {
   AppUserWithDetails,
   AuthAuditLog,
@@ -9,6 +13,7 @@ import type {
 } from "@/types/auth";
 import type { JsonValue } from "@/types/erp";
 import { isMissingTableError } from "./permissions.repository";
+import { createAdminSupabaseClient, isSupabaseAdminConfigured } from "./supabase-client.server";
 import { SupabaseUsersRepository } from "./users.repository";
 
 const FORBIDDEN_METADATA_KEYS = new Set([
@@ -20,10 +25,24 @@ const FORBIDDEN_METADATA_KEYS = new Set([
   "accesstoken",
   "refreshtoken",
   "secret",
+  "bootstrapsecret",
+  "bootstrap_secret",
   "service_role",
   "cookie",
   "authorization",
 ]);
+
+function isMissingFunctionError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code = String((error as { code?: string }).code ?? "");
+  const message = String((error as { message?: string }).message ?? "").toLowerCase();
+  return (
+    code === "42883" ||
+    code === "PGRST202" ||
+    message.includes("could not find the function") ||
+    (message.includes("function") && message.includes("does not exist"))
+  );
+}
 
 function sanitizeAuditMetadata(value: JsonValue | undefined): JsonValue {
   if (value === undefined || value === null) return {};
@@ -82,7 +101,23 @@ export class SupabaseAuthRepository implements AuthRepository {
     appUserId: string;
     provider: string;
     providerSubject: string;
+    selfService?: boolean;
   }): Promise<AuthIdentityRecord> {
+    if (params.selfService) {
+      const { data: rpcData, error: rpcErr } = await this.client.rpc(
+        "link_and_touch_current_identity",
+        { p_provider: params.provider },
+      );
+
+      if (!rpcErr && rpcData) {
+        return rpcData as AuthIdentityRecord;
+      }
+
+      if (rpcErr && !isMissingFunctionError(rpcErr)) {
+        throw mapSupabaseError(rpcErr, "Erro ao vincular identidade do provedor de autenticação.");
+      }
+    }
+
     const now = new Date().toISOString();
 
     const { data: identityData, error: idErr } = await this.client
@@ -103,19 +138,70 @@ export class SupabaseAuthRepository implements AuthRepository {
       throw mapSupabaseError(idErr, "Erro ao vincular identidade do provedor de autenticação.");
     }
 
-    // Atualiza last_login_at e ativa automaticamente se estava como 'invited'
-    const current = await this.usersRepo.getById(params.appUserId);
-    const nextStatus = current?.status === "invited" ? "active" : current?.status;
+    if (params.selfService) {
+      const current = await this.usersRepo.getById(params.appUserId);
+      const nextStatus = current?.status === "invited" ? "active" : current?.status;
 
-    await this.client
-      .from("app_users")
-      .update({
-        last_login_at: now,
-        ...(nextStatus ? { status: nextStatus } : {}),
-      })
-      .eq("id", params.appUserId);
+      await this.client
+        .from("app_users")
+        .update({
+          last_login_at: now,
+          ...(nextStatus ? { status: nextStatus } : {}),
+        })
+        .eq("id", params.appUserId);
+    }
 
     return identityData as AuthIdentityRecord;
+  }
+
+  async bootstrapFirstAdmin(params: BootstrapFirstAdminParams): Promise<AppUserWithDetails> {
+    if (!isSupabaseAdminConfigured()) {
+      throw new ValidationError(
+        "O provisionamento seguro via interface requer SUPABASE_SERVICE_ROLE_KEY configurada no servidor. Alternativamente, execute `SELECT public.bootstrap_first_admin(...)` diretamente no console SQL administrativo do banco.",
+      );
+    }
+
+    const adminClient = createAdminSupabaseClient();
+
+    const { data: userId, error } = await adminClient.rpc("bootstrap_first_admin", {
+      p_name: params.name.trim(),
+      p_email: params.email.trim().toLowerCase(),
+      p_provider: params.provider.trim().toLowerCase(),
+      p_provider_subject: params.providerSubject.trim(),
+      p_ip_address: params.ipAddress ?? null,
+      p_user_agent: params.userAgent ?? null,
+    });
+
+    if (error) {
+      if (isMissingFunctionError(error) || isMissingTableError(error)) {
+        throw new ValidationError(
+          "A estrutura de banco de dados da Fase A ainda não foi aplicada no Supabase. Aplique a migration SQL autorizada primeiro.",
+        );
+      }
+
+      const rawMsg = String((error as { message?: string }).message ?? "");
+      if (
+        rawMsg.includes("BOOTSTRAP_ALREADY_COMPLETED") ||
+        String((error as { code?: string }).code ?? "") === "42501"
+      ) {
+        throw new ForbiddenError(
+          "Operação bloqueada: o sistema já possui usuários ou administrador ativo provisionado.",
+        );
+      }
+
+      throw mapSupabaseError(
+        error,
+        "Não foi possível concluir o bootstrap atômico do primeiro administrador.",
+      );
+    }
+
+    const adminUsersRepo = new SupabaseUsersRepository(adminClient);
+    const provisioned = await adminUsersRepo.getById(String(userId));
+    if (!provisioned) {
+      throw new NotFoundError("Administrador provisionado não pôde ser recuperado.");
+    }
+
+    return provisioned;
   }
 
   async writeAuditLog(input: CreateAuthAuditLogInput): Promise<void> {
@@ -176,7 +262,16 @@ export class SupabaseAuthRepository implements AuthRepository {
   }
 
   async hasAnyActiveAdmin(): Promise<boolean> {
-    const count = await this.usersRepo.countActiveAdmins();
-    return count > 0;
+    const { data, error } = await this.client.rpc("has_any_active_admin");
+    if (!error && typeof data === "boolean") {
+      return data;
+    }
+
+    if (error && isMissingFunctionError(error)) {
+      const count = await this.usersRepo.countActiveAdmins();
+      return count > 0;
+    }
+
+    return false;
   }
 }

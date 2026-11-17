@@ -202,6 +202,7 @@ export function RouteAccessGuard({ children }: { children: React.ReactNode }) {
   const pathname = location.pathname;
 
   const [bootstrapName, setBootstrapName] = React.useState(auth.name ?? "Administrador");
+  const [bootstrapSecret, setBootstrapSecret] = React.useState("");
   const [provisioning, setProvisioning] = React.useState(false);
 
   React.useEffect(() => {
@@ -250,10 +251,18 @@ export function RouteAccessGuard({ children }: { children: React.ReactNode }) {
         toast.error("Informe seu nome para concluir o provisionamento.");
         return;
       }
+      if (!bootstrapSecret.trim() || bootstrapSecret.trim().length < 16) {
+        toast.error("Informe o segredo de inicialização (mínimo 16 caracteres).");
+        return;
+      }
       setProvisioning(true);
       try {
-        await authService.provisionFirstAdmin(bootstrapName.trim());
+        await authService.provisionFirstAdmin({
+          name: bootstrapName.trim(),
+          bootstrapSecret: bootstrapSecret.trim(),
+        });
         toast.success("Primeiro administrador provisionado com sucesso!");
+        setBootstrapSecret("");
         await refresh();
       } catch (err) {
         toast.error((err as Error).message || "Não foi possível provisionar o administrador.");
@@ -269,10 +278,13 @@ export function RouteAccessGuard({ children }: { children: React.ReactNode }) {
             <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
               <ShieldCheck className="h-5 w-5" />
             </div>
-            <CardTitle>Provisionamento do Primeiro Administrador</CardTitle>
+            <CardTitle>Provisionamento Controlado do Primeiro Administrador</CardTitle>
             <CardDescription>
               Sua identidade (<strong>{auth.email}</strong>) foi autenticada e o sistema ainda não
-              possui nenhum administrador ativo cadastrado em <code>app_users</code>.
+              possui nenhum administrador ativo em <code>app_users</code>. Informe seu nome e o
+              segredo de uso único configurado no servidor (
+              <code>FIRST_ADMIN_BOOTSTRAP_SECRET</code>) ou execute{" "}
+              <code>public.bootstrap_first_admin(...)</code> diretamente via SQL.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -284,6 +296,19 @@ export function RouteAccessGuard({ children }: { children: React.ReactNode }) {
                   value={bootstrapName}
                   onChange={(e) => setBootstrapName(e.target.value)}
                   placeholder="Ex.: Administrador Geral"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="first-admin-secret">Segredo de inicialização (uso único)</Label>
+                <Input
+                  id="first-admin-secret"
+                  type="password"
+                  autoComplete="off"
+                  value={bootstrapSecret}
+                  onChange={(e) => setBootstrapSecret(e.target.value)}
+                  placeholder="Valor de FIRST_ADMIN_BOOTSTRAP_SECRET no servidor"
+                  minLength={16}
                   required
                 />
               </div>

@@ -1,4 +1,6 @@
+import crypto from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { supabaseServerAuthAdapter } from "@/lib/server/adapters/supabase/auth.adapter";
 import {
@@ -12,16 +14,17 @@ import { requireAuthenticatedUser } from "@/lib/server/auth/authorization";
 import { getDatabaseRepositories } from "@/lib/server/database/database.provider";
 import { ForbiddenError, UnauthorizedError, ValidationError } from "@/lib/server/errors/app-error";
 import type { AppUserWithDetails, AuthContext, AuthSession } from "@/types/auth";
-import { getRequest } from "@tanstack/react-start/server";
 
 const signInSchema = z.object({
   email: z.string().trim().email("Informe um e-mail válido."),
   password: z.string().min(1, "Informe sua senha."),
 });
 
-const refreshSchema = z.object({
-  refreshToken: z.string().optional().nullable(),
-});
+const refreshSchema = z
+  .object({
+    refreshToken: z.string().optional().nullable(),
+  })
+  .optional();
 
 const passwordResetSchema = z.object({
   email: z.string().trim().email("Informe um e-mail válido."),
@@ -30,6 +33,10 @@ const passwordResetSchema = z.object({
 
 const provisionFirstAdminSchema = z.object({
   name: z.string().trim().min(2, "Informe seu nome completo (mínimo 2 caracteres)."),
+  bootstrapSecret: z
+    .string()
+    .trim()
+    .min(1, "Informe a chave secreta de inicialização (bootstrap)."),
 });
 
 export interface SessionStatusResponse {
@@ -46,6 +53,17 @@ export interface SignInResponse {
   auth: AuthContext;
   hasActiveAdmin: boolean;
   needsFirstAdminSetup: boolean;
+}
+
+function timingSafeCompare(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  if (a.length !== b.length) {
+    // Executa comparação de tamanho fixo para evitar vazamento por timing
+    crypto.timingSafeEqual(b, b);
+    return false;
+  }
+  return crypto.timingSafeEqual(a, b);
 }
 
 export const signInServerFn = createServerFn({ method: "POST", strict: false })
@@ -104,6 +122,7 @@ export const signInServerFn = createServerFn({ method: "POST", strict: false })
           appUserId: internalUser.id,
           provider: rawSession.identity.provider,
           providerSubject: rawSession.identity.providerSubject,
+          selfService: true,
         });
         internalUser = (await repos.users.getById(internalUser.id)) ?? internalUser;
       } catch {
@@ -114,6 +133,7 @@ export const signInServerFn = createServerFn({ method: "POST", strict: false })
     const hasActiveAdmin = await repos.auth.hasAnyActiveAdmin();
     const needsFirstAdminSetup = !internalUser && !hasActiveAdmin;
 
+    // Refresh token permanece isolado exclusivamente nos cookies HttpOnly
     setAuthSessionCookies({
       accessToken: rawSession.accessToken,
       refreshToken: rawSession.refreshToken,
@@ -155,7 +175,7 @@ export const signInServerFn = createServerFn({ method: "POST", strict: false })
     return {
       session: {
         accessToken: rawSession.accessToken,
-        refreshToken: rawSession.refreshToken,
+        refreshToken: null,
         expiresAt: rawSession.expiresAt,
         identity: rawSession.identity,
         user: internalUser,
@@ -195,7 +215,7 @@ export const getSessionServerFn = createServerFn({ method: "GET", strict: false 
     const ctx = await resolveServerExecutionContext({ allowAnonymous: true });
     let expiresAt: number | null = null;
 
-    // Se não há accessToken válido mas há refreshToken no cookie, tenta renovar silenciosamente
+    // Se não há accessToken válido mas há refreshToken no cookie HttpOnly, renova no servidor
     if (!ctx.auth.isAuthenticated && ctx.refreshToken) {
       try {
         const refreshed = await supabaseServerAuthAdapter.refreshSession(ctx.refreshToken);
@@ -270,7 +290,7 @@ export const refreshSessionServerFn = createServerFn({ method: "POST", strict: f
   .handler(async ({ data }): Promise<SignInResponse> => {
     const request = getRequest();
     const { refreshToken: cookieRefresh, ipAddress, userAgent } = extractRequestTokens(request);
-    const tokenToUse = data.refreshToken || cookieRefresh;
+    const tokenToUse = cookieRefresh || data?.refreshToken || null;
 
     if (!tokenToUse) {
       throw new UnauthorizedError("Token de renovação de sessão ausente.");
@@ -321,7 +341,7 @@ export const refreshSessionServerFn = createServerFn({ method: "POST", strict: f
     return {
       session: {
         accessToken: rawSession.accessToken,
-        refreshToken: rawSession.refreshToken,
+        refreshToken: null,
         expiresAt: rawSession.expiresAt,
         identity: rawSession.identity,
         user: internalUser,
@@ -355,10 +375,14 @@ export const requestPasswordResetServerFn = createServerFn({ method: "POST", str
   });
 
 /**
- * Provisionamento seguro do primeiro administrador do sistema (Bootstrap Controlado).
- * Só pode ser executado se:
- * 1) O usuário já estiver autenticado com um token válido no provedor de autenticação; E
- * 2) Ainda NÃO existir nenhum administrador ativo cadastrado em `app_users`.
+ * Provisionamento controlado e atômico do primeiro administrador do sistema (Bootstrap Seguro).
+ * Requisitos obrigatórios no servidor:
+ * 1) Identidade válida autenticada no provedor (`requireAuthenticatedUser`);
+ * 2) Segredo de uso único `FIRST_ADMIN_BOOTSTRAP_SECRET` (>= 16 caracteres) configurado no
+ *    ambiente do servidor e validado via `crypto.timingSafeEqual`;
+ * 3) Se `FIRST_ADMIN_EMAIL` estiver configurado, o e-mail autenticado deve coincidir;
+ * 4) Execução atômica no PostgreSQL via `public.bootstrap_first_admin` com advisory lock e
+ *    lock exclusivo em `app_users`, impedindo corrida entre requisições simultâneas.
  */
 export const provisionFirstAdminServerFn = createServerFn({ method: "POST", strict: false })
   .validator((data: unknown) => provisionFirstAdminSchema.parse(data))
@@ -366,68 +390,62 @@ export const provisionFirstAdminServerFn = createServerFn({ method: "POST", stri
     const ctx = await resolveServerExecutionContext({ allowAnonymous: false });
     requireAuthenticatedUser(ctx.auth);
 
-    const hasAdmin = await ctx.repos.auth.hasAnyActiveAdmin();
-    if (hasAdmin) {
-      throw new ForbiddenError(
-        "Operação bloqueada: o sistema já possui um administrador ativo provisionado.",
-      );
-    }
-
     if (!ctx.auth.email || !ctx.auth.providerSubject) {
       throw new ValidationError(
         "A identidade autenticada não possui e-mail ou identificador válido para provisionamento.",
       );
     }
 
-    const adminRole = await ctx.repos.roles.getByCode("admin");
-    if (!adminRole || adminRole.id.startsWith("seed-role-")) {
-      throw new ValidationError(
-        "A estrutura de banco de dados da Fase A (tabelas roles/app_users) ainda não foi aplicada no Supabase. Aplique a migration SQL autorizada primeiro.",
+    const configuredSecret = (process.env.FIRST_ADMIN_BOOTSTRAP_SECRET ?? "").trim();
+    if (configuredSecret.length < 16) {
+      throw new ForbiddenError(
+        "Provisionamento inicial bloqueado: configure FIRST_ADMIN_BOOTSTRAP_SECRET (mínimo 16 caracteres) no servidor ou execute `public.bootstrap_first_admin(...)` diretamente via SQL administrativo.",
       );
     }
 
-    let user = await ctx.repos.users.getByEmail(ctx.auth.email);
-    if (!user) {
-      user = await ctx.repos.users.create(
-        {
-          name: data.name.trim(),
+    if (!timingSafeCompare(data.bootstrapSecret.trim(), configuredSecret)) {
+      await ctx.repos.auth.writeAuditLog({
+        user_id: null,
+        actor_user_id: null,
+        event_type: "UNAUTHORIZED_ACCESS",
+        description: `Tentativa de bootstrap inicial rejeitada: chave secreta inválida para "${ctx.auth.email}".`,
+        ip_address: ctx.auth.ipAddress,
+        user_agent: ctx.auth.userAgent,
+        metadata: {
           email: ctx.auth.email,
-          status: "active",
-          roleIds: [adminRole.id],
+          reason: "invalid_bootstrap_secret",
         },
-        null,
-      );
-    } else {
-      const roleIds = Array.from(new Set([...user.roles.map((r) => r.id), adminRole.id]));
-      user = await ctx.repos.users.update(
-        user.id,
-        {
-          name: data.name.trim(),
-          status: "active",
-          roleIds,
-        },
-        user.id,
+      });
+      throw new ForbiddenError(
+        "Chave secreta de inicialização (bootstrap) inválida. Operação negada.",
       );
     }
 
-    await ctx.repos.auth.linkAndTouchIdentity({
-      appUserId: user.id,
+    const allowedEmail = (process.env.FIRST_ADMIN_EMAIL ?? "").trim().toLowerCase();
+    if (allowedEmail && ctx.auth.email.toLowerCase() !== allowedEmail) {
+      await ctx.repos.auth.writeAuditLog({
+        user_id: null,
+        actor_user_id: null,
+        event_type: "UNAUTHORIZED_ACCESS",
+        description: `Tentativa de bootstrap inicial bloqueada: e-mail "${ctx.auth.email}" não corresponde a FIRST_ADMIN_EMAIL.`,
+        ip_address: ctx.auth.ipAddress,
+        user_agent: ctx.auth.userAgent,
+        metadata: {
+          email: ctx.auth.email,
+          reason: "bootstrap_email_mismatch",
+        },
+      });
+      throw new ForbiddenError(
+        "Este endereço de e-mail não está autorizado a executar o bootstrap inicial do sistema.",
+      );
+    }
+
+    return ctx.repos.auth.bootstrapFirstAdmin({
+      name: data.name.trim(),
+      email: ctx.auth.email,
       provider: "supabase",
       providerSubject: ctx.auth.providerSubject,
+      ipAddress: ctx.auth.ipAddress,
+      userAgent: ctx.auth.userAgent,
     });
-
-    await ctx.repos.auth.writeAuditLog({
-      user_id: user.id,
-      actor_user_id: user.id,
-      event_type: "FIRST_ADMIN_PROVISIONED",
-      description: `Primeiro administrador provisionado no sistema: "${user.name}" (${user.email}).`,
-      ip_address: ctx.auth.ipAddress,
-      user_agent: ctx.auth.userAgent,
-      metadata: {
-        email: user.email,
-        role: "admin",
-      },
-    });
-
-    return (await ctx.repos.users.getById(user.id)) ?? user;
   });

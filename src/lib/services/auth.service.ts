@@ -27,27 +27,31 @@ import type {
 } from "@/types/auth";
 
 /**
- * Sincroniza a sessão autenticada com o cliente legada do browser apenas para que
- * os módulos comerciais (que serão migrados nas Fases B–E) continuem enviando o JWT
- * do operador autenticado às RPCs e triggers de auditoria.
+ * Concessão temporária (Fases B–E):
+ * Injeta o `accessToken` volátil (mantido apenas em RAM via `sessionTokenStore`)
+ * no cliente Supabase legado do navegador sem gravar `access_token` nem `refresh_token`
+ * em `localStorage` via `supabase.auth.setSession(...)`.
+ *
+ * Plano de remoção: eliminar esta função na Fase E, após migrar os 12 serviços
+ * operacionais para Server Functions e remover o uso de `@/integrations/supabase/client`.
  */
 async function syncLegacyBrowserClientSession(params: {
   accessToken: string | null;
-  refreshToken?: string | null;
 }): Promise<void> {
   if (typeof window === "undefined") return;
   try {
     const { supabase } = await import("@/integrations/supabase/client");
-    if (params.accessToken && params.refreshToken) {
-      await supabase.auth.setSession({
-        access_token: params.accessToken,
-        refresh_token: params.refreshToken,
-      });
-    } else if (!params.accessToken) {
-      await supabase.auth.signOut();
+    const mutableClient = supabase as unknown as {
+      accessToken?: () => Promise<string | null>;
+    };
+    if (params.accessToken) {
+      mutableClient.accessToken = async () => sessionTokenStore.getAccessToken();
+    } else {
+      mutableClient.accessToken = async () => null;
+      await supabase.auth.signOut({ scope: "local" });
     }
   } catch {
-    // Falha silenciosa caso o ambiente não suporte storage local
+    // Falha silenciosa caso o ambiente não suporte operações locais no cliente legado
   }
 }
 
@@ -61,12 +65,10 @@ export class ClientAuthProvider implements AuthProviderContract {
     const response = await signInServerFn({ data: input });
     sessionTokenStore.set({
       accessToken: response.session.accessToken,
-      refreshToken: response.session.refreshToken ?? null,
       expiresAt: response.session.expiresAt,
     });
     await syncLegacyBrowserClientSession({
       accessToken: response.session.accessToken,
-      refreshToken: response.session.refreshToken,
     });
     return response;
   }
@@ -86,11 +88,12 @@ export class ClientAuthProvider implements AuthProviderContract {
       const existing = sessionTokenStore.get();
       sessionTokenStore.set({
         accessToken: status.accessToken,
-        refreshToken: existing?.refreshToken ?? null,
         expiresAt: status.expiresAt ?? existing?.expiresAt ?? null,
       });
+      await syncLegacyBrowserClientSession({ accessToken: status.accessToken });
     } else if (!status.auth.isAuthenticated) {
       sessionTokenStore.clear();
+      await syncLegacyBrowserClientSession({ accessToken: null });
     }
     return status;
   }
@@ -103,7 +106,7 @@ export class ClientAuthProvider implements AuthProviderContract {
 
     return {
       accessToken: status.accessToken,
-      refreshToken: sessionTokenStore.getRefreshToken(),
+      refreshToken: null,
       expiresAt: status.expiresAt,
       identity: {
         provider: "supabase",
@@ -122,22 +125,20 @@ export class ClientAuthProvider implements AuthProviderContract {
 
   async refreshSession(): Promise<AuthSession | null> {
     try {
-      const refreshToken = sessionTokenStore.getRefreshToken();
       const response = await refreshSessionServerFn({
-        data: { refreshToken },
+        data: {},
       });
       sessionTokenStore.set({
         accessToken: response.session.accessToken,
-        refreshToken: response.session.refreshToken ?? null,
         expiresAt: response.session.expiresAt,
       });
       await syncLegacyBrowserClientSession({
         accessToken: response.session.accessToken,
-        refreshToken: response.session.refreshToken,
       });
       return response.session;
     } catch {
       sessionTokenStore.clear();
+      await syncLegacyBrowserClientSession({ accessToken: null });
       return null;
     }
   }
@@ -150,8 +151,11 @@ export class ClientAuthProvider implements AuthProviderContract {
     });
   }
 
-  async provisionFirstAdmin(name: string): Promise<AppUserWithDetails> {
-    return provisionFirstAdminServerFn({ data: { name } });
+  async provisionFirstAdmin(input: {
+    name: string;
+    bootstrapSecret: string;
+  }): Promise<AppUserWithDetails> {
+    return provisionFirstAdminServerFn({ data: input });
   }
 
   async checkArchitectureHealth(): Promise<ArchitectureHealthStatus> {

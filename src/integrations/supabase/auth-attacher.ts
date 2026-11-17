@@ -1,23 +1,14 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { sessionTokenStore } from "@/lib/auth/session-token.store";
-import { supabase } from "./client";
 
 // Registrado como `functionMiddleware` global em `src/start.ts`.
-// Prioriza o token gerenciado pelo `AuthProvider` da aplicação (`sessionTokenStore`)
-// em conjunto com os cookies HttpOnly, mantendo fallback para a sessão local do SDK
-// enquanto os serviços comerciais aguardam migração nas Fases B–E.
+// Concessão temporária (Fases A–E): encaminha o accessToken volátil em memória RAM
+// quando disponível; os cookies `HttpOnly` (`afh_access_token` / `afh_refresh_token`)
+// continuam sendo enviados automaticamente pelo navegador como fonte autoritativa.
+// Será removido na Fase E após a migração integral dos 12 serviços legados.
 export const attachSupabaseAuth = createMiddleware({ type: "function" }).client(
   async ({ next }) => {
-    let token = sessionTokenStore.getAccessToken();
-
-    if (!token && typeof window !== "undefined") {
-      try {
-        const { data } = await supabase.auth.getSession();
-        token = data.session?.access_token ?? null;
-      } catch {
-        token = null;
-      }
-    }
+    const token = sessionTokenStore.getAccessToken();
 
     return next({
       headers: token ? { Authorization: `Bearer ${token}` } : {},

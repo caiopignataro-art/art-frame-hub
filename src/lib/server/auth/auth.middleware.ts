@@ -108,6 +108,7 @@ export async function resolveServerExecutionContext(options?: {
         appUserId: internalUser.id,
         provider: identity.provider,
         providerSubject: identity.providerSubject,
+        selfService: true,
       });
     } catch {
       // Caso a tabela ainda não tenha sido migrada ou RLS restrinja, segue leitura

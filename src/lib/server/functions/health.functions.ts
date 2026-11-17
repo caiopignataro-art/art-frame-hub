@@ -5,6 +5,7 @@ import {
 } from "@/lib/server/adapters/supabase/supabase-client.server";
 import { isAuthRequired } from "@/lib/server/auth/auth.context";
 import { resolveServerExecutionContext } from "@/lib/server/auth/auth.middleware";
+import { requireAnyPermission } from "@/lib/server/auth/authorization";
 import { getConfiguredDatabaseProvider } from "@/lib/server/database/database.provider";
 
 export interface ArchitectureHealthStatus {
@@ -29,7 +30,12 @@ export const checkSystemArchitectureHealthServerFn = createServerFn({
   method: "GET",
   strict: false,
 }).handler(async (): Promise<ArchitectureHealthStatus> => {
-  const ctx = await resolveServerExecutionContext({ allowAnonymous: true });
+  const ctx = await resolveServerExecutionContext({ allowAnonymous: false });
+  await requireAnyPermission(
+    ctx.auth,
+    ["usuarios.view", "configuracoes.view", "perfis.view"],
+    ctx.repos,
+  );
   const provider = getConfiguredDatabaseProvider();
 
   let supabaseReachable = false;
