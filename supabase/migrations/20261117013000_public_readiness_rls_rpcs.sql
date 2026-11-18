@@ -269,7 +269,7 @@ BEGIN
 
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
     REVOKE ALL ON FUNCTION public.app_user_has_permission(UUID, TEXT) FROM authenticated;
-    GRANT EXECUTE ON FUNCTION public.has_any_active_admin() TO authenticated;
+    REVOKE ALL ON FUNCTION public.has_any_active_admin() FROM authenticated;
     GRANT EXECUTE ON FUNCTION public.assert_current_user_has_any_permission(TEXT[]) TO authenticated;
   END IF;
 
@@ -1402,9 +1402,13 @@ DECLARE
   v JSONB;
 BEGIN
   IF NULLIF(btrim(COALESCE(current_setting('request.jwt.claims', true), '')), '') IS NOT NULL THEN
-    PERFORM public.assert_current_user_has_any_permission(
-      ARRAY['configuracoes.view', 'estoque.view', 'produtos.view', 'pedidos.view', 'orcamentos.view', 'producao.view']
-    );
+    IF _chave IN ('estoque.comprimento_barra_cm', 'estoque.perda_corte_percentual') THEN
+      PERFORM public.assert_current_user_has_any_permission(
+        ARRAY['configuracoes.view', 'estoque.view', 'produtos.view', 'pedidos.view', 'orcamentos.view', 'producao.view']
+      );
+    ELSE
+      PERFORM public.assert_current_user_has_any_permission(ARRAY['configuracoes.view']);
+    END IF;
   END IF;
 
   SELECT valor INTO v FROM public.configuracoes_sistema WHERE chave = _chave;

@@ -295,13 +295,13 @@ export const getSessionServerFn = createServerFn({ method: "GET", strict: false 
     }
 
     let hasActiveAdmin = true;
-    if (ctx.auth.isAuthenticated) {
-      hasActiveAdmin = await ctx.repos.auth.hasAnyActiveAdmin();
-    } else if (isSupabaseAdminConfigured()) {
+    if (isSupabaseAdminConfigured()) {
       const { data: adminExists } = await createAdminSupabaseClient().rpc("has_any_active_admin");
       if (typeof adminExists === "boolean") {
         hasActiveAdmin = adminExists;
       }
+    } else if (ctx.auth.isAuthenticated) {
+      hasActiveAdmin = await ctx.repos.auth.hasAnyActiveAdmin();
     }
 
     return {
