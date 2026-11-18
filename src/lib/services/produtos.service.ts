@@ -136,41 +136,29 @@ export const produtosService = {
     mode: BulkMode,
   ): Promise<{ afetados: number; impactoVenda: number }> {
     const preview = await this.bulkPreview(scope, mode);
-    let impacto = 0;
-    // Update um a um para que o trigger de auditoria registre antes/depois por produto.
-    for (const row of preview) {
-      if (row.preco_novo === row.preco_atual) continue;
-      const { error } = await supabase
-        .from("produtos")
-        .update({ preco_venda: row.preco_novo })
-        .eq("id", row.id);
-      if (error) throw error;
-      impacto += row.preco_novo - row.preco_atual;
+    const updates = preview
+      .filter((row) => row.preco_novo !== row.preco_atual)
+      .map((row) => ({ id: row.id, preco_novo: row.preco_novo }));
+
+    if (updates.length === 0) {
+      return { afetados: 0, impactoVenda: 0 };
     }
 
-    // Log consolidado da operação em massa
-    const descricao =
-      mode.kind === "percentual"
-        ? `Atualização em massa de preço: ${mode.percent >= 0 ? "+" : ""}${mode.percent}%`
-        : mode.kind === "multiplicador"
-          ? `Atualização em massa de preço: multiplicador ${mode.fator}`
-          : `Atualização em massa de preço: valor fixo ${mode.preco}`;
+    const { data, error } = await supabase.rpc(
+      "rpc_produtos_bulk_update" as never,
+      {
+        p_updates: updates,
+        p_scope: scope,
+        p_mode: mode,
+      } as never,
+    );
+    if (error) throw error;
 
-    await supabase.from("historico").insert({
-      entidade: "produtos_bulk",
-      entidade_id: preview[0]?.id ?? crypto.randomUUID(),
-      acao: "atualizado",
-      descricao: `${descricao} • ${preview.length} produto(s)`,
-      dados_depois: JSON.parse(JSON.stringify({
-        scope,
-        mode,
-        afetados: preview.length,
-        impacto_venda: impacto,
-        itens: preview.slice(0, 50),
-      })),
-    });
-
-    return { afetados: preview.filter((r) => r.preco_novo !== r.preco_atual).length, impactoVenda: impacto };
+    const payload = (data ?? {}) as { afetados?: number; impactoVenda?: number };
+    return {
+      afetados: Number(payload.afetados ?? 0),
+      impactoVenda: Number(payload.impactoVenda ?? 0),
+    };
   },
 };
 

@@ -98,63 +98,29 @@ export const ordemProducaoService = {
   },
 
   async concluir(id: string): Promise<void> {
-    const { error } = await supabase
-      .from("ordem_producao")
-      .update({
-        status: "concluida",
-        concluido_em: new Date().toISOString(),
-      })
-      .eq("id", id);
+    const { error } = await supabase.rpc(
+      "rpc_concluir_ordem_producao" as never,
+      {
+        p_ordem_producao_id: id,
+      } as never,
+    );
 
     if (error) {
       throw new Error(`Erro ao concluir Ordem de Produção: ${error.message}`);
     }
-
-    const { data: { user } } = await supabase.auth.getUser();
-    const v_usuario = user?.email || "sistema";
-
-    await supabase.from("historico").insert({
-      entidade: "ordem_producao",
-      entidade_id: id,
-      usuario: v_usuario,
-      acao: "status_alterado",
-      descricao: "Ordem de Produção concluída.",
-    });
   },
 
   async arquivar(id: string): Promise<void> {
-    const opDetalhada = await this.get(id);
-    if (!opDetalhada) throw new Error("Ordem de Produção não encontrada.");
-
-    const { op, pedidos } = opDetalhada;
-
-    const temPedidosAtivos = pedidos.some((p) => p.status === "em_producao");
-
-    if (op.status === "aberta" && temPedidosAtivos) {
-      throw new Error("Não é permitido arquivar uma Ordem de Produção ativa contendo pedidos em andamento.");
-    }
-
-    const { error } = await supabase
-      .from("ordem_producao")
-      .update({
-        status: "arquivada",
-      })
-      .eq("id", id);
+    const { error } = await supabase.rpc(
+      "rpc_arquivar_ordem_producao" as never,
+      {
+        p_ordem_producao_id: id,
+      } as never,
+    );
 
     if (error) {
       throw new Error(`Erro ao arquivar Ordem de Produção: ${error.message}`);
     }
-
-    const { data: { user } } = await supabase.auth.getUser();
-    const v_usuario = user?.email || "sistema";
-
-    await supabase.from("historico").insert({
-      entidade: "ordem_producao",
-      entidade_id: id,
-      usuario: v_usuario,
-      acao: "status_alterado",
-      descricao: "Ordem de Produção arquivada.",
-    });
   },
 
   async cancelar(id: string): Promise<void> {

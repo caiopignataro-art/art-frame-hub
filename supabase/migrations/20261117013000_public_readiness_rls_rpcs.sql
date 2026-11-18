@@ -344,7 +344,9 @@ BEGIN
 
       IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
         EXECUTE format('REVOKE ALL ON public.%I FROM authenticated', v_t);
-        IF v_t <> 'inspect_func_result' THEN
+        IF v_t = 'historico' THEN
+          EXECUTE format('GRANT SELECT ON public.%I TO authenticated', v_t);
+        ELSIF v_t <> 'inspect_func_result' THEN
           EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO authenticated', v_t);
         END IF;
       END IF;
@@ -545,7 +547,7 @@ CREATE POLICY "pagamentos_delete_policy" ON public.pagamentos FOR DELETE
     OR public.app_user_has_permission('pedidos.update')
   );
 
--- historico (triggers SECURITY DEFINER e RPCs SECURITY DEFINER contornam RLS como owner; REST direto restrito a fluxos autorizados; sem UPDATE/DELETE)
+-- historico (triggers SECURITY DEFINER e RPCs SECURITY DEFINER contornam RLS como owner; INSERT direto por authenticated totalmente bloqueado; sem UPDATE/DELETE)
 CREATE POLICY "historico_select_policy" ON public.historico FOR SELECT
   USING (
     public.app_user_has_permission('historico.view')
@@ -553,21 +555,7 @@ CREATE POLICY "historico_select_policy" ON public.historico FOR SELECT
     OR public.app_user_has_permission('usuarios.view')
   );
 CREATE POLICY "historico_insert_policy" ON public.historico FOR INSERT
-  WITH CHECK (
-    public.is_current_app_user_active()
-    AND length(btrim(COALESCE(descricao, ''))) BETWEEN 1 AND 2000
-    AND (
-      (entidade = 'produtos_bulk' AND public.app_user_has_permission('produtos.bulk_update'))
-      OR (
-        entidade IN ('ordem_producao', 'ordens_producao')
-        AND (
-          public.app_user_has_permission('producao.update')
-          OR public.app_user_has_permission('producao.archive_order')
-          OR public.app_user_has_permission('producao.complete_order')
-        )
-      )
-    )
-  );
+  WITH CHECK (false);
 
 -- importacoes
 CREATE POLICY "importacoes_select_policy" ON public.importacoes FOR SELECT
@@ -1193,6 +1181,285 @@ BEGIN
 END;
 $$;
 
+-- RPCs transacionais dedicadas para operações com auditoria em `public.historico`
+CREATE OR REPLACE FUNCTION public.rpc_produtos_bulk_update(
+  p_updates JSONB,
+  p_scope JSONB DEFAULT '{}'::jsonb,
+  p_mode JSONB DEFAULT '{}'::jsonb
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_item JSONB;
+  v_prod_id UUID;
+  v_preco_atual NUMERIC;
+  v_preco_novo NUMERIC;
+  v_afetados INT := 0;
+  v_impacto NUMERIC := 0;
+  v_first_id UUID := NULL;
+  v_preview_count INT := 0;
+  v_kind TEXT;
+  v_descricao TEXT;
+  v_usuario TEXT;
+  v_itens_log JSONB := '[]'::jsonb;
+BEGIN
+  PERFORM public.assert_current_user_has_any_permission(ARRAY['produtos.bulk_update']);
+
+  IF p_updates IS NULL OR jsonb_typeof(p_updates) <> 'array' THEN
+    RAISE EXCEPTION 'Lista de atualizações em lote inválida.' USING ERRCODE = '22023';
+  END IF;
+
+  v_preview_count := jsonb_array_length(p_updates);
+  IF v_preview_count = 0 THEN
+    RETURN jsonb_build_object('afetados', 0, 'impactoVenda', 0);
+  END IF;
+
+  FOR v_item IN SELECT value FROM jsonb_array_elements(p_updates) LOOP
+    v_prod_id := (v_item ->> 'id')::uuid;
+    v_preco_novo := (v_item ->> 'preco_novo')::numeric;
+
+    IF v_prod_id IS NULL OR v_preco_novo IS NULL OR v_preco_novo < 0 THEN
+      RAISE EXCEPTION 'Item inválido na atualização em lote de produtos.' USING ERRCODE = '22023';
+    END IF;
+
+    SELECT preco_venda
+      INTO v_preco_atual
+    FROM public.produtos
+    WHERE id = v_prod_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      CONTINUE;
+    END IF;
+
+    IF v_first_id IS NULL THEN
+      v_first_id := v_prod_id;
+    END IF;
+
+    IF v_preco_novo IS DISTINCT FROM v_preco_atual THEN
+      UPDATE public.produtos
+      SET preco_venda = v_preco_novo
+      WHERE id = v_prod_id;
+
+      v_afetados := v_afetados + 1;
+      v_impacto := v_impacto + (v_preco_novo - COALESCE(v_preco_atual, 0));
+
+      IF jsonb_array_length(v_itens_log) < 50 THEN
+        v_itens_log := v_itens_log || jsonb_build_array(
+          jsonb_build_object(
+            'id', v_prod_id,
+            'preco_atual', v_preco_atual,
+            'preco_novo', v_preco_novo
+          )
+        );
+      END IF;
+    END IF;
+  END LOOP;
+
+  -- Somente grava histórico consolidado se houve atualização real em `public.produtos`
+  IF v_afetados > 0 THEN
+    v_kind := COALESCE(p_mode ->> 'kind', '');
+    IF v_kind = 'percentual' THEN
+      v_descricao := 'Atualização em massa de preço: '
+        || CASE WHEN COALESCE((p_mode ->> 'percent')::numeric, 0) >= 0 THEN '+' ELSE '' END
+        || COALESCE(p_mode ->> 'percent', '0') || '%';
+    ELSIF v_kind = 'multiplicador' THEN
+      v_descricao := 'Atualização em massa de preço: multiplicador ' || COALESCE(p_mode ->> 'fator', '1');
+    ELSE
+      v_descricao := 'Atualização em massa de preço: valor fixo ' || COALESCE(p_mode ->> 'preco', '0');
+    END IF;
+    v_descricao := v_descricao || ' • ' || v_preview_count::text || ' produto(s)';
+
+    SELECT email INTO v_usuario
+    FROM public.app_users
+    WHERE id = public.current_app_user_id();
+
+    INSERT INTO public.historico (entidade, entidade_id, usuario, acao, descricao, dados_depois)
+    VALUES (
+      'produtos_bulk',
+      COALESCE(v_first_id, gen_random_uuid()),
+      COALESCE(v_usuario, 'sistema'),
+      'atualizado',
+      v_descricao,
+      jsonb_build_object(
+        'scope', COALESCE(p_scope, '{}'::jsonb),
+        'mode', COALESCE(p_mode, '{}'::jsonb),
+        'afetados', v_afetados,
+        'impacto_venda', v_impacto,
+        'itens', v_itens_log
+      )
+    );
+  END IF;
+
+  RETURN jsonb_build_object('afetados', v_afetados, 'impactoVenda', v_impacto);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.rpc_concluir_ordem_producao(p_ordem_producao_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_status public.ordem_producao_status;
+  v_usuario TEXT;
+BEGIN
+  PERFORM public.assert_current_user_has_any_permission(ARRAY['producao.complete_order', 'producao.update']);
+
+  SELECT status
+    INTO v_status
+  FROM public.ordem_producao
+  WHERE id = p_ordem_producao_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Ordem de Produção não encontrada.' USING ERRCODE = 'P0001';
+  END IF;
+
+  UPDATE public.ordem_producao
+  SET status = 'concluida',
+      concluido_em = pg_catalog.now()
+  WHERE id = p_ordem_producao_id;
+
+  SELECT email INTO v_usuario
+  FROM public.app_users
+  WHERE id = public.current_app_user_id();
+
+  INSERT INTO public.historico (entidade, entidade_id, usuario, acao, descricao)
+  VALUES (
+    'ordem_producao',
+    p_ordem_producao_id,
+    COALESCE(v_usuario, 'sistema'),
+    'status_alterado',
+    'Ordem de Produção concluída.'
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.rpc_arquivar_ordem_producao(p_ordem_producao_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_status public.ordem_producao_status;
+  v_usuario TEXT;
+BEGIN
+  PERFORM public.assert_current_user_has_any_permission(ARRAY['producao.archive_order', 'producao.update']);
+
+  SELECT status
+    INTO v_status
+  FROM public.ordem_producao
+  WHERE id = p_ordem_producao_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Ordem de Produção não encontrada.' USING ERRCODE = 'P0001';
+  END IF;
+
+  IF v_status = 'aberta' AND EXISTS (
+    SELECT 1
+    FROM public.pedidos p
+    WHERE p.ordem_producao_id = p_ordem_producao_id
+      AND p.status = 'em_producao'
+  ) THEN
+    RAISE EXCEPTION 'Não é permitido arquivar uma Ordem de Produção ativa contendo pedidos em andamento.' USING ERRCODE = 'P0001';
+  END IF;
+
+  UPDATE public.ordem_producao
+  SET status = 'arquivada'
+  WHERE id = p_ordem_producao_id;
+
+  SELECT email INTO v_usuario
+  FROM public.app_users
+  WHERE id = public.current_app_user_id();
+
+  INSERT INTO public.historico (entidade, entidade_id, usuario, acao, descricao)
+  VALUES (
+    'ordem_producao',
+    p_ordem_producao_id,
+    COALESCE(v_usuario, 'sistema'),
+    'status_alterado',
+    'Ordem de Produção arquivada.'
+  );
+END;
+$$;
+
+-- Endurecimento de `cfg_num` e `calcular_estado_pedido` com validação RBAC em sessões JWT
+CREATE OR REPLACE FUNCTION public.cfg_num(_chave TEXT, _default NUMERIC)
+RETURNS NUMERIC
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v JSONB;
+BEGIN
+  IF NULLIF(btrim(COALESCE(current_setting('request.jwt.claims', true), '')), '') IS NOT NULL THEN
+    PERFORM public.assert_current_user_has_any_permission(
+      ARRAY['configuracoes.view', 'estoque.view', 'produtos.view', 'pedidos.view', 'orcamentos.view', 'producao.view']
+    );
+  END IF;
+
+  SELECT valor INTO v FROM public.configuracoes_sistema WHERE chave = _chave;
+  IF v IS NULL THEN
+    RETURN _default;
+  END IF;
+  RETURN (v::text)::numeric;
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    RAISE;
+  WHEN OTHERS THEN
+    RETURN _default;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.calcular_estado_pedido(p_pedido_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_itens_total INT;
+  v_itens_preparados INT;
+  v_itens_com_problema INT;
+  v_pedido_pronto BOOLEAN;
+BEGIN
+  IF NULLIF(btrim(COALESCE(current_setting('request.jwt.claims', true), '')), '') IS NOT NULL THEN
+    PERFORM public.assert_current_user_has_any_permission(ARRAY['pedidos.view', 'producao.view']);
+  END IF;
+
+  SELECT COUNT(1),
+         COUNT(1) FILTER (WHERE preparado = true),
+         COUNT(1) FILTER (WHERE possui_problema = true)
+  INTO v_itens_total, v_itens_preparados, v_itens_com_problema
+  FROM public.ordem_producao_itens
+  WHERE pedido_id = p_pedido_id;
+
+  IF v_itens_total > 0 AND v_itens_preparados = v_itens_total AND v_itens_com_problema = 0 THEN
+    v_pedido_pronto := TRUE;
+  ELSE
+    v_pedido_pronto := FALSE;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'id', p_pedido_id,
+    'itens_total', v_itens_total,
+    'itens_preparados', v_itens_preparados,
+    'itens_com_problema', v_itens_com_problema,
+    'pedido_pronto', v_pedido_pronto
+  );
+END;
+$$;
+
 -- Privilégios EXECUTE: revogar `PUBLIC` e `anon` de todas as RPCs, triggers e `_impl`
 DO $$
 DECLARE
@@ -1201,6 +1468,9 @@ DECLARE
     'public.rpc_reverter_aprovacao_pedido(uuid)',
     'public.obter_detalhe_ordem_producao(uuid)',
     'public.get_dashboard_summary()',
+    'public.rpc_produtos_bulk_update(jsonb,jsonb,jsonb)',
+    'public.rpc_concluir_ordem_producao(uuid)',
+    'public.rpc_arquivar_ordem_producao(uuid)',
     'public.criar_ordem_producao(uuid[],text)',
     'public.remover_pedido_da_ordem_producao(uuid,text)',
     'public.cancelar_ordem_producao(uuid)',
@@ -1215,15 +1485,7 @@ DECLARE
     'public.estoque_saldo_cm(uuid)',
     'public.cfg_num(text,numeric)',
     'public.calcular_consumo_moldura(numeric,numeric,numeric)',
-    'public.calcular_estado_pedido(uuid)',
-    'public.tg_set_updated_at()',
-    'public.tg_set_atualizado_em()',
-    'public.tg_audit_historico()',
-    'public.tg_audit_historico_simples()',
-    'public.tg_pedido_whatsapp_eventos()',
-    'public.tg_pedidos_estoque()',
-    'public.tg_pedido_itens_estoque()',
-    'public.tg_validar_status_pedido()'
+    'public.calcular_estado_pedido(uuid)'
   ];
   v_impl_rpcs TEXT[] := ARRAY[
     'public.proximo_codigo_produto_impl()',
@@ -1239,7 +1501,15 @@ DECLARE
     'public.processar_reserva_pedido_impl(uuid)',
     'public.estornar_reservas_pedido_impl(uuid)',
     'public.consumir_reservas_pedido_impl(uuid)',
-    'public.estoque_saldo_cm_impl(uuid)'
+    'public.estoque_saldo_cm_impl(uuid)',
+    'public.tg_set_updated_at()',
+    'public.tg_set_atualizado_em()',
+    'public.tg_audit_historico()',
+    'public.tg_audit_historico_simples()',
+    'public.tg_pedido_whatsapp_eventos()',
+    'public.tg_pedidos_estoque()',
+    'public.tg_pedido_itens_estoque()',
+    'public.tg_validar_status_pedido()'
   ];
   v_sig TEXT;
 BEGIN
