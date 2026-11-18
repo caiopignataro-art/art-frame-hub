@@ -210,11 +210,25 @@ export class SupabaseAuthRepository implements AuthRepository {
 
   async writeAuditLog(input: CreateAuthAuditLogInput): Promise<void> {
     const safeMetadata = sanitizeAuditMetadata(input.metadata);
-    const { error } = await this.client.from("auth_audit_log").insert({
+    const safeDescription = input.description.trim().slice(0, 1000);
+    const safeEventType = input.event_type.trim().slice(0, 80);
+
+    // Eventos pré-autenticação (sem actor_user_id) devem ser gravados apenas pelo backend com service_role,
+    // jamais abrindo INSERT direto em `auth_audit_log` para a role `anon`.
+    const targetClient =
+      !input.actor_user_id && isSupabaseAdminConfigured()
+        ? createAdminSupabaseClient()
+        : this.client;
+
+    if (!input.actor_user_id && !isSupabaseAdminConfigured()) {
+      return;
+    }
+
+    const { error } = await targetClient.from("auth_audit_log").insert({
       user_id: input.user_id ?? null,
       actor_user_id: input.actor_user_id ?? null,
-      event_type: input.event_type,
-      description: input.description,
+      event_type: safeEventType,
+      description: safeDescription,
       ip_address: input.ip_address ?? null,
       user_agent: input.user_agent ?? null,
       metadata: safeMetadata,

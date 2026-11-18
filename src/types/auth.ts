@@ -142,6 +142,7 @@ export interface AuthIdentity {
   providerSubject: string;
   email: string;
   name?: string | null;
+  emailVerified?: boolean;
 }
 
 export interface AuthSession {

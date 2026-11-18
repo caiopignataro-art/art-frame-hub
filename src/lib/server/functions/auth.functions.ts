@@ -4,6 +4,10 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { supabaseServerAuthAdapter } from "@/lib/server/adapters/supabase/auth.adapter";
 import {
+  createAdminSupabaseClient,
+  isSupabaseAdminConfigured,
+} from "@/lib/server/adapters/supabase/supabase-client.server";
+import {
   clearAuthSessionCookies,
   extractRequestTokens,
   isAuthRequired,
@@ -99,7 +103,7 @@ export const signInServerFn = createServerFn({ method: "POST", strict: false })
       email: rawSession.identity.email,
     });
 
-    if (!internalUser) {
+    if (!internalUser && rawSession.identity.emailVerified === true) {
       try {
         await repos.auth.linkAndTouchIdentity({
           appUserId: "",
@@ -290,7 +294,15 @@ export const getSessionServerFn = createServerFn({ method: "GET", strict: false 
       user = await ctx.repos.users.getById(ctx.auth.userId);
     }
 
-    const hasActiveAdmin = await ctx.repos.auth.hasAnyActiveAdmin();
+    let hasActiveAdmin = true;
+    if (ctx.auth.isAuthenticated) {
+      hasActiveAdmin = await ctx.repos.auth.hasAnyActiveAdmin();
+    } else if (isSupabaseAdminConfigured()) {
+      const { data: adminExists } = await createAdminSupabaseClient().rpc("has_any_active_admin");
+      if (typeof adminExists === "boolean") {
+        hasActiveAdmin = adminExists;
+      }
+    }
 
     return {
       auth: ctx.auth,

@@ -56,6 +56,7 @@ export class SupabaseServerAuthAdapter {
       providerSubject: user.id,
       email: (user.email ?? "").toLowerCase(),
       name: rawName,
+      emailVerified: Boolean(user.email_confirmed_at || user.confirmed_at),
     };
   }
 
@@ -92,6 +93,7 @@ export class SupabaseServerAuthAdapter {
         providerSubject: data.user.id,
         email: (data.user.email ?? email).toLowerCase(),
         name: rawName,
+        emailVerified: Boolean(data.user.email_confirmed_at || data.user.confirmed_at),
       },
     };
   }
@@ -126,6 +128,7 @@ export class SupabaseServerAuthAdapter {
         providerSubject: data.user.id,
         email: (data.user.email ?? "").toLowerCase(),
         name: rawName,
+        emailVerified: Boolean(data.user.email_confirmed_at || data.user.confirmed_at),
       },
     };
   }
