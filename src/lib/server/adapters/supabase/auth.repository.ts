@@ -213,49 +213,68 @@ export class SupabaseAuthRepository implements AuthRepository {
     const safeDescription = input.description.trim().slice(0, 1000);
     const safeEventType = input.event_type.trim().slice(0, 80);
 
-    // Eventos pré-autenticação (sem actor_user_id) devem ser gravados apenas pelo backend com service_role,
-    // jamais abrindo INSERT direto em `auth_audit_log` para a role `anon`.
-    const targetClient =
-      !input.actor_user_id && isSupabaseAdminConfigured()
-        ? createAdminSupabaseClient()
-        : this.client;
-
-    if (!input.actor_user_id && !isSupabaseAdminConfigured()) {
+    // Somente eventos do servidor com `service_role` são aceitos em `auth_audit_log` (INSERT direto por `anon`/`authenticated` está bloqueado no banco).
+    if (!isSupabaseAdminConfigured()) {
       return;
     }
 
-    const { error } = await targetClient.from("auth_audit_log").insert({
-      user_id: input.user_id ?? null,
-      actor_user_id: input.actor_user_id ?? null,
-      event_type: safeEventType,
-      description: safeDescription,
-      ip_address: input.ip_address ?? null,
-      user_agent: input.user_agent ?? null,
-      metadata: safeMetadata,
-    });
+      const allowedEvents = new Set([
+        "LOGIN_SUCCESS",
+        "LOGIN_FAILED",
+        "LOGOUT",
+        "PASSWORD_RESET_REQUESTED",
+        "UNAUTHORIZED_ACCESS",
+        "FIRST_ADMIN_PROVISIONED",
+        "USER_INVITED",
+        "USER_CREATED",
+        "USER_UPDATED",
+        "USER_STATUS_CHANGED",
+        "ROLE_CREATED",
+        "ROLE_UPDATED",
+        "ROLE_DELETED",
+        "ROLE_PERMISSIONS_UPDATED",
+        "USER_ROLES_UPDATED",
+        "PERMISSION_CHECK_FAILED",
+      ]);
 
-    if (error && !isMissingTableError(error)) {
-      console.error("[AuthAuditLog] Falha ao gravar log de auditoria:", error.message);
+      if (!allowedEvents.has(safeEventType) && !/^[A-Z0-9_]{3,80}$/.test(safeEventType)) {
+        return;
+      }
+
+      const targetClient = createAdminSupabaseClient();
+
+      const { error } = await targetClient.from("auth_audit_log").insert({
+        user_id: input.user_id ?? null,
+        actor_user_id: input.actor_user_id ?? null,
+        event_type: safeEventType,
+        description: safeDescription,
+        ip_address: input.ip_address ?? null,
+        user_agent: input.user_agent ?? null,
+        metadata: safeMetadata,
+      });
+
+      if (error && !isMissingTableError(error)) {
+        console.error("[AuthAuditLog] Falha ao gravar log de auditoria:", error.message);
+      }
     }
-  }
 
-  async listAuditLogs(opts?: {
-    userId?: string;
-    eventType?: string;
-    limit?: number;
-  }): Promise<AuthAuditLog[]> {
-    let query = this.client
-      .from("auth_audit_log")
-      .select(
-        "id, user_id, actor_user_id, event_type, description, ip_address, user_agent, metadata, created_at, user:app_users!auth_audit_log_user_id_fkey(id, name, email), actor:app_users!auth_audit_log_actor_user_id_fkey(id, name, email)",
-      )
-      .order("created_at", { ascending: false })
-      .limit(opts?.limit ?? 100);
+  async listAuditLogs(opts ?: {
+      userId?: string;
+      eventType?: string;
+      limit?: number;
+    }): Promise < AuthAuditLog[] > {
+      let query = this.client
+        .from("auth_audit_log")
+        .select(
+          "id, user_id, actor_user_id, event_type, description, ip_address, user_agent, metadata, created_at, user:app_users!auth_audit_log_user_id_fkey(id, name, email), actor:app_users!auth_audit_log_actor_user_id_fkey(id, name, email)",
+        )
+        .order("created_at", { ascending: false })
+        .limit(opts?.limit ?? 100);
 
-    if (opts?.userId) {
-      query = query.or(`user_id.eq.${opts.userId},actor_user_id.eq.${opts.userId}`);
-    }
-    if (opts?.eventType && opts.eventType !== "todos") {
+      if(opts?.userId) {
+        query = query.or(`user_id.eq.${opts.userId},actor_user_id.eq.${opts.userId}`);
+      }
+    if(opts?.eventType && opts.eventType !== "todos") {
       query = query.eq("event_type", opts.eventType);
     }
 

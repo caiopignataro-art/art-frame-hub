@@ -70,6 +70,91 @@ function timingSafeCompare(provided: string, expected: string): boolean {
   return crypto.timingSafeEqual(a, b);
 }
 
+async function resolveHasActiveAdmin(
+  repos: ReturnType<typeof getDatabaseRepositories>,
+): Promise<boolean> {
+  if (isSupabaseAdminConfigured()) {
+    const { data: adminExists } = await createAdminSupabaseClient().rpc("has_any_active_admin");
+    if (typeof adminExists === "boolean") {
+      return adminExists;
+    }
+  }
+  return repos.auth.hasAnyActiveAdmin();
+}
+
+async function linkVerifiedIdentityServerSide(
+  repos: ReturnType<typeof getDatabaseRepositories>,
+  identity: {
+    provider: string;
+    providerSubject: string;
+    email: string;
+    emailVerified?: boolean;
+  },
+  knownAppUserId?: string,
+): Promise<void> {
+  if (identity.emailVerified !== true) {
+    return;
+  }
+
+  if (isSupabaseAdminConfigured()) {
+    const adminClient = createAdminSupabaseClient();
+    let targetUserId = knownAppUserId;
+
+    if (!targetUserId && identity.email) {
+      const { data: invitedUser } = await adminClient
+        .from("app_users")
+        .select("id, status")
+        .ilike("email", identity.email)
+        .eq("status", "invited")
+        .maybeSingle();
+
+      if (invitedUser?.id) {
+        const { data: existingProviderLink } = await adminClient
+          .from("auth_identities")
+          .select("id")
+          .eq("app_user_id", invitedUser.id)
+          .eq("provider", identity.provider)
+          .maybeSingle();
+
+        if (!existingProviderLink) {
+          targetUserId = invitedUser.id;
+        }
+      }
+    }
+
+    if (targetUserId) {
+      const now = new Date().toISOString();
+      await adminClient.from("auth_identities").upsert(
+        {
+          app_user_id: targetUserId,
+          provider: identity.provider,
+          provider_subject: identity.providerSubject,
+          last_authenticated_at: now,
+        },
+        { onConflict: "provider,provider_subject" },
+      );
+      await adminClient
+        .from("app_users")
+        .update({ last_login_at: now, status: "active" })
+        .eq("id", targetUserId)
+        .eq("status", "invited");
+      await adminClient
+        .from("app_users")
+        .update({ last_login_at: now })
+        .eq("id", targetUserId)
+        .eq("status", "active");
+      return;
+    }
+  }
+
+  await repos.auth.linkAndTouchIdentity({
+    appUserId: knownAppUserId ?? "",
+    provider: identity.provider,
+    providerSubject: identity.providerSubject,
+    selfService: true,
+  });
+}
+
 export const signInServerFn = createServerFn({ method: "POST", strict: false })
   .validator((data: unknown) => signInSchema.parse(data))
   .handler(async ({ data }): Promise<SignInResponse> => {
@@ -105,12 +190,7 @@ export const signInServerFn = createServerFn({ method: "POST", strict: false })
 
     if (!internalUser && rawSession.identity.emailVerified === true) {
       try {
-        await repos.auth.linkAndTouchIdentity({
-          appUserId: "",
-          provider: rawSession.identity.provider,
-          providerSubject: rawSession.identity.providerSubject,
-          selfService: true,
-        });
+        await linkVerifiedIdentityServerSide(repos, rawSession.identity);
         internalUser = await repos.auth.findUserByIdentityOrEmail({
           provider: rawSession.identity.provider,
           providerSubject: rawSession.identity.providerSubject,
@@ -140,19 +220,14 @@ export const signInServerFn = createServerFn({ method: "POST", strict: false })
       }
 
       try {
-        await repos.auth.linkAndTouchIdentity({
-          appUserId: internalUser.id,
-          provider: rawSession.identity.provider,
-          providerSubject: rawSession.identity.providerSubject,
-          selfService: true,
-        });
+        await linkVerifiedIdentityServerSide(repos, rawSession.identity, internalUser.id);
         internalUser = (await repos.users.getById(internalUser.id)) ?? internalUser;
       } catch {
         // Continua se tabela ainda não migrada
       }
     }
 
-    const hasActiveAdmin = await repos.auth.hasAnyActiveAdmin();
+    const hasActiveAdmin = await resolveHasActiveAdmin(repos);
     const needsFirstAdminSetup = !internalUser && !hasActiveAdmin;
 
     // Refresh token permanece isolado exclusivamente nos cookies HttpOnly
@@ -262,7 +337,7 @@ export const getSessionServerFn = createServerFn({ method: "GET", strict: false 
           const activeRoles = internalUser.roles
             .filter((r) => r.active !== false)
             .map((r) => r.code);
-          const hasActiveAdmin = await repos.auth.hasAnyActiveAdmin();
+          const hasActiveAdmin = await resolveHasActiveAdmin(repos);
           return {
             auth: {
               userId: internalUser.id,
@@ -349,7 +424,7 @@ export const refreshSessionServerFn = createServerFn({ method: "POST", strict: f
       expiresAt: rawSession.expiresAt,
     });
 
-    const hasActiveAdmin = await repos.auth.hasAnyActiveAdmin();
+    const hasActiveAdmin = await resolveHasActiveAdmin(repos);
     const activeRoles = internalUser
       ? internalUser.roles.filter((r) => r.active !== false).map((r) => r.code)
       : [];

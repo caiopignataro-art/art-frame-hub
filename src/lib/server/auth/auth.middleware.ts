@@ -98,67 +98,70 @@ export async function resolveServerExecutionContext(options?: {
     );
   }
 
-  // Se o usuário estava 'invited' ou ainda não tinha a identidade vinculada em `auth_identities`, vincula automaticamente
+  // Se o usuário estava 'invited' ou ainda não tinha a identidade vinculada em `auth_identities`, vincula somente com e-mail verificado
   const hasLinkedIdentity = internalUser.identities.some(
     (id) => id.provider === identity.provider && id.provider_subject === identity.providerSubject,
   );
-  if (!hasLinkedIdentity || internalUser.status === "invited") {
-    try {
-      await repos.auth.linkAndTouchIdentity({
-        appUserId: internalUser.id,
-        provider: identity.provider,
-        providerSubject: identity.providerSubject,
-        selfService: true,
-      });
-    } catch {
-      // Caso a tabela ainda não tenha sido migrada ou RLS restrinja, segue leitura
+    if (
+      (!hasLinkedIdentity || internalUser.status === "invited") &&
+      identity.emailVerified === true
+    ) {
+      try {
+        await repos.auth.linkAndTouchIdentity({
+          appUserId: internalUser.id,
+          provider: identity.provider,
+          providerSubject: identity.providerSubject,
+          selfService: true,
+        });
+      } catch {
+        // Caso a tabela ainda não tenha sido migrada ou RLS restrinja, segue leitura
+      }
     }
+
+    const activeRoles = internalUser.roles.filter((r) => r.active !== false).map((r) => r.code);
+
+    return {
+      auth: {
+        userId: internalUser.id,
+        providerSubject: identity.providerSubject,
+        email: internalUser.email,
+        name: internalUser.name,
+        status: internalUser.status === "invited" ? "active" : internalUser.status,
+        isAuthenticated: true,
+        isActive: true,
+        roles: activeRoles,
+        permissions: internalUser.permissions,
+        ipAddress,
+        userAgent,
+      },
+      accessToken,
+      refreshToken,
+      repos,
+    };
   }
 
-  const activeRoles = internalUser.roles.filter((r) => r.active !== false).map((r) => r.code);
-
-  return {
-    auth: {
-      userId: internalUser.id,
-      providerSubject: identity.providerSubject,
-      email: internalUser.email,
-      name: internalUser.name,
-      status: internalUser.status === "invited" ? "active" : internalUser.status,
-      isAuthenticated: true,
-      isActive: true,
-      roles: activeRoles,
-      permissions: internalUser.permissions,
-      ipAddress,
-      userAgent,
+  /**
+   * Middleware Server-Side para Server Functions que resolve o contexto de autenticação
+   * e disponibiliza `auth` e `repos` de forma isolada por requisição.
+   */
+  export const authContextMiddleware = createMiddleware({ type: "function" }).server(
+    async ({ next }) => {
+      const execCtx = await resolveServerExecutionContext({ allowAnonymous: true });
+      return next({
+        context: execCtx,
+      });
     },
-    accessToken,
-    refreshToken,
-    repos,
-  };
-}
+  );
 
-/**
- * Middleware Server-Side para Server Functions que resolve o contexto de autenticação
- * e disponibiliza `auth` e `repos` de forma isolada por requisição.
- */
-export const authContextMiddleware = createMiddleware({ type: "function" }).server(
-  async ({ next }) => {
-    const execCtx = await resolveServerExecutionContext({ allowAnonymous: true });
-    return next({
-      context: execCtx,
-    });
-  },
-);
-
-/**
- * Middleware Server-Side que exige usuário autenticado e ativo no ERP.
- */
-export const requireAuthMiddleware = createMiddleware({ type: "function" }).server(
-  async ({ next }) => {
-    const execCtx = await resolveServerExecutionContext({ allowAnonymous: false });
-    requireActiveUser(execCtx.auth);
-    return next({
-      context: execCtx,
-    });
-  },
-);
+  /**
+   * Middleware Server-Side que exige usuário autenticado e ativo no ERP.
+   */
+  export const requireAuthMiddleware = createMiddleware({ type: "function" }).server(
+    async ({ next }) => {
+      const execCtx = await resolveServerExecutionContext({ allowAnonymous: false });
+      requireActiveUser(execCtx.auth);
+      return next({
+        context: execCtx,
+      });
+    },
+  );

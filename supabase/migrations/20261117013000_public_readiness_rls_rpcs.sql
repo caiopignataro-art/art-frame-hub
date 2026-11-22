@@ -281,18 +281,20 @@ BEGIN
 END
 $$;
 
--- `auth_audit_log`: bloqueia INSERT direto por anônimos e impõe limites de conteúdo
+-- `auth_audit_log`: bloqueia INSERT/UPDATE/DELETE direto por anon e authenticated; escrita via backend (`service_role`) e `bootstrap_first_admin`
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE INSERT, UPDATE, DELETE ON public.auth_audit_log FROM authenticated;
+    GRANT SELECT ON public.auth_audit_log TO authenticated;
+  END IF;
+END
+$$;
+
 DROP POLICY IF EXISTS "auth_audit_log_insert_policy" ON public.auth_audit_log;
 CREATE POLICY "auth_audit_log_insert_policy" ON public.auth_audit_log
   FOR INSERT
-  WITH CHECK (
-    public.current_app_user_id() IS NOT NULL
-    AND actor_user_id IS NOT NULL
-    AND actor_user_id = public.current_app_user_id()
-    AND length(btrim(event_type)) BETWEEN 1 AND 80
-    AND length(btrim(description)) BETWEEN 1 AND 1000
-    AND octet_length(metadata::text) <= 4096
-  );
+  WITH CHECK (false);
 
 -- ============================================================================
 -- 2. REVOGAÇÃO DE `anon` E PROTEÇÃO DE TABELAS OPERACIONAIS, SEQUENCES E DEFAULTS
@@ -366,45 +368,70 @@ BEGIN
     REVOKE CREATE ON SCHEMA public FROM authenticated;
   END IF;
 
-  -- Revogação global + por schema de EXECUTE padrão para funções futuras (para current_user e roles proprietárias)
+  -- Revogação global + por schema de privilégios padrão (tabelas, sequências e funções) para PUBLIC, anon e authenticated
+  ALTER DEFAULT PRIVILEGES REVOKE ALL ON TABLES FROM PUBLIC;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC;
+  ALTER DEFAULT PRIVILEGES REVOKE ALL ON SEQUENCES FROM PUBLIC;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM PUBLIC;
   ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
   ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 
+  REVOKE UPDATE ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC;
+
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
     REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon;
-    ALTER DEFAULT PRIVILEGES REVOKE ALL ON FUNCTIONS FROM anon;
+    ALTER DEFAULT PRIVILEGES REVOKE ALL ON TABLES FROM anon;
     ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon;
+    ALTER DEFAULT PRIVILEGES REVOKE ALL ON SEQUENCES FROM anon;
     ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon;
+    ALTER DEFAULT PRIVILEGES REVOKE ALL ON FUNCTIONS FROM anon;
     ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM anon;
   END IF;
 
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM authenticated;
     GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+    ALTER DEFAULT PRIVILEGES REVOKE ALL ON TABLES FROM authenticated;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM authenticated;
+    ALTER DEFAULT PRIVILEGES REVOKE ALL ON SEQUENCES FROM authenticated;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM authenticated;
     ALTER DEFAULT PRIVILEGES REVOKE ALL ON FUNCTIONS FROM authenticated;
     ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM authenticated;
   END IF;
 
-  -- Garantir revogação padrão também para as roles proprietárias usadas em migrations (postgres / supabase_admin)
+  -- Garantir revogação padrão para roles proprietárias quando o papel executor for membro; caso contrário registrar NOTICE explícito
   DECLARE
     v_owner_role TEXT;
   BEGIN
     FOREACH v_owner_role IN ARRAY ARRAY['postgres', 'supabase_admin'] LOOP
       IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = v_owner_role) THEN
-        BEGIN
+        IF pg_has_role(current_user, v_owner_role, 'MEMBER') THEN
+          EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I REVOKE ALL ON TABLES FROM PUBLIC', v_owner_role);
+          EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC', v_owner_role);
+          EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I REVOKE ALL ON SEQUENCES FROM PUBLIC', v_owner_role);
+          EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON SEQUENCES FROM PUBLIC', v_owner_role);
           EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC', v_owner_role);
           EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC', v_owner_role);
           IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+            EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I REVOKE ALL ON TABLES FROM anon', v_owner_role);
+            EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON TABLES FROM anon', v_owner_role);
+            EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I REVOKE ALL ON SEQUENCES FROM anon', v_owner_role);
+            EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon', v_owner_role);
             EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I REVOKE EXECUTE ON FUNCTIONS FROM anon', v_owner_role);
             EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM anon', v_owner_role);
           END IF;
           IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+            EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I REVOKE ALL ON TABLES FROM authenticated', v_owner_role);
+            EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON TABLES FROM authenticated', v_owner_role);
+            EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I REVOKE ALL ON SEQUENCES FROM authenticated', v_owner_role);
+            EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON SEQUENCES FROM authenticated', v_owner_role);
             EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I REVOKE EXECUTE ON FUNCTIONS FROM authenticated', v_owner_role);
             EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM authenticated', v_owner_role);
           END IF;
-        EXCEPTION
-          WHEN insufficient_privilege THEN
-            NULL;
-        END;
+        ELSE
+          RAISE NOTICE 'DEFAULT PRIVILEGES para role % não alterados: current_user (%) não é membro. Objetos criados por % exigem execução direta como %.',
+            v_owner_role, current_user, v_owner_role, v_owner_role;
+        END IF;
       END IF;
     END LOOP;
   END;
@@ -473,13 +500,12 @@ CREATE POLICY "orcamento_itens_update_policy" ON public.orcamento_itens FOR UPDA
 CREATE POLICY "orcamento_itens_delete_policy" ON public.orcamento_itens FOR DELETE
   USING (public.app_user_has_permission('orcamentos.delete') OR public.app_user_has_permission('orcamentos.update'));
 
--- pedidos & pedido_itens
+-- pedidos & pedido_itens (dashboard.view usa exclusivamente `get_dashboard_summary()`, sem SELECT detalhado)
 CREATE POLICY "pedidos_select_policy" ON public.pedidos FOR SELECT
   USING (
     public.app_user_has_permission('pedidos.view')
     OR public.app_user_has_permission('producao.view')
     OR public.app_user_has_permission('pagamentos.view')
-    OR public.app_user_has_permission('dashboard.view')
   );
 CREATE POLICY "pedidos_insert_policy" ON public.pedidos FOR INSERT
   WITH CHECK (public.app_user_has_permission('pedidos.create'));
@@ -507,7 +533,6 @@ CREATE POLICY "pedido_itens_select_policy" ON public.pedido_itens FOR SELECT
   USING (
     public.app_user_has_permission('pedidos.view')
     OR public.app_user_has_permission('producao.view')
-    OR public.app_user_has_permission('dashboard.view')
   );
 CREATE POLICY "pedido_itens_insert_policy" ON public.pedido_itens FOR INSERT
   WITH CHECK (public.app_user_has_permission('pedidos.create') OR public.app_user_has_permission('pedidos.update'));
@@ -583,9 +608,21 @@ CREATE POLICY "notificacoes_whatsapp_update_policy" ON public.notificacoes_whats
 CREATE POLICY "notificacoes_whatsapp_delete_policy" ON public.notificacoes_whatsapp FOR DELETE
   USING (public.app_user_has_permission('pedidos.whatsapp'));
 
--- configuracoes_sistema (leitura operacional para qualquer funcionário interno ativo; escrita restrita)
+-- configuracoes_sistema (chaves gerais apenas com configuracoes.view; chaves operacionais de estoque liberadas aos módulos operacionais)
 CREATE POLICY "configuracoes_sistema_select_policy" ON public.configuracoes_sistema FOR SELECT
-  USING (public.is_current_app_user_active());
+  USING (
+    public.app_user_has_permission('configuracoes.view')
+    OR (
+      chave IN ('estoque.comprimento_barra_cm', 'estoque.perda_corte_percentual', 'estoque.estoque_minimo_barras_default')
+      AND (
+        public.app_user_has_permission('estoque.view')
+        OR public.app_user_has_permission('produtos.view')
+        OR public.app_user_has_permission('pedidos.view')
+        OR public.app_user_has_permission('orcamentos.view')
+        OR public.app_user_has_permission('producao.view')
+      )
+    )
+  );
 CREATE POLICY "configuracoes_sistema_insert_policy" ON public.configuracoes_sistema FOR INSERT
   WITH CHECK (public.app_user_has_permission('configuracoes.update') OR public.app_user_has_permission('configuracoes.manage'));
 CREATE POLICY "configuracoes_sistema_update_policy" ON public.configuracoes_sistema FOR UPDATE
@@ -1124,12 +1161,7 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
-  IF pg_trigger_depth() = 0 THEN
-    PERFORM public.assert_current_user_has_any_permission(ARRAY['pedidos.approve', 'pedidos.update', 'estoque.adjust', 'estoque.update']);
-  ELSIF NULLIF(btrim(COALESCE(current_setting('request.jwt.claims', true), '')), '') IS NOT NULL
-        AND NOT public.is_current_app_user_active() THEN
-    RAISE EXCEPTION 'Acesso negado: usuário inativo em trigger de reserva.' USING ERRCODE = '42501';
-  END IF;
+  PERFORM public.assert_current_user_has_any_permission(ARRAY['pedidos.approve', 'pedidos.update', 'estoque.adjust', 'estoque.update']);
   PERFORM public.processar_reserva_pedido_impl(_pedido_id);
 END;
 $$;
@@ -1141,12 +1173,7 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
-  IF pg_trigger_depth() = 0 THEN
-    PERFORM public.assert_current_user_has_any_permission(ARRAY['pedidos.cancel', 'pedidos.update', 'producao.cancel_order', 'estoque.adjust']);
-  ELSIF NULLIF(btrim(COALESCE(current_setting('request.jwt.claims', true), '')), '') IS NOT NULL
-        AND NOT public.is_current_app_user_active() THEN
-    RAISE EXCEPTION 'Acesso negado: usuário inativo em trigger de estorno.' USING ERRCODE = '42501';
-  END IF;
+  PERFORM public.assert_current_user_has_any_permission(ARRAY['pedidos.cancel', 'pedidos.update', 'producao.cancel_order', 'estoque.adjust']);
   PERFORM public.estornar_reservas_pedido_impl(_pedido_id);
 END;
 $$;
@@ -1158,13 +1185,65 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
-  IF pg_trigger_depth() = 0 THEN
-    PERFORM public.assert_current_user_has_any_permission(ARRAY['producao.complete_order', 'estoque.adjust']);
-  ELSIF NULLIF(btrim(COALESCE(current_setting('request.jwt.claims', true), '')), '') IS NOT NULL
-        AND NOT public.is_current_app_user_active() THEN
-    RAISE EXCEPTION 'Acesso negado: usuário inativo em trigger de consumo.' USING ERRCODE = '42501';
-  END IF;
+  PERFORM public.assert_current_user_has_any_permission(ARRAY['producao.complete_order', 'estoque.adjust']);
   PERFORM public.consumir_reservas_pedido_impl(_pedido_id);
+END;
+$$;
+
+-- Triggers legítimos de estoque chamam diretamente as rotinas internas `*_impl` (sem depender de `pg_trigger_depth()`)
+CREATE OR REPLACE FUNCTION public.tg_pedidos_estoque()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.status::text IN ('aprovado','aguardando_producao','em_producao','montagem','controle_qualidade') THEN
+      PERFORM public.processar_reserva_pedido_impl(NEW.id);
+    END IF;
+    RETURN NEW;
+  ELSIF TG_OP = 'UPDATE' THEN
+    IF NEW.status IS DISTINCT FROM OLD.status THEN
+      IF NEW.status::text IN ('aprovado','aguardando_producao')
+         AND OLD.status::text NOT IN ('aprovado','aguardando_producao','em_producao','montagem','controle_qualidade','pronto','entregue') THEN
+        PERFORM public.processar_reserva_pedido_impl(NEW.id);
+      ELSIF NEW.status::text = 'cancelado' THEN
+        PERFORM public.estornar_reservas_pedido_impl(NEW.id);
+        UPDATE public.ordens_producao SET status = 'cancelada' WHERE pedido_id = NEW.id AND status <> 'concluida';
+      ELSIF NEW.status::text IN ('pronto','entregue') AND OLD.status::text NOT IN ('pronto','entregue') THEN
+        PERFORM public.consumir_reservas_pedido_impl(NEW.id);
+      END IF;
+    END IF;
+    RETURN NEW;
+  END IF;
+  RETURN NULL;
+EXCEPTION WHEN OTHERS THEN
+  RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.tg_pedido_itens_estoque()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_status public.pedido_status;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    SELECT status INTO v_status FROM public.pedidos WHERE id = NEW.pedido_id;
+    IF v_status IN ('aguardando_producao','em_producao','montagem','controle_qualidade') THEN
+      IF NOT EXISTS (SELECT 1 FROM public.reservas_estoque WHERE pedido_item_id = NEW.id) THEN
+        DELETE FROM public.reservas_estoque WHERE pedido_id = NEW.pedido_id AND status = 'ativa';
+        PERFORM public.processar_reserva_pedido_impl(NEW.pedido_id);
+      END IF;
+    END IF;
+  END IF;
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NEW;
 END;
 $$;
 
@@ -1259,19 +1338,11 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- Somente grava histórico consolidado se houve atualização real em `public.produtos`
+  -- Somente grava histórico consolidado se houve atualização real em `public.produtos`, derivando descrição e resumo dos valores efetivamente aplicados
   IF v_afetados > 0 THEN
-    v_kind := COALESCE(p_mode ->> 'kind', '');
-    IF v_kind = 'percentual' THEN
-      v_descricao := 'Atualização em massa de preço: '
-        || CASE WHEN COALESCE((p_mode ->> 'percent')::numeric, 0) >= 0 THEN '+' ELSE '' END
-        || COALESCE(p_mode ->> 'percent', '0') || '%';
-    ELSIF v_kind = 'multiplicador' THEN
-      v_descricao := 'Atualização em massa de preço: multiplicador ' || COALESCE(p_mode ->> 'fator', '1');
-    ELSE
-      v_descricao := 'Atualização em massa de preço: valor fixo ' || COALESCE(p_mode ->> 'preco', '0');
-    END IF;
-    v_descricao := v_descricao || ' • ' || v_preview_count::text || ' produto(s)';
+    v_descricao := 'Atualização em massa de preço: '
+      || v_afetados::text || ' produto(s) atualizado(s), impacto líquido R$ '
+      || pg_catalog.round(v_impacto, 2)::text;
 
     SELECT email INTO v_usuario
     FROM public.app_users
@@ -1285,8 +1356,6 @@ BEGIN
       'atualizado',
       v_descricao,
       jsonb_build_object(
-        'scope', COALESCE(p_scope, '{}'::jsonb),
-        'mode', COALESCE(p_mode, '{}'::jsonb),
         'afetados', v_afetados,
         'impacto_venda', v_impacto,
         'itens', v_itens_log
@@ -1318,6 +1387,10 @@ BEGIN
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Ordem de Produção não encontrada.' USING ERRCODE = 'P0001';
+  END IF;
+
+  IF v_status = 'cancelada' THEN
+    RAISE EXCEPTION 'Não é possível concluir uma Ordem de Produção cancelada.' USING ERRCODE = 'P0001';
   END IF;
 
   UPDATE public.ordem_producao
@@ -1360,6 +1433,10 @@ BEGIN
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Ordem de Produção não encontrada.' USING ERRCODE = 'P0001';
+  END IF;
+
+  IF v_status = 'cancelada' THEN
+    RAISE EXCEPTION 'Não é possível concluir uma Ordem de Produção cancelada.' USING ERRCODE = 'P0001';
   END IF;
 
   IF v_status = 'aberta' AND EXISTS (
