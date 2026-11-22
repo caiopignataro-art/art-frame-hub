@@ -43,7 +43,7 @@ export const listRolesServerFn = createServerFn({ method: "GET", strict: false }
 );
 
 export const getRoleByIdServerFn = createServerFn({ method: "GET", strict: false })
-  .validator((data: unknown) => getRoleByIdSchema.parse(data))
+  .inputValidator((data: unknown) => getRoleByIdSchema.parse(data))
   .handler(async ({ data }): Promise<RoleWithDetails> => {
     const ctx = await resolveServerExecutionContext();
     await requireAnyPermission(ctx.auth, ["perfis.view", "roles.manage"], ctx.repos);
@@ -55,7 +55,7 @@ export const getRoleByIdServerFn = createServerFn({ method: "GET", strict: false
   });
 
 export const createRoleServerFn = createServerFn({ method: "POST", strict: false })
-  .validator((data: unknown) => createRoleSchema.parse(data))
+  .inputValidator((data: unknown) => createRoleSchema.parse(data))
   .handler(async ({ data }): Promise<RoleWithDetails> => {
     const ctx = await resolveServerExecutionContext();
     await requireAnyPermission(ctx.auth, ["perfis.create", "roles.manage"], ctx.repos);
@@ -80,7 +80,7 @@ export const createRoleServerFn = createServerFn({ method: "POST", strict: false
   });
 
 export const updateRoleServerFn = createServerFn({ method: "POST", strict: false })
-  .validator((data: unknown) => updateRoleSchema.parse(data))
+  .inputValidator((data: unknown) => updateRoleSchema.parse(data))
   .handler(async ({ data }): Promise<RoleWithDetails> => {
     const ctx = await resolveServerExecutionContext();
     await requireAnyPermission(ctx.auth, ["perfis.update", "roles.manage"], ctx.repos);
@@ -109,7 +109,7 @@ export const updateRoleServerFn = createServerFn({ method: "POST", strict: false
   });
 
 export const deleteRoleServerFn = createServerFn({ method: "POST", strict: false })
-  .validator((data: unknown) => deleteRoleSchema.parse(data))
+  .inputValidator((data: unknown) => deleteRoleSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: true }> => {
     const ctx = await resolveServerExecutionContext();
     await requireAnyPermission(ctx.auth, ["perfis.delete", "roles.manage"], ctx.repos);
@@ -136,7 +136,7 @@ export const deleteRoleServerFn = createServerFn({ method: "POST", strict: false
   });
 
 export const listUsersByRoleServerFn = createServerFn({ method: "GET", strict: false })
-  .validator((data: unknown) => getRoleByIdSchema.parse(data))
+  .inputValidator((data: unknown) => getRoleByIdSchema.parse(data))
   .handler(async ({ data }): Promise<AppUser[]> => {
     const ctx = await resolveServerExecutionContext();
     await requireAnyPermission(ctx.auth, ["perfis.view", "roles.manage"], ctx.repos);

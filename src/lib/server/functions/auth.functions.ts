@@ -156,7 +156,7 @@ async function linkVerifiedIdentityServerSide(
 }
 
 export const signInServerFn = createServerFn({ method: "POST", strict: false })
-  .validator((data: unknown) => signInSchema.parse(data))
+  .inputValidator((data: unknown) => signInSchema.parse(data))
   .handler(async ({ data }): Promise<SignInResponse> => {
     const request = getRequest();
     const { ipAddress, userAgent } = extractRequestTokens(request);
@@ -391,7 +391,7 @@ export const getSessionServerFn = createServerFn({ method: "GET", strict: false 
 );
 
 export const refreshSessionServerFn = createServerFn({ method: "POST", strict: false })
-  .validator((data: unknown) => refreshSchema.parse(data ?? {}))
+  .inputValidator((data: unknown) => refreshSchema.parse(data ?? {}))
   .handler(async ({ data }): Promise<SignInResponse> => {
     const request = getRequest();
     const { refreshToken: cookieRefresh, ipAddress, userAgent } = extractRequestTokens(request);
@@ -458,7 +458,7 @@ export const refreshSessionServerFn = createServerFn({ method: "POST", strict: f
   });
 
 export const requestPasswordResetServerFn = createServerFn({ method: "POST", strict: false })
-  .validator((data: unknown) => passwordResetSchema.parse(data))
+  .inputValidator((data: unknown) => passwordResetSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: true }> => {
     const request = getRequest();
     const { ipAddress, userAgent } = extractRequestTokens(request);
@@ -490,7 +490,7 @@ export const requestPasswordResetServerFn = createServerFn({ method: "POST", str
  *    lock exclusivo em `app_users`, impedindo corrida entre requisições simultâneas.
  */
 export const provisionFirstAdminServerFn = createServerFn({ method: "POST", strict: false })
-  .validator((data: unknown) => provisionFirstAdminSchema.parse(data))
+  .inputValidator((data: unknown) => provisionFirstAdminSchema.parse(data))
   .handler(async ({ data }): Promise<AppUserWithDetails> => {
     const ctx = await resolveServerExecutionContext({ allowAnonymous: false });
     requireAuthenticatedUser(ctx.auth);

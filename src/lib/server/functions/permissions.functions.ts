@@ -21,7 +21,7 @@ const setRolePermissionsSchema = z.object({
 });
 
 export const listPermissionsServerFn = createServerFn({ method: "GET", strict: false })
-  .validator((data: unknown) => listPermissionsSchema.parse(data))
+  .inputValidator((data: unknown) => listPermissionsSchema.parse(data))
   .handler(async ({ data }): Promise<Permission[]> => {
     const ctx = await resolveServerExecutionContext();
     await requireAnyPermission(
@@ -35,7 +35,7 @@ export const listPermissionsServerFn = createServerFn({ method: "GET", strict: f
   });
 
 export const setRolePermissionsServerFn = createServerFn({ method: "POST", strict: false })
-  .validator((data: unknown) => setRolePermissionsSchema.parse(data))
+  .inputValidator((data: unknown) => setRolePermissionsSchema.parse(data))
   .handler(async ({ data }): Promise<RoleWithDetails> => {
     const ctx = await resolveServerExecutionContext();
     await requireAnyPermission(ctx.auth, ["permissions.manage", "roles.manage"], ctx.repos);

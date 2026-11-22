@@ -58,7 +58,7 @@ export interface CreateUserServerResponse {
 }
 
 export const listUsersServerFn = createServerFn({ method: "GET", strict: false })
-  .validator((data: unknown) => listUsersFilterSchema.parse(data))
+  .inputValidator((data: unknown) => listUsersFilterSchema.parse(data))
   .handler(async ({ data }): Promise<AppUserWithDetails[]> => {
     const ctx = await resolveServerExecutionContext();
     await requirePermission(ctx.auth, "usuarios.view", ctx.repos);
@@ -66,7 +66,7 @@ export const listUsersServerFn = createServerFn({ method: "GET", strict: false }
   });
 
 export const getUserByIdServerFn = createServerFn({ method: "GET", strict: false })
-  .validator((data: unknown) => getUserByIdSchema.parse(data))
+  .inputValidator((data: unknown) => getUserByIdSchema.parse(data))
   .handler(async ({ data }): Promise<AppUserWithDetails> => {
     const ctx = await resolveServerExecutionContext();
     await requirePermission(ctx.auth, "usuarios.view", ctx.repos);
@@ -78,7 +78,7 @@ export const getUserByIdServerFn = createServerFn({ method: "GET", strict: false
   });
 
 export const createUserServerFn = createServerFn({ method: "POST", strict: false })
-  .validator((data: unknown) => createUserSchema.parse(data))
+  .inputValidator((data: unknown) => createUserSchema.parse(data))
   .handler(async ({ data }): Promise<CreateUserServerResponse> => {
     const ctx = await resolveServerExecutionContext();
     await requirePermission(ctx.auth, "usuarios.create", ctx.repos);
@@ -135,7 +135,7 @@ export const createUserServerFn = createServerFn({ method: "POST", strict: false
   });
 
 export const updateUserServerFn = createServerFn({ method: "POST", strict: false })
-  .validator((data: unknown) => updateUserSchema.parse(data))
+  .inputValidator((data: unknown) => updateUserSchema.parse(data))
   .handler(async ({ data }): Promise<AppUserWithDetails> => {
     const ctx = await resolveServerExecutionContext();
     await requirePermission(ctx.auth, "usuarios.update", ctx.repos);
@@ -176,7 +176,7 @@ export const updateUserServerFn = createServerFn({ method: "POST", strict: false
   });
 
 export const setUserStatusServerFn = createServerFn({ method: "POST", strict: false })
-  .validator((data: unknown) => setUserStatusSchema.parse(data))
+  .inputValidator((data: unknown) => setUserStatusSchema.parse(data))
   .handler(async ({ data }): Promise<AppUserWithDetails> => {
     const ctx = await resolveServerExecutionContext();
     await requirePermission(ctx.auth, "usuarios.deactivate", ctx.repos);
@@ -200,7 +200,7 @@ export const setUserStatusServerFn = createServerFn({ method: "POST", strict: fa
   });
 
 export const listAuthAuditLogsServerFn = createServerFn({ method: "GET", strict: false })
-  .validator((data: unknown) => listAuditLogsSchema.parse(data))
+  .inputValidator((data: unknown) => listAuditLogsSchema.parse(data))
   .handler(async ({ data }): Promise<AuthAuditLog[]> => {
     const ctx = await resolveServerExecutionContext();
     await requirePermission(ctx.auth, "usuarios.view", ctx.repos);
